@@ -1,55 +1,84 @@
-import { useEffect } from "react";
+import React from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
-import { HOME } from "@/constants/testIds";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "sonner";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { I18nProvider } from "@/context/I18nContext.jsx";
+import { CartProvider } from "@/context/CartContext.jsx";
+import { AdminAuthProvider, useAdminAuth } from "@/context/AdminAuthContext.jsx";
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
+import Home from "@/pages/Home.jsx";
+import Menu from "@/pages/Menu.jsx";
+import Cart from "@/pages/Cart.jsx";
+import Checkout from "@/pages/Checkout.jsx";
+import OrderSuccess from "@/pages/OrderSuccess.jsx";
 
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
+import AdminLogin from "@/pages/admin/AdminLogin.jsx";
+import AdminLayout from "@/pages/admin/AdminLayout.jsx";
+import Dashboard from "@/pages/admin/Dashboard.jsx";
+import OrdersAdmin from "@/pages/admin/OrdersAdmin.jsx";
+import MenuAdmin from "@/pages/admin/MenuAdmin.jsx";
+import CategoriesAdmin from "@/pages/admin/CategoriesAdmin.jsx";
+import BurgerBuilderAdmin from "@/pages/admin/BurgerBuilderAdmin.jsx";
+import SaucesAdmin from "@/pages/admin/SaucesAdmin.jsx";
+import ReviewsAdmin from "@/pages/admin/ReviewsAdmin.jsx";
+import SettingsAdmin from "@/pages/admin/SettingsAdmin.jsx";
 
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          data-testid={HOME.emergentLink}
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
+function AdminGuard({ children }) {
+  const { status } = useAdminAuth();
+  if (status !== "authenticated") return <Navigate to="/admin/login" replace />;
+  return children;
+}
 
 function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <I18nProvider>
+      <AdminAuthProvider>
+        <CartProvider>
+          <BrowserRouter>
+            <Toaster
+              richColors
+              theme="dark"
+              toastOptions={{
+                style: {
+                  background: "#141414",
+                  border: "2px solid #262626",
+                  color: "#F5F1E8",
+                  borderRadius: 0,
+                  fontFamily: "Outfit, sans-serif",
+                },
+              }}
+            />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/menu" element={<Menu />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/order/success" element={<OrderSuccess />} />
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route
+                path="/admin"
+                element={
+                  <AdminGuard>
+                    <AdminLayout />
+                  </AdminGuard>
+                }
+              >
+                <Route index element={<Dashboard />} />
+                <Route path="orders" element={<OrdersAdmin />} />
+                <Route path="menu" element={<MenuAdmin />} />
+                <Route path="categories" element={<CategoriesAdmin />} />
+                <Route path="burger" element={<BurgerBuilderAdmin />} />
+                <Route path="sauces" element={<SaucesAdmin />} />
+                <Route path="reviews" element={<ReviewsAdmin />} />
+                <Route path="settings" element={<SettingsAdmin />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </CartProvider>
+      </AdminAuthProvider>
+    </I18nProvider>
   );
 }
 

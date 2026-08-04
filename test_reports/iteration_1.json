@@ -1,0 +1,46 @@
+{
+  "summary": "Burger Times MVP — comprehensive backend + frontend testing. Backend: 45/45 pytest tests pass covering admin auth, seed defaults, categories/menu/burger-builder/sauces CRUD, pricing engine (plain + size-based + flat-price burgers), checkout quote & session (BT- prefix + 4-digit pickup code), force_closed → HTTP 423, order lifecycle transitions, admin stats, and safe public order lookup (strips admin fields + [TEST ORDER] sentinel). Frontend: hero + brutalist theme render, /menu shows builder CTA and category chips (empty-state UI shows but data-testid='menu-empty' is not attached), burger builder modal opens/closes and displays helpful empty-state hints when collections are empty, lang toggle switches header (nav-menu label is 'MENU' in both langs, tested visually). Admin login → all admin sub-pages (Categories, Menu, Burger Builder, Sauces, Settings, Orders) reachable; full CRUD works (created category, style, menu item — all persisted and visible). Full customer end-to-end: added menu item to cart → /checkout with fulfillment=pickup + payment=cash → landed on /order/success with BT-0L0C9Q and pickup code 8475 visible in data-testid='pickup-code-card'. force_closed=true → /checkout shows data-testid='checkout-closed-notice' and hides checkout-submit.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/burger/{part}", "issue": "Was using payload.model_dump(exclude_unset=True) which dropped the default available=True, so newly created burger builder items were invisible on /burger/config (filters {available: True}). Fixed inline in server.py."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Admin pages (CategoriesAdmin, SaucesAdmin, MenuAdmin, ReviewsAdmin, OrdersAdmin)", "issue": "useEffect(load, []) — load() returns a Promise, so React raised 'destroy is not a function' on unmount, throwing a full-page uncaught runtime error overlay and breaking navigation between admin tabs. Fixed by wrapping in useEffect(() => { load(); }, [...]).", "selector": "n/a", "priority": "CRITICAL"},
+      {"component": "Menu empty-state", "issue": "The 'Rien à afficher' empty-state div does not carry data-testid='menu-empty' (test expected this id). Empty state UI is present and correct — just missing test-id.", "selector": "[data-testid='menu-empty']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Add data-testid='menu-empty' to the empty-state div in /app/frontend/src/pages/Menu.jsx (currently missing).",
+    "Consider running a lint rule to prevent useEffect(fn, deps) where fn is async or returns a Promise — the same footgun occurred in 5 admin pages simultaneously."
+  ],
+  "critical_code_review_comments": [
+    "Backend admin_burger_create used exclude_unset=True which stripped defaults (available=True). This is a subtle bug pattern — better to always persist Pydantic defaults on create.",
+    "5 admin pages had identical useEffect(load, []) bug — indicates a shared coding pattern that needs a linter guard.",
+    "server.py has grown to 800+ lines; consider splitting into routers per resource (menu, orders, admin, burger, telegram).",
+    "PUBLIC_ORDER_FIELDS whitelist is correct — good defensive coding for the /orders/lookup endpoint."
+  ],
+  "updated_files": [
+    "/app/backend/server.py (burger create defaults fix)",
+    "/app/frontend/src/pages/admin/CategoriesAdmin.jsx (useEffect fix)",
+    "/app/frontend/src/pages/admin/SaucesAdmin.jsx (useEffect fix)",
+    "/app/frontend/src/pages/admin/MenuAdmin.jsx (useEffect fix)",
+    "/app/frontend/src/pages/admin/ReviewsAdmin.jsx (useEffect fix)",
+    "/app/frontend/src/pages/admin/OrdersAdmin.jsx (useEffect fix)",
+    "/app/backend/tests/backend_test.py (new comprehensive test suite)"
+  ],
+  "success_rate": {"backend": "100% (45/45)", "frontend": "~95% (all critical flows pass; menu-empty test-id missing)"},
+  "test_credentials": "Admin: chahineisgoated@gmail.com / BurgerTimes2026! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "During UI test: created 1 burger style, 1 size (Simple 8.0/11.0 nb_meats=1), 1 meat (UITEST_beef), 1 menu item (UITEST_item, burgers, 9.5€). Left in DB for potential re-test. Order BT-0L0C9Q was created then hard-deleted only in pytest teardown for its own order.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest suite lives at /app/backend/tests/backend_test.py — run with `pytest -n 0` (serial). It requires REACT_APP_BACKEND_URL env or reads from /app/frontend/.env. The suite temporarily forces settings.hours_per_day to always-open for the session then restores it — this is important because the restaurant may be closed based on the current local time, which would cause 423 responses on /checkout/session. Left over UITEST_* seed data (1 style, 1 size, 1 meat, 1 menu item UITEST_item) is in DB from the UI e2e run — safe to keep or delete. force_closed was reset back to false at end of test."
+}
