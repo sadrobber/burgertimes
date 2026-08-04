@@ -1,0 +1,131 @@
+{
+  "theme": "Dark Theme (Street Food / Grunge Brutalism)",
+  "global_aesthetic": "Edgy urban street-food vibe. Think Brooklyn smash-burger joint. High contrast, aggressive, tactile. No generic SaaS look. Use gritty textures, halftone dots, tape strips, and stencil/graffiti aesthetics. Sanitized fast-food chains are the enemy.",
+  "typography": {
+    "font_families": {
+      "heading": "'Anton', 'Bebas Neue', sans-serif",
+      "body": "'Outfit', 'Manrope', sans-serif",
+      "accent": "'Permanent Marker', cursive"
+    },
+    "rules": {
+      "H1": "text-5xl sm:text-6xl lg:text-7xl font-['Anton'] uppercase tracking-tight leading-none text-[#F5F1E8]",
+      "H2": "text-4xl sm:text-5xl font-['Anton'] uppercase tracking-tight text-[#F5F1E8]",
+      "H3": "text-2xl sm:text-3xl font-['Bebas_Neue'] uppercase tracking-wider text-[#EF2B2D]",
+      "body": "text-base md:text-lg font-['Outfit'] text-[#D1D1D1] leading-relaxed",
+      "labels": "text-sm md:text-base font-['Bebas_Neue'] uppercase tracking-[0.15em] text-[#A1A1A1]"
+    },
+    "instruction": "Headings must never use Inter or Space Grotesk. Headings must be uppercase. Use 'Permanent Marker' sparingly for hand-scrawled annotations like arrows or 'Sold Out' tags."
+  },
+  "colors": {
+    "primary": {
+      "DEFAULT": "#EF2B2D",
+      "hover": "#FF3B30",
+      "glow": "rgba(239, 43, 45, 0.4)"
+    },
+    "background": {
+      "base": "#0A0A0A",
+      "surface": "#141414",
+      "elevated": "#1A1A1A",
+      "texture_overlay": "rgba(0,0,0,0.5)"
+    },
+    "text": {
+      "primary": "#F5F1E8",
+      "secondary": "#B3B3B3",
+      "muted": "#666666",
+      "inverse": "#0A0A0A"
+    },
+    "borders": {
+      "default": "#262626",
+      "focus": "#EF2B2D"
+    },
+    "status": {
+      "open": "#00FF66",
+      "closing_soon": "#FFB800",
+      "closed": "#FF3B30"
+    }
+  },
+  "visual_enhancers": {
+    "textures": "Apply a subtle noise grain overlay over the entire application. Backgrounds should feel tactile. Use greaseproof paper textures or halftone dot patterns for section dividers.",
+    "borders": "Neo-brutalist approach. Use thick 2px-4px solid borders (`border-2 border-[#262626]`) instead of soft shadows. For active states, border turns `#EF2B2D`.",
+    "radius": "Minimal. Use `rounded-none` or max `rounded-sm` for a sharp, aggressive look. No soft, friendly pill shapes unless it's a specific status badge.",
+    "shadows": "Hard offset shadows (e.g., `shadow-[4px_4px_0px_0px_#EF2B2D]`). Never use soft, diffuse ambient shadows."
+  },
+  "layouts": {
+    "marketing_pages": "Asymmetric Bento Grids. Overlapping elements. Large full-bleed hero image of a grilled burger with heavy black gradient overlay (`bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/60 to-transparent`) to ensure text readability.",
+    "menu_grid": "Grid columns: 1 on mobile, 2 on tablet, 3 on desktop. Tight gap (`gap-4` or `gap-6`). Direct grid children must align at the top but stretch to fill height.",
+    "admin_dashboard": "Utilitarian Brutalism. Sidebar on the left (Charcoal #141414), main content on right (#0A0A0A). Metric cards with sharp corners and red accents. Strict hierarchy, dense spacing.",
+    "spacing": "Generous paddings around major sections (`py-20 md:py-32`). Internal card paddings should be tight and dense (`p-4` or `p-6`)."
+  },
+  "components": {
+    "MenuCard": {
+      "description": "Black card, thick border on hover, image on top, name + description. Red accent price pill.",
+      "styles": "bg-[#141414] border-2 border-[#262626] hover:border-[#EF2B2D] transition-colors relative group",
+      "image_container": "Aspect-video w-full overflow-hidden bg-[#1A1A1A]",
+      "price_pill": "Absolute top-4 right-4 bg-[#EF2B2D] text-[#F5F1E8] font-['Anton'] px-3 py-1 text-xl shadow-[2px_2px_0px_0px_#0A0A0A]",
+      "cta_button": "absolute bottom-4 right-4 w-10 h-10 bg-[#F5F1E8] text-[#0A0A0A] flex items-center justify-center hover:bg-[#EF2B2D] hover:text-[#F5F1E8] hover:scale-110 transition-transform font-bold text-xl"
+    },
+    "BurgerBuilderModal": {
+      "description": "Multi-step configuration modal (style -> size -> meats -> cheeses -> supplements -> sauces).",
+      "styles": "bg-[#141414] border-2 border-[#EF2B2D] shadow-[8px_8px_0px_0px_#EF2B2D] text-[#F5F1E8] p-0 rounded-none",
+      "steps_nav": "Flex row, overflow-x-auto, uppercase 'Bebas Neue' text. Active step is red, others are muted.",
+      "option_card": "Border-2 border-[#262626] p-4 cursor-pointer hover:border-[#EF2B2D]. If selected, bg-[#EF2B2D]/10 border-[#EF2B2D]"
+    },
+    "StatusBanner": {
+      "description": "Restaurant open/closing/closed pill.",
+      "styles": "inline-flex items-center gap-2 px-3 py-1 font-['Bebas_Neue'] tracking-wider text-sm border-2",
+      "variants": {
+        "open": "border-[#00FF66] text-[#00FF66] bg-[#00FF66]/10",
+        "closing_soon": "border-[#FFB800] text-[#FFB800] bg-[#FFB800]/10",
+        "closed": "border-[#FF3B30] text-[#FF3B30] bg-[#FF3B30]/10"
+      }
+    },
+    "Buttons": {
+      "primary": "bg-[#EF2B2D] text-[#F5F1E8] font-['Bebas_Neue'] text-xl tracking-widest px-8 py-4 border-2 border-transparent hover:bg-transparent hover:border-[#EF2B2D] hover:text-[#EF2B2D] transition-all uppercase",
+      "secondary": "bg-transparent text-[#F5F1E8] font-['Bebas_Neue'] text-xl tracking-widest px-8 py-4 border-2 border-[#262626] hover:border-[#F5F1E8] transition-all uppercase"
+    }
+  },
+  "motion": {
+    "hover_states": "Snappy and aggressive. `hover:scale-[1.02]` on cards. Use `hover:-translate-y-1`.",
+    "reveals": "Staggered fade-up for menu items. Use `framer-motion`.",
+    "clicks": "Press-scale down `active:scale-95` on buttons."
+  },
+  "accessibility": {
+    "contrast": "Red (#EF2B2D) against Black (#0A0A0A) passes APCA contrast. Ensure off-white text is used over dark backgrounds.",
+    "testing_attributes": "All interactive elements MUST include `data-testid` (e.g., `data-testid=\"add-to-cart-btn\"`, `data-testid=\"burger-builder-next\"`)."
+  },
+  "images": {
+    "hero_burger": "https://images.unsplash.com/photo-1678110707289-ab14382a1625?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwyfHxzbWFzaCUyMGJ1cmdlciUyMGJsYWNrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODU4NzcyNDF8MA&ixlib=rb-4.1.0&q=85",
+    "burger_2": "https://images.unsplash.com/photo-1600688640154-9619e002df30?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHw0fHxzbWFzaCUyMGJ1cmdlciUyMGJsYWNrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODU4NzcyNDF8MA&ixlib=rb-4.1.0&q=85",
+    "burger_3": "https://images.unsplash.com/photo-1688246780164-00c01647e78c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwzfHxzbWFzaCUyMGJ1cmdlciUyMGJsYWNrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODU4NzcyNDF8MA&ixlib=rb-4.1.0&q=85",
+    "neon_accent": "https://images.unsplash.com/photo-1605101020792-e19a3687ba7a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTF8MHwxfHNlYXJjaHwyfHxyZWQlMjBuZW9uJTIwc2lnbiUyMGRhcmt8ZW58MHx8fHwxNzg1ODc3MjQxfDA&ixlib=rb-4.1.0&q=85",
+    "grunge_texture": "https://images.pexels.com/photos/10519599/pexels-photo-10519599.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "logo_reference": "https://customer-assets-v7afamib.emergentagent.net/job_bbf36895-4920-46ce-9fbe-a5f71c0e8b89/artifacts/6ajsog2n_IMG_0572.png"
+  },
+  "instructions_to_main_agent": [
+    "Use raw HTML/Tailwind for marketing/hero sections, do not rely on generic Shadcn cards.",
+    "Customize Shadcn components (Dialog, Tabs, Forms) to strip their Vercel-look and replace with hard edges (rounded-none), thick borders, and red/black active states.",
+    "Load 'Anton', 'Bebas Neue', and 'Outfit' fonts via Google Fonts in index.html.",
+    "Use framer-motion for staggering menu items and modal slide-ups.",
+    "Implement the FR/EN toggle in the header.",
+    "Ensure 'Burger Times' graffiti logo reference is used or approximated heavily using typography if raw image is unsuitable.",
+    "For the burger builder, use state management effectively for the multi-step flow.",
+    "Prefix order IDs with 'BT-' (e.g., BT-1042).",
+    "Add global grain texture using a fixed pseudo-element with CSS noise overlay or a semi-transparent repeating background image."
+  ],
+  "universal_guidelines_for_main_agent": [
+    "You tend to converge toward generic, 'on distribution' outputs. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy and offset hard shadows.",
+    "You MUST NOT apply universal transition (e.g., transition: all). Add transitions for specific interactive elements.",
+    "You MUST NOT center align the app container (.App { text-align: center; }).",
+    "Always use modern button styles, but for this specific app, use sharp edges (rounded-none) matching the brutalist theme.",
+    "NEVER use AI assistant Emoji characters (🤖🧠💭💡🔮🎯) for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "DO NOT use complete transparent background in header, overlays, or dropdowns. Use solid #0A0A0A or #141414.",
+    "Use sonner for toast notifications.",
+    "Prioritize using pre-existing components from src/components/ui.",
+    "Ensure ALL interactive elements have data-testid attributes."
+  ]
+}
