@@ -523,11 +523,11 @@ def _validate_payment_method(settings: dict, method: str) -> None:
 def _compute_delivery_fee(fulfillment: str, subtotal: float, settings: dict) -> float:
     if fulfillment != "delivery":
         return 0.0
-    fee = float(settings.get("delivery_fee", 0.0) or 0.0)
     threshold = settings.get("free_delivery_threshold")
     if threshold is not None and subtotal >= float(threshold):
         return 0.0
-    return fee
+    percent = float(settings.get("delivery_fee_percent", 10.0) or 0.0)
+    return round(subtotal * percent / 100.0, 2)
 
 
 async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:

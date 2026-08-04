@@ -272,7 +272,7 @@ class Settings(BaseModel):
     eta_default_min: int = 20
     eta_default_max: int = 30
     soda_flavours: List[str] = Field(default_factory=list)
-    delivery_fee: float = 3.0
+    delivery_fee_percent: float = 10.0
     free_delivery_threshold: Optional[float] = None
     contact_phone: str = "04.97.07.17.93"
     contact_address: str = "6 Avenue de Villaine, 06240 Beausoleil"
@@ -301,7 +301,7 @@ class SettingsUpdate(BaseModel):
     eta_default_min: Optional[int] = None
     eta_default_max: Optional[int] = None
     soda_flavours: Optional[List[str]] = None
-    delivery_fee: Optional[float] = None
+    delivery_fee_percent: Optional[float] = None
     free_delivery_threshold: Optional[float] = None
     contact_phone: Optional[str] = None
     contact_address: Optional[str] = None

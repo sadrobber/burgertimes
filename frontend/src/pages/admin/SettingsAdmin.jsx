@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { adminClient, fmtError } from "@/lib/api";
+import { adminClient, fmtError, formatEur } from "@/lib/api";
 import { Save, Send, Trash2, Bell, CreditCard, Wallet } from "lucide-react";
 
 const DAYS = [
@@ -42,7 +42,7 @@ export default function SettingsAdmin() {
         eta_default_min: parseInt(s.eta_default_min, 10) || 0,
         eta_default_max: parseInt(s.eta_default_max, 10) || 0,
         soda_flavours: (s.soda_flavours || []).map((v) => v.trim()).filter(Boolean),
-        delivery_fee: parseFloat(s.delivery_fee) || 0,
+        delivery_fee_percent: parseFloat(s.delivery_fee_percent) || 0,
         free_delivery_threshold:
           s.free_delivery_threshold === null || s.free_delivery_threshold === ""
             ? null
@@ -391,16 +391,35 @@ export default function SettingsAdmin() {
 
       <div className="bt-card p-5 space-y-4">
         <div className="font-display text-2xl uppercase">Livraison</div>
+        <p className="text-sm text-[#A1A1A1]">
+          Les frais de livraison sont calculés en pourcentage du sous-total —
+          c&apos;est ta commission sur chaque livraison, présentée au client comme frais de
+          livraison.
+        </p>
         <div className="grid grid-cols-2 gap-4">
           <label className="block">
-            <div className="bt-label">Frais de livraison (€)</div>
-            <input
-              type="number"
-              step="0.1"
-              className="bt-input"
-              value={s.delivery_fee || 0}
-              onChange={(e) => set("delivery_fee", e.target.value)}
-            />
+            <div className="bt-label">% du sous-total</div>
+            <div className="relative">
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                max="100"
+                data-testid="settings-delivery-percent"
+                className="bt-input pr-10"
+                value={s.delivery_fee_percent ?? 10}
+                onChange={(e) => set("delivery_fee_percent", e.target.value)}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A1A1A1] font-accent uppercase tracking-widest text-xs">
+                %
+              </span>
+            </div>
+            <div className="text-xs text-[#A1A1A1] mt-2">
+              Exemple : commande de 30€ → livraison{" "}
+              <span className="text-[#EF2B2D] font-bold">
+                {formatEur(((parseFloat(s.delivery_fee_percent) || 0) * 30) / 100)}
+              </span>
+            </div>
           </label>
           <label className="block">
             <div className="bt-label">Livraison offerte dès (€)</div>
@@ -411,6 +430,9 @@ export default function SettingsAdmin() {
               value={s.free_delivery_threshold ?? ""}
               onChange={(e) => set("free_delivery_threshold", e.target.value)}
             />
+            <div className="text-xs text-[#A1A1A1] mt-2">
+              Laisse vide pour toujours facturer la livraison.
+            </div>
           </label>
         </div>
       </div>
