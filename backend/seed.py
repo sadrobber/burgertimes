@@ -86,6 +86,7 @@ async def seed_settings(db) -> None:
         for key, default in {
             "soda_flavours": DEFAULT_SODA_FLAVOURS,
             "delivery_fee_percent": 10.0,
+            "delivery_postal_codes": [],
             "eta_default_min": 20,
             "eta_default_max": 30,
             "last_order_buffer_minutes": 15,

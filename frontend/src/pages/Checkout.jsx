@@ -109,7 +109,8 @@ export default function Checkout() {
     form.phone.trim() &&
     (fulfillment === "pickup" || (form.address1.trim() && form.postal.trim() && form.city.trim())) &&
     status?.state !== "closed" &&
-    ((payment === "cash" && cashEnabled) || (payment === "card_in_person" && cardEnabled));
+    ((payment === "cash" && cashEnabled) || (payment === "card_in_person" && cardEnabled)) &&
+    postalIsServed;
 
   const submit = async () => {
     if (!canSubmit) {
@@ -143,6 +144,19 @@ export default function Checkout() {
   };
 
   const closed = status?.state === "closed";
+
+  const allowedPostalCodes = useMemo(
+    () =>
+      (settings?.delivery_postal_codes || [])
+        .map((v) => String(v).trim())
+        .filter(Boolean),
+    [settings],
+  );
+  const postalIsServed =
+    fulfillment !== "delivery" ||
+    allowedPostalCodes.length === 0 ||
+    !form.postal.trim() ||
+    allowedPostalCodes.includes(form.postal.trim());
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#F5F1E8]">
@@ -252,6 +266,23 @@ export default function Checkout() {
                       value={form.postal}
                       onChange={(e) => setForm({ ...form, postal: e.target.value })}
                     />
+                    {allowedPostalCodes.length > 0 && (
+                      <div className="mt-1 text-xs">
+                        {form.postal.trim() && !postalIsServed ? (
+                          <span
+                            data-testid="postal-not-served"
+                            className="text-[#FF3B30]"
+                          >
+                            On ne livre pas ici. Codes acceptés :{" "}
+                            {allowedPostalCodes.join(", ")}
+                          </span>
+                        ) : (
+                          <span className="text-[#A1A1A1]">
+                            On livre à : {allowedPostalCodes.join(", ")}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </Field>
                   <Field label={t("checkout.city")} required>
                     <input

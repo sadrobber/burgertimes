@@ -1,5 +1,6 @@
 import React from "react";
-import { Instagram, Phone, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Instagram, Phone, MapPin, Lock } from "lucide-react";
 import { useI18n } from "@/context/I18nContext.jsx";
 import { apiClient } from "@/lib/api";
 
@@ -95,9 +96,19 @@ export default function Footer() {
             )}
           </div>
         </div>
-        <div className="mt-16 pt-6 border-t border-[#262626] text-xs text-[#666] flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div className="mt-16 pt-6 border-t border-[#262626] text-xs text-[#666] flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>© Burger Times · Beausoleil</div>
-          <div>Site fait avec les mains sales.</div>
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline">Site fait avec les mains sales.</span>
+            <span className="hidden sm:inline text-[#333]">·</span>
+            <Link
+              to="/admin"
+              data-testid="footer-admin-link"
+              className="inline-flex items-center gap-1.5 font-accent uppercase tracking-widest text-[#A1A1A1] hover:text-[#EF2B2D] transition-colors border border-[#262626] hover:border-[#EF2B2D] px-3 py-1.5"
+            >
+              <Lock className="w-3 h-3" /> Espace admin
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

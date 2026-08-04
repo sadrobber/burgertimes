@@ -47,6 +47,9 @@ export default function SettingsAdmin() {
           s.free_delivery_threshold === null || s.free_delivery_threshold === ""
             ? null
             : parseFloat(s.free_delivery_threshold),
+        delivery_postal_codes: Array.isArray(s.delivery_postal_codes)
+          ? s.delivery_postal_codes.map((v) => String(v).trim()).filter(Boolean)
+          : [],
         contact_phone: s.contact_phone,
         contact_address: s.contact_address,
         contact_instagram: s.contact_instagram,
@@ -435,6 +438,43 @@ export default function SettingsAdmin() {
             </div>
           </label>
         </div>
+      </div>
+
+      {/* Zone de livraison */}
+      <div className="bt-card p-5 space-y-4">
+        <div className="font-display text-2xl uppercase">Zone de livraison</div>
+        <p className="text-sm text-[#A1A1A1]">
+          Codes postaux que tu livres, séparés par des virgules. Les commandes de livraison
+          vers un autre code postal seront rejetées au checkout.
+          <br />
+          <span className="text-[#666]">
+            Laisse vide pour accepter toutes les zones.
+          </span>
+        </p>
+        <input
+          data-testid="settings-postal-codes"
+          className="bt-input"
+          placeholder="06240, 06320, 06500, 98000"
+          value={(s.delivery_postal_codes || []).join(", ")}
+          onChange={(e) =>
+            set(
+              "delivery_postal_codes",
+              e.target.value
+                .split(",")
+                .map((v) => v.trim())
+                .filter(Boolean),
+            )
+          }
+        />
+        {(s.delivery_postal_codes || []).length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {(s.delivery_postal_codes || []).map((c) => (
+              <span key={c} className="bt-badge-red">
+                {c}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="bt-card p-5 space-y-4">

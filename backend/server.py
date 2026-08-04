@@ -547,6 +547,27 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
     if payload.fulfillment == "delivery":
         if not (payload.address_line1 and payload.postal_code and payload.city):
             raise HTTPException(status_code=400, detail="Adresse de livraison requise")
+        if create:
+            allowed = [
+                str(x).strip()
+                for x in (settings.get("delivery_postal_codes") or [])
+                if str(x).strip()
+            ]
+            if allowed:
+                incoming = (payload.postal_code or "").strip()
+                if incoming not in allowed:
+                    raise HTTPException(
+                        status_code=400,
+                        detail={
+                            "message": (
+                                f"On ne livre pas au {incoming}. "
+                                f"Codes acceptés : {', '.join(allowed)}."
+                            ),
+                            "kind": "postal_code_not_served",
+                            "allowed_postal_codes": allowed,
+                            "postal_code": incoming,
+                        },
+                    )
 
     # Load menu items (only available)
     menu_docs = await db.menu_items.find({"available": True}).to_list(2000)

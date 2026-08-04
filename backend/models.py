@@ -274,6 +274,7 @@ class Settings(BaseModel):
     soda_flavours: List[str] = Field(default_factory=list)
     delivery_fee_percent: float = 10.0
     free_delivery_threshold: Optional[float] = None
+    delivery_postal_codes: List[str] = Field(default_factory=list)
     contact_phone: str = "04.97.07.17.93"
     contact_address: str = "6 Avenue de Villaine, 06240 Beausoleil"
     contact_instagram: str = "@burgertimes_bsl"
@@ -303,6 +304,7 @@ class SettingsUpdate(BaseModel):
     soda_flavours: Optional[List[str]] = None
     delivery_fee_percent: Optional[float] = None
     free_delivery_threshold: Optional[float] = None
+    delivery_postal_codes: Optional[List[str]] = None
     contact_phone: Optional[str] = None
     contact_address: Optional[str] = None
     contact_instagram: Optional[str] = None
