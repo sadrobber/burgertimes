@@ -45,7 +45,7 @@ export default function Dashboard() {
           <Link to="/admin/orders" className="bt-btn-ghost px-2 text-sm">Tout voir</Link>
         </div>
         {recent.length === 0 ? (
-          <div className="text-sm text-[#A1A1A1] py-8 text-center">Aucune commande pour l'instant.</div>
+          <div className="text-sm text-[#A1A1A1] py-8 text-center">Aucune commande pour l&apos;instant.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
