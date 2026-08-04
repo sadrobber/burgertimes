@@ -1,0 +1,9 @@
+crons:
+  - name: waitlist-open
+    description: "Emails Burger Times waitlist subscribers when the restaurant transitions closed → open"
+    # 15+ min cadence so it survives the deployed scheduler; :00 :15 :30 :45.
+    cron: "*/15 * * * *"
+    endpoint: "{{BASE_URL}}/api/cron/notify-waitlist-on-open"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

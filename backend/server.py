@@ -11,13 +11,14 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 import base64
+import hmac
 import logging
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import Response as FAResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.middleware.cors import CORSMiddleware
@@ -152,7 +153,11 @@ async def get_settings():
 
 
 @api.put("/settings")
-async def update_settings(update: SettingsUpdate, _: dict = Depends(require_admin)):
+async def update_settings(
+    update: SettingsUpdate,
+    background: BackgroundTasks,
+    _: dict = Depends(require_admin),
+):
     doc = await db.settings.find_one({"id": "singleton"})
     if doc is None:
         base = Settings().model_dump()
@@ -167,6 +172,7 @@ async def update_settings(update: SettingsUpdate, _: dict = Depends(require_admi
     changes["updated_at"] = utc_now_iso()
     await db.settings.update_one({"id": "singleton"}, {"$set": changes})
     doc.update(changes)
+    background.add_task(_maybe_notify_waitlist_on_open)
     return _strip_mongo(doc)
 
 
@@ -915,6 +921,90 @@ async def admin_notify_waitlist(_: dict = Depends(require_admin)):
         "emails_sent": emails_sent,
         "email_configured": _email_configured(),
     }
+
+
+# ----- Auto-notify waitlist on open transition ----------------------------
+
+
+def _verify_cron_auth(request: Request) -> None:
+    secret = os.environ.get("WEBHOOK_CRON_SECRET")
+    if not secret:
+        raise HTTPException(status_code=401, detail="Cron secret not configured")
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    token = auth[7:].strip()
+    if not hmac.compare_digest(token, secret):
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+
+
+async def _maybe_notify_waitlist_on_open() -> Dict[str, Any]:
+    """Detect a closed → open transition and email active waitlist subscribers.
+
+    Idempotent: after notifying, subscribers are marked ``active=false`` so they
+    are not re-notified on the next open. First observation (prev state = None)
+    just records the current state without sending anything, to avoid a spurious
+    blast on system boot when the restaurant is already open.
+    """
+    settings = await db.settings.find_one({"id": "singleton"})
+    if settings is None:
+        return {"skipped": True, "reason": "no_settings"}
+    _strip_mongo(settings)
+    status = compute_status(settings)
+    current = status["state"]
+    prev = settings.get("last_notified_open_state")
+
+    result: Dict[str, Any] = {
+        "prev_state": prev,
+        "current_state": current,
+        "notified": False,
+    }
+
+    should_notify = prev == "closed" and current != "closed"
+    if should_notify:
+        docs = await db.waitlist.find({"active": True}).to_list(5000)
+        emails_sent = 0
+        if _email_configured():
+            for d in docs:
+                try:
+                    if await send_open_notice(d["email"]):
+                        emails_sent += 1
+                except Exception:  # noqa: BLE001
+                    logger.exception("send_open_notice failed for %s", d.get("email"))
+        if docs:
+            ts = utc_now_iso()
+            await db.waitlist.update_many(
+                {"active": True},
+                {"$set": {"notified_at": ts, "active": False}},
+            )
+        result.update(
+            {
+                "notified": True,
+                "recipient_count": len(docs),
+                "emails_sent": emails_sent,
+                "email_configured": _email_configured(),
+            }
+        )
+        logger.info(
+            "Auto-notified waitlist on open transition: %d recipients, %d emails sent",
+            len(docs),
+            emails_sent,
+        )
+
+    if prev != current:
+        await db.settings.update_one(
+            {"id": "singleton"},
+            {"$set": {"last_notified_open_state": current}},
+        )
+    return result
+
+
+@api.post("/cron/notify-waitlist-on-open")
+async def cron_notify_waitlist(request: Request, background: BackgroundTasks):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    _verify_cron_auth(request)
+    background.add_task(_maybe_notify_waitlist_on_open)
+    return {"ok": True, "queued": True}
 
 
 app.include_router(api)
