@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { adminClient, fmtError } from "@/lib/api";
-import { Save, Send } from "lucide-react";
+import { Save, Send, Trash2, Bell, CreditCard, Wallet } from "lucide-react";
 
 const DAYS = [
   ["mon", "Lundi"],
@@ -15,9 +15,12 @@ const DAYS = [
 
 export default function SettingsAdmin() {
   const [s, setS] = useState(null);
+  const [waitlist, setWaitlist] = useState([]);
+  const [notifyingWaitlist, setNotifyingWaitlist] = useState(false);
 
   useEffect(() => {
     adminClient.get("/settings").then((r) => setS(r.data));
+    adminClient.get("/admin/waitlist").then((r) => setWaitlist(r.data || []));
   }, []);
 
   if (!s) return <div>Chargement…</div>;
@@ -40,10 +43,19 @@ export default function SettingsAdmin() {
         eta_default_max: parseInt(s.eta_default_max, 10) || 0,
         soda_flavours: (s.soda_flavours || []).map((v) => v.trim()).filter(Boolean),
         delivery_fee: parseFloat(s.delivery_fee) || 0,
-        free_delivery_threshold: s.free_delivery_threshold === null || s.free_delivery_threshold === "" ? null : parseFloat(s.free_delivery_threshold),
+        free_delivery_threshold:
+          s.free_delivery_threshold === null || s.free_delivery_threshold === ""
+            ? null
+            : parseFloat(s.free_delivery_threshold),
         contact_phone: s.contact_phone,
         contact_address: s.contact_address,
         contact_instagram: s.contact_instagram,
+        payment_cash_enabled: !!s.payment_cash_enabled,
+        payment_card_enabled: !!s.payment_card_enabled,
+        order_limit_enabled: !!s.order_limit_enabled,
+        order_limit_period: s.order_limit_period || "day",
+        order_limit_max: parseInt(s.order_limit_max, 10) || 0,
+        order_limit_message: s.order_limit_message || "",
       });
       setS(data);
       toast.success("Enregistré");
@@ -85,6 +97,34 @@ export default function SettingsAdmin() {
     }
   };
 
+  const notifyWaitlist = async () => {
+    if (!window.confirm(`Notifier ${waitlist.length} personne(s) et vider la liste ?`)) return;
+    setNotifyingWaitlist(true);
+    try {
+      const { data } = await adminClient.post("/admin/waitlist/notify");
+      if (data.email_configured) {
+        toast.success(`${data.emails_sent}/${data.notified} email(s) envoyé(s)`);
+      } else {
+        toast.success(`${data.notified} personne(s) marquée(s) notifiées (email non configuré — les entrées sont effacées)`);
+      }
+      const r = await adminClient.get("/admin/waitlist");
+      setWaitlist(r.data || []);
+    } catch (e) {
+      toast.error(fmtError(e));
+    } finally {
+      setNotifyingWaitlist(false);
+    }
+  };
+
+  const deleteWaitlistEntry = async (id) => {
+    try {
+      await adminClient.delete(`/admin/waitlist/${id}`);
+      setWaitlist(waitlist.filter((w) => w.id !== id));
+    } catch (e) {
+      toast.error(fmtError(e));
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-end justify-between">
@@ -119,7 +159,121 @@ export default function SettingsAdmin() {
         </label>
         <label className="block">
           <div className="bt-label">Message de fermeture</div>
-          <input className="bt-input" value={s.closed_message || ""} onChange={(e) => set("closed_message", e.target.value)} />
+          <input
+            className="bt-input"
+            value={s.closed_message || ""}
+            onChange={(e) => set("closed_message", e.target.value)}
+          />
+        </label>
+      </div>
+
+      {/* Paiements */}
+      <div className="bt-card p-5 space-y-4">
+        <div className="font-display text-2xl uppercase">Paiements acceptés</div>
+        <p className="text-sm text-[#A1A1A1]">
+          Coupe un mode de paiement quand tu veux — les clients ne le verront plus au checkout.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label
+            data-testid="settings-payment-cash-toggle"
+            className={`bt-option flex items-start gap-3 cursor-pointer ${s.payment_cash_enabled ? "selected" : ""}`}
+          >
+            <input
+              type="checkbox"
+              className="w-4 h-4 mt-1"
+              checked={!!s.payment_cash_enabled}
+              onChange={(e) => set("payment_cash_enabled", e.target.checked)}
+            />
+            <div>
+              <div className="font-accent uppercase tracking-widest text-lg inline-flex items-center gap-2">
+                <Wallet className="w-4 h-4" /> Cash sur place
+              </div>
+              <div className="text-xs text-[#A1A1A1] mt-1">
+                Espèces à la remise de la commande.
+              </div>
+            </div>
+          </label>
+          <label
+            data-testid="settings-payment-card-toggle"
+            className={`bt-option flex items-start gap-3 cursor-pointer ${s.payment_card_enabled ? "selected" : ""}`}
+          >
+            <input
+              type="checkbox"
+              className="w-4 h-4 mt-1"
+              checked={!!s.payment_card_enabled}
+              onChange={(e) => set("payment_card_enabled", e.target.checked)}
+            />
+            <div>
+              <div className="font-accent uppercase tracking-widest text-lg inline-flex items-center gap-2">
+                <CreditCard className="w-4 h-4" /> Carte sur place
+              </div>
+              <div className="text-xs text-[#A1A1A1] mt-1">
+                TPE au comptoir à la remise de la commande.
+              </div>
+            </div>
+          </label>
+        </div>
+        {!s.payment_cash_enabled && !s.payment_card_enabled && (
+          <div className="text-xs text-[#FF3B30]">
+            Attention : plus aucun mode de paiement n&apos;est activé. Les clients ne pourront pas
+            valider leur commande.
+          </div>
+        )}
+      </div>
+
+      {/* Order limits */}
+      <div className="bt-card p-5 space-y-4">
+        <div className="font-display text-2xl uppercase">Limite de commandes</div>
+        <p className="text-sm text-[#A1A1A1]">
+          Coupe le robinet automatiquement quand la cuisine sature. Le client voit un message
+          personnalisable.
+        </p>
+        <label className="inline-flex items-center gap-2 text-sm">
+          <input
+            data-testid="settings-order-limit-enabled"
+            type="checkbox"
+            checked={!!s.order_limit_enabled}
+            onChange={(e) => set("order_limit_enabled", e.target.checked)}
+          />
+          Activer la limite
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <label className="block">
+            <div className="bt-label">Période</div>
+            <select
+              data-testid="settings-order-limit-period"
+              className="bt-input"
+              value={s.order_limit_period || "day"}
+              onChange={(e) => set("order_limit_period", e.target.value)}
+              disabled={!s.order_limit_enabled}
+            >
+              <option value="day">Par jour</option>
+              <option value="week">Par semaine</option>
+            </select>
+          </label>
+          <label className="block">
+            <div className="bt-label">Max commandes</div>
+            <input
+              data-testid="settings-order-limit-max"
+              type="number"
+              min="1"
+              className="bt-input"
+              value={s.order_limit_max || 0}
+              onChange={(e) => set("order_limit_max", e.target.value)}
+              disabled={!s.order_limit_enabled}
+            />
+          </label>
+          <div className="hidden sm:block" />
+        </div>
+        <label className="block">
+          <div className="bt-label">Message affiché au client</div>
+          <textarea
+            data-testid="settings-order-limit-message"
+            className="bt-input min-h-[100px]"
+            value={s.order_limit_message || ""}
+            onChange={(e) => set("order_limit_message", e.target.value)}
+            disabled={!s.order_limit_enabled}
+          />
         </label>
       </div>
 
@@ -139,7 +293,11 @@ export default function SettingsAdmin() {
                   />
                   <span className="font-accent uppercase tracking-widest">{label}</span>
                 </label>
-                <button onClick={() => addRange(key)} className="bt-btn-ghost text-xs px-2" data-testid={`hours-add-range-${key}`}>
+                <button
+                  onClick={() => addRange(key)}
+                  className="bt-btn-ghost text-xs px-2"
+                  data-testid={`hours-add-range-${key}`}
+                >
                   + Créneau
                 </button>
               </div>
@@ -158,7 +316,10 @@ export default function SettingsAdmin() {
                     value={r.close}
                     onChange={(e) => updateRange(key, i, { close: e.target.value })}
                   />
-                  <button onClick={() => removeRange(key, i)} className="bt-btn-ghost text-xs px-2 text-[#EF2B2D]">
+                  <button
+                    onClick={() => removeRange(key, i)}
+                    className="bt-btn-ghost text-xs px-2 text-[#EF2B2D]"
+                  >
                     ×
                   </button>
                 </div>
@@ -169,31 +330,61 @@ export default function SettingsAdmin() {
       </div>
 
       <div className="bt-card p-5 space-y-4">
-        <div className="font-display text-2xl uppercase">Cutoff & ETA</div>
+        <div className="font-display text-2xl uppercase">Cutoff &amp; ETA</div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <label className="block">
             <div className="bt-label">Cutoff (min)</div>
-            <input type="number" className="bt-input" value={s.last_order_buffer_minutes || 0} onChange={(e) => set("last_order_buffer_minutes", e.target.value)} />
+            <input
+              type="number"
+              className="bt-input"
+              value={s.last_order_buffer_minutes || 0}
+              onChange={(e) => set("last_order_buffer_minutes", e.target.value)}
+            />
           </label>
           <label className="block">
             <div className="bt-label">Ferme bientôt (min)</div>
-            <input type="number" className="bt-input" value={s.closing_soon_window_minutes || 0} onChange={(e) => set("closing_soon_window_minutes", e.target.value)} />
+            <input
+              type="number"
+              className="bt-input"
+              value={s.closing_soon_window_minutes || 0}
+              onChange={(e) => set("closing_soon_window_minutes", e.target.value)}
+            />
           </label>
           <label className="block">
             <div className="bt-label">ETA par défaut min</div>
-            <input type="number" className="bt-input" value={s.eta_default_min || 0} onChange={(e) => set("eta_default_min", e.target.value)} />
+            <input
+              type="number"
+              className="bt-input"
+              value={s.eta_default_min || 0}
+              onChange={(e) => set("eta_default_min", e.target.value)}
+            />
           </label>
           <label className="block">
             <div className="bt-label">ETA par défaut max</div>
-            <input type="number" className="bt-input" value={s.eta_default_max || 0} onChange={(e) => set("eta_default_max", e.target.value)} />
+            <input
+              type="number"
+              className="bt-input"
+              value={s.eta_default_max || 0}
+              onChange={(e) => set("eta_default_max", e.target.value)}
+            />
           </label>
           <label className="block">
             <div className="bt-label">ETA busy min</div>
-            <input type="number" className="bt-input" value={s.too_busy_eta_min || 0} onChange={(e) => set("too_busy_eta_min", e.target.value)} />
+            <input
+              type="number"
+              className="bt-input"
+              value={s.too_busy_eta_min || 0}
+              onChange={(e) => set("too_busy_eta_min", e.target.value)}
+            />
           </label>
           <label className="block">
             <div className="bt-label">ETA busy max</div>
-            <input type="number" className="bt-input" value={s.too_busy_eta_max || 0} onChange={(e) => set("too_busy_eta_max", e.target.value)} />
+            <input
+              type="number"
+              className="bt-input"
+              value={s.too_busy_eta_max || 0}
+              onChange={(e) => set("too_busy_eta_max", e.target.value)}
+            />
           </label>
         </div>
       </div>
@@ -203,7 +394,13 @@ export default function SettingsAdmin() {
         <div className="grid grid-cols-2 gap-4">
           <label className="block">
             <div className="bt-label">Frais de livraison (€)</div>
-            <input type="number" step="0.1" className="bt-input" value={s.delivery_fee || 0} onChange={(e) => set("delivery_fee", e.target.value)} />
+            <input
+              type="number"
+              step="0.1"
+              className="bt-input"
+              value={s.delivery_fee || 0}
+              onChange={(e) => set("delivery_fee", e.target.value)}
+            />
           </label>
           <label className="block">
             <div className="bt-label">Livraison offerte dès (€)</div>
@@ -234,17 +431,72 @@ export default function SettingsAdmin() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <label className="block sm:col-span-1">
             <div className="bt-label">Téléphone</div>
-            <input className="bt-input" value={s.contact_phone || ""} onChange={(e) => set("contact_phone", e.target.value)} />
+            <input
+              className="bt-input"
+              value={s.contact_phone || ""}
+              onChange={(e) => set("contact_phone", e.target.value)}
+            />
           </label>
           <label className="block sm:col-span-2">
             <div className="bt-label">Adresse</div>
-            <input className="bt-input" value={s.contact_address || ""} onChange={(e) => set("contact_address", e.target.value)} />
+            <input
+              className="bt-input"
+              value={s.contact_address || ""}
+              onChange={(e) => set("contact_address", e.target.value)}
+            />
           </label>
           <label className="block sm:col-span-3">
             <div className="bt-label">Instagram</div>
-            <input className="bt-input" value={s.contact_instagram || ""} onChange={(e) => set("contact_instagram", e.target.value)} />
+            <input
+              className="bt-input"
+              value={s.contact_instagram || ""}
+              onChange={(e) => set("contact_instagram", e.target.value)}
+            />
           </label>
         </div>
+      </div>
+
+      {/* Waitlist */}
+      <div className="bt-card p-5 space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="font-display text-2xl uppercase inline-flex items-center gap-2">
+            <Bell className="w-5 h-5 text-[#EF2B2D]" /> Liste d&apos;attente
+          </div>
+          <button
+            onClick={notifyWaitlist}
+            disabled={waitlist.length === 0 || notifyingWaitlist}
+            data-testid="waitlist-notify"
+            className="bt-btn-primary py-2 px-4 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Send className="w-4 h-4" /> Notifier tout le monde ({waitlist.length})
+          </button>
+        </div>
+        <p className="text-sm text-[#A1A1A1]">
+          Emails collectés depuis la page fermée. Le bouton envoie un mail à chaque personne (si
+          Resend est configuré) et vide la liste.
+        </p>
+        {waitlist.length === 0 ? (
+          <div className="text-sm text-[#A1A1A1] py-4">Personne pour l&apos;instant.</div>
+        ) : (
+          <div className="divide-y divide-[#262626]">
+            {waitlist.map((w) => (
+              <div key={w.id} className="flex items-center justify-between py-2" data-testid={`waitlist-row-${w.id}`}>
+                <div>
+                  <div className="text-sm">{w.email}</div>
+                  <div className="text-xs text-[#A1A1A1]">
+                    {new Date(w.created_at).toLocaleString()}
+                  </div>
+                </div>
+                <button
+                  onClick={() => deleteWaitlistEntry(w.id)}
+                  className="bt-btn-ghost px-2 text-xs text-[#EF2B2D]"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="bt-card p-5 space-y-3">
@@ -253,7 +505,11 @@ export default function SettingsAdmin() {
           Configure `TELEGRAM_BOT_TOKEN`, `TELEGRAM_KITCHEN_CHAT_ID` et `TELEGRAM_WEBHOOK_SECRET`
           dans le backend, puis clique ci-dessous pour enregistrer le webhook.
         </p>
-        <button onClick={syncWebhook} data-testid="telegram-sync" className="bt-btn-primary py-2 px-4 text-sm">
+        <button
+          onClick={syncWebhook}
+          data-testid="telegram-sync"
+          className="bt-btn-primary py-2 px-4 text-sm"
+        >
           <Send className="w-4 h-4" /> Sync webhook Telegram
         </button>
       </div>

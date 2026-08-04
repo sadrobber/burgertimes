@@ -8,6 +8,7 @@ import { useI18n } from "@/context/I18nContext.jsx";
 import { apiClient, fmtError, formatEur } from "@/lib/api";
 import { useRestaurantStatus } from "@/hooks/useRestaurantStatus";
 import StatusBanner from "@/components/StatusBanner.jsx";
+import ClosedHero from "@/components/ClosedHero.jsx";
 
 export default function Checkout() {
   const { items, clear } = useCart();
@@ -32,9 +33,19 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [quote, setQuote] = useState(null);
 
+  const cashEnabled = settings?.payment_cash_enabled !== false;
+  const cardEnabled = settings?.payment_card_enabled !== false;
+
   useEffect(() => {
     apiClient.get("/settings").then((r) => setSettings(r.data)).catch(() => {});
   }, []);
+
+  // Auto-switch payment if the selected one becomes disabled by admin.
+  useEffect(() => {
+    if (!settings) return;
+    if (payment === "cash" && !cashEnabled && cardEnabled) setPayment("card_in_person");
+    if (payment === "card_in_person" && !cardEnabled && cashEnabled) setPayment("cash");
+  }, [settings, cashEnabled, cardEnabled, payment]);
 
   const cartPayload = useMemo(() => {
     return items.map((it) => ({
@@ -97,7 +108,8 @@ export default function Checkout() {
     form.last.trim() &&
     form.phone.trim() &&
     (fulfillment === "pickup" || (form.address1.trim() && form.postal.trim() && form.city.trim())) &&
-    status?.state !== "closed";
+    status?.state !== "closed" &&
+    ((payment === "cash" && cashEnabled) || (payment === "card_in_person" && cardEnabled));
 
   const submit = async () => {
     if (!canSubmit) {
@@ -139,9 +151,8 @@ export default function Checkout() {
         <h1 className="font-display text-5xl md:text-6xl uppercase mb-8">{t("checkout.title")}</h1>
 
         {closed && (
-          <div className="bt-card border-[#FF3B30] p-4 mb-6" data-testid="checkout-closed-notice">
-            <StatusBanner variant="banner" />
-            <div className="mt-2 text-sm">{t("checkout.closed_notice")}</div>
+          <div data-testid="checkout-closed-notice" className="mb-6">
+            <ClosedHero />
           </div>
         )}
 
@@ -256,24 +267,34 @@ export default function Checkout() {
               {/* Payment */}
               <div>
                 <div className="bt-label">{t("checkout.payment")}</div>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    data-testid="payment-cash"
-                    onClick={() => setPayment("cash")}
-                    className={`bt-option ${payment === "cash" ? "selected" : ""} text-left`}
-                  >
-                    <div className="font-accent uppercase tracking-widest text-lg">{t("checkout.cash")}</div>
-                    <div className="text-xs text-[#A1A1A1] mt-1">Réglé à la remise de la commande</div>
-                  </button>
-                  <button
-                    data-testid="payment-card"
-                    onClick={() => setPayment("card_in_person")}
-                    className={`bt-option ${payment === "card_in_person" ? "selected" : ""} text-left`}
-                  >
-                    <div className="font-accent uppercase tracking-widest text-lg">{t("checkout.card_in_person")}</div>
-                    <div className="text-xs text-[#A1A1A1] mt-1">Payé sur place au comptoir</div>
-                  </button>
-                </div>
+                {!cashEnabled && !cardEnabled ? (
+                  <div className="bt-card border-[#FF3B30] p-4 text-sm text-[#FF3B30]" data-testid="no-payment-methods">
+                    Aucun mode de paiement activé pour l&apos;instant. Contacte le resto.
+                  </div>
+                ) : (
+                  <div className={`grid gap-3 ${cashEnabled && cardEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
+                    {cashEnabled && (
+                      <button
+                        data-testid="payment-cash"
+                        onClick={() => setPayment("cash")}
+                        className={`bt-option ${payment === "cash" ? "selected" : ""} text-left`}
+                      >
+                        <div className="font-accent uppercase tracking-widest text-lg">{t("checkout.cash")}</div>
+                        <div className="text-xs text-[#A1A1A1] mt-1">Réglé à la remise de la commande</div>
+                      </button>
+                    )}
+                    {cardEnabled && (
+                      <button
+                        data-testid="payment-card"
+                        onClick={() => setPayment("card_in_person")}
+                        className={`bt-option ${payment === "card_in_person" ? "selected" : ""} text-left`}
+                      >
+                        <div className="font-accent uppercase tracking-widest text-lg">{t("checkout.card_in_person")}</div>
+                        <div className="text-xs text-[#A1A1A1] mt-1">Payé sur place au comptoir</div>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <Field label={t("checkout.notes")}>

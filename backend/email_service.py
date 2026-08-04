@@ -144,3 +144,34 @@ async def send_order_email(order: Dict[str, Any], template: str) -> None:
                 logger.warning("Resend send failed: %s %s", r.status_code, r.text)
     except Exception:  # noqa: BLE001
         logger.exception("Resend send exception")
+
+
+async def send_open_notice(email: str) -> bool:
+    """Notify a waitlist subscriber that the restaurant just opened."""
+    if not is_configured() or not email:
+        return False
+    subject = "Burger Times · On est ouvert !"
+    body = (
+        "<p>Tu voulais être prévenu — c'est l'heure.</p>"
+        "<p>La cuisine est chaude, les smash sont prêts. Passe commande tant qu'il y a de la place.</p>"
+    )
+    html = _wrap("On est ouvert", "Open", body)
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {_api_key()}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": _from_email(),
+                    "to": [email],
+                    "subject": subject,
+                    "html": html,
+                },
+            )
+            return r.status_code < 300
+    except Exception:  # noqa: BLE001
+        logger.exception("Resend open notice failed")
+        return False

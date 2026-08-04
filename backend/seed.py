@@ -97,6 +97,12 @@ async def seed_settings(db) -> None:
             "contact_phone": "04.97.07.17.93",
             "contact_address": "6 Avenue de Villaine, 06240 Beausoleil",
             "contact_instagram": "@burgertimes_bsl",
+            "payment_cash_enabled": True,
+            "payment_card_enabled": True,
+            "order_limit_enabled": False,
+            "order_limit_period": "day",
+            "order_limit_max": 100,
+            "order_limit_message": "On est débordés — la cuisine tourne à fond sur les commandes en cours. Reviens dans quelques heures, promis on garde de la place pour toi.",
         }.items():
             if key not in existing:
                 updates[key] = default

@@ -13,8 +13,9 @@ load_dotenv(ROOT_DIR / ".env")
 import base64
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import Response as FAResponse
@@ -22,7 +23,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.middleware.cors import CORSMiddleware
 
 from auth import create_admin_token, require_admin, verify_password
-from email_service import send_order_email
+from email_service import send_open_notice, send_order_email
+from email_service import is_configured as _email_configured
 from models import (
     AdminLoginPayload,
     BuilderItemCreate,
@@ -42,6 +44,8 @@ from models import (
     SauceUpdate,
     Settings,
     SettingsUpdate,
+    WaitlistCreate,
+    WaitlistEntry,
     gen_id,
     utc_now_iso,
 )
@@ -457,6 +461,59 @@ async def _ensure_accepting_orders(settings: dict) -> None:
         })
 
 
+async def _check_order_limit(settings: dict) -> None:
+    if not settings.get("order_limit_enabled"):
+        return
+    period = settings.get("order_limit_period") or "day"
+    max_orders = int(settings.get("order_limit_max") or 0)
+    if max_orders <= 0:
+        return
+    tz_name = settings.get("timezone") or "Europe/Paris"
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:  # noqa: BLE001
+        tz = ZoneInfo("Europe/Paris")
+    now_local = datetime.now(tz)
+    if period == "week":
+        start_local = (now_local - timedelta(days=now_local.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+    else:
+        start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_iso = start_local.astimezone(timezone.utc).isoformat()
+    count = await db.orders.count_documents(
+        {
+            "created_at": {"$gte": start_iso},
+            "status": {"$nin": ["cancelled", "expired"]},
+        }
+    )
+    if count >= max_orders:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "message": settings.get("order_limit_message")
+                or "Trop de commandes en cours. Réessaie plus tard.",
+                "kind": "order_limit_reached",
+                "count": count,
+                "max": max_orders,
+                "period": period,
+            },
+        )
+
+
+def _validate_payment_method(settings: dict, method: str) -> None:
+    if method == "cash" and settings.get("payment_cash_enabled", True) is False:
+        raise HTTPException(
+            status_code=400,
+            detail="Le paiement en espèces est désactivé pour l'instant. Choisis la carte.",
+        )
+    if method == "card_in_person" and settings.get("payment_card_enabled", True) is False:
+        raise HTTPException(
+            status_code=400,
+            detail="Le paiement par carte est désactivé pour l'instant. Choisis les espèces.",
+        )
+
+
 def _compute_delivery_fee(fulfillment: str, subtotal: float, settings: dict) -> float:
     if fulfillment != "delivery":
         return 0.0
@@ -473,6 +530,8 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
 
     if create:
         await _ensure_accepting_orders(settings)
+        _validate_payment_method(settings, payload.payment_method)
+        await _check_order_limit(settings)
 
     if payload.fulfillment not in ("delivery", "pickup"):
         raise HTTPException(status_code=400, detail="Invalid fulfillment")
@@ -806,6 +865,56 @@ async def tg_webhook(request: Request):
         logger.exception("Email after webhook failed")
     await answer_callback_query(cbq["id"], f"✅ {new_status.upper()}")
     return {"ok": True}
+
+
+# ----- Waitlist ------------------------------------------------------------
+
+
+@api.post("/waitlist")
+async def create_waitlist(payload: WaitlistCreate):
+    email = payload.email.lower().strip()
+    existing = await db.waitlist.find_one({"email": email, "active": True})
+    if existing:
+        return {"ok": True, "already_subscribed": True}
+    doc = WaitlistEntry(email=email).model_dump()
+    await db.waitlist.insert_one(doc)
+    return {"ok": True, "already_subscribed": False}
+
+
+@api.get("/admin/waitlist")
+async def admin_list_waitlist(_: dict = Depends(require_admin)):
+    docs = await db.waitlist.find({"active": True}).sort([("created_at", -1)]).to_list(1000)
+    return [_strip_mongo(d) for d in docs]
+
+
+@api.delete("/admin/waitlist/{wid}")
+async def admin_delete_waitlist(wid: str, _: dict = Depends(require_admin)):
+    res = await db.waitlist.delete_one({"id": wid})
+    return {"deleted": res.deleted_count}
+
+
+@api.post("/admin/waitlist/notify")
+async def admin_notify_waitlist(_: dict = Depends(require_admin)):
+    docs = await db.waitlist.find({"active": True}).to_list(2000)
+    emails_sent = 0
+    if _email_configured():
+        for d in docs:
+            try:
+                if await send_open_notice(d["email"]):
+                    emails_sent += 1
+            except Exception:  # noqa: BLE001
+                logger.exception("send_open_notice failed for %s", d.get("email"))
+    if docs:
+        ts = utc_now_iso()
+        await db.waitlist.update_many(
+            {"active": True},
+            {"$set": {"notified_at": ts, "active": False}},
+        )
+    return {
+        "notified": len(docs),
+        "emails_sent": emails_sent,
+        "email_configured": _email_configured(),
+    }
 
 
 app.include_router(api)

@@ -5,8 +5,10 @@ import { Instagram, Phone, MapPin, ArrowRight, Flame } from "lucide-react";
 import Header from "@/components/layout/Header.jsx";
 import Footer from "@/components/layout/Footer.jsx";
 import StatusBanner from "@/components/StatusBanner.jsx";
+import ClosedHero from "@/components/ClosedHero.jsx";
 import { apiClient } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext.jsx";
+import { useRestaurantStatus } from "@/hooks/useRestaurantStatus";
 
 const HERO_IMG =
   "https://images.unsplash.com/photo-1678110707289-ab14382a1625?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwyfHxzbWFzaCUyMGJ1cmdlciUyMGJsYWNrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODU4NzcyNDF8MA&ixlib=rb-4.1.0&q=85";
@@ -19,6 +21,8 @@ export default function Home() {
   const { t } = useI18n();
   const [reviews, setReviews] = useState([]);
   const [settings, setSettings] = useState(null);
+  const { status } = useRestaurantStatus();
+  const isClosed = status?.state === "closed";
 
   useEffect(() => {
     apiClient.get("/reviews").then((r) => setReviews(r.data || [])).catch(() => {});
@@ -28,6 +32,12 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#F5F1E8]">
       <Header />
+
+      {isClosed && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+          <ClosedHero />
+        </section>
+      )}
 
       {/* HERO */}
       <section className="relative overflow-hidden">

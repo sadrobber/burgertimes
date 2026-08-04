@@ -277,6 +277,12 @@ class Settings(BaseModel):
     contact_phone: str = "04.97.07.17.93"
     contact_address: str = "6 Avenue de Villaine, 06240 Beausoleil"
     contact_instagram: str = "@burgertimes_bsl"
+    payment_cash_enabled: bool = True
+    payment_card_enabled: bool = True
+    order_limit_enabled: bool = False
+    order_limit_period: str = "day"
+    order_limit_max: int = 100
+    order_limit_message: str = "On est débordés — la cuisine tourne à fond sur les commandes en cours. Reviens dans quelques heures, promis on garde de la place pour toi."
     updated_at: str = Field(default_factory=utc_now_iso)
 
 
@@ -299,6 +305,12 @@ class SettingsUpdate(BaseModel):
     contact_phone: Optional[str] = None
     contact_address: Optional[str] = None
     contact_instagram: Optional[str] = None
+    payment_cash_enabled: Optional[bool] = None
+    payment_card_enabled: Optional[bool] = None
+    order_limit_enabled: Optional[bool] = None
+    order_limit_period: Optional[str] = None
+    order_limit_max: Optional[int] = None
+    order_limit_message: Optional[str] = None
 
 
 # ----- Orders --------------------------------------------------------------
@@ -432,3 +444,20 @@ class ReviewUpdate(BaseModel):
     author_name: Optional[str] = None
     rating: Optional[int] = None
     comment: Optional[str] = None
+
+
+# ----- Waitlist ------------------------------------------------------------
+
+
+class WaitlistEntry(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(default_factory=gen_id)
+    email: EmailStr
+    active: bool = True
+    notified_at: Optional[str] = None
+    created_at: str = Field(default_factory=utc_now_iso)
+
+
+class WaitlistCreate(BaseModel):
+    email: EmailStr
