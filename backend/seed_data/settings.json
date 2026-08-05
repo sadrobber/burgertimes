@@ -1,0 +1,115 @@
+[
+  {
+    "id": "singleton",
+    "is_open": true,
+    "force_closed": false,
+    "closed_message": "Nous sommes fermés. Revenez pendant nos heures dovuverture !",
+    "timezone": "Europe/Paris",
+    "hours_per_day": {
+      "mon": {
+        "is_open": false,
+        "ranges": []
+      },
+      "tue": {
+        "is_open": true,
+        "ranges": [
+          {
+            "open": "11:30",
+            "close": "14:30"
+          },
+          {
+            "open": "18:30",
+            "close": "22:30"
+          }
+        ]
+      },
+      "wed": {
+        "is_open": true,
+        "ranges": [
+          {
+            "open": "11:30",
+            "close": "14:30"
+          },
+          {
+            "open": "18:30",
+            "close": "22:30"
+          }
+        ]
+      },
+      "thu": {
+        "is_open": true,
+        "ranges": [
+          {
+            "open": "11:30",
+            "close": "14:30"
+          },
+          {
+            "open": "18:30",
+            "close": "22:30"
+          }
+        ]
+      },
+      "fri": {
+        "is_open": true,
+        "ranges": [
+          {
+            "open": "11:30",
+            "close": "14:30"
+          },
+          {
+            "open": "18:30",
+            "close": "23:00"
+          }
+        ]
+      },
+      "sat": {
+        "is_open": true,
+        "ranges": [
+          {
+            "open": "11:30",
+            "close": "23:00"
+          }
+        ]
+      },
+      "sun": {
+        "is_open": true,
+        "ranges": [
+          {
+            "open": "18:30",
+            "close": "22:30"
+          }
+        ]
+      }
+    },
+    "last_order_buffer_minutes": 15,
+    "closing_soon_window_minutes": 30,
+    "too_busy": false,
+    "too_busy_eta_min": 45,
+    "too_busy_eta_max": 60,
+    "eta_default_min": 20,
+    "eta_default_max": 30,
+    "soda_flavours": [
+      "Coca-Cola",
+      "Coca-Cola Zero",
+      "Fanta Orange",
+      "Sprite",
+      "Ice Tea",
+      "Oasis Tropical"
+    ],
+    "delivery_fee": 3,
+    "free_delivery_threshold": 30,
+    "contact_phone": "04.97.07.17.93",
+    "contact_address": "6 Avenue de Villaine, 06240 Beausoleil",
+    "contact_instagram": "@burgertimes_bsl",
+    "updated_at": "2026-08-05T09:06:24.471989+00:00",
+    "order_limit_enabled": false,
+    "order_limit_max": 1,
+    "order_limit_message": "On est débordés — la cuisine tourne à fond sur les commandes en cours. Reviens dans quelques heures, promis on garde de la place pour toi.",
+    "order_limit_period": "day",
+    "payment_card_enabled": true,
+    "payment_cash_enabled": true,
+    "last_notified_open_state": "open",
+    "delivery_fee_percent": 10,
+    "delivery_postal_codes": []
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "id": "01f633ef-3d88-4b5a-9f76-3d098d0eabc4",
+    "code": "size1",
+    "label": "1 Viande",
+    "price_simple": 8,
+    "price_menu": 11,
+    "nb_meats": 1,
+    "supplement_upcharge": 0,
+    "available": true,
+    "sort_order": 1
+  },
+  {
+    "id": "27f42a67-27c8-400d-bf9a-344384392fe9",
+    "code": "size2",
+    "label": "2 Viandes",
+    "price_simple": 10,
+    "price_menu": 13,
+    "nb_meats": 2,
+    "supplement_upcharge": 0,
+    "available": true,
+    "sort_order": 2
+  },
+  {
+    "id": "3048383a-c848-4cf5-a7ab-554fbeeb275d",
+    "code": "size3",
+    "label": "3 Viandes",
+    "price_simple": 12,
+    "price_menu": 15,
+    "nb_meats": 3,
+    "supplement_upcharge": 0,
+    "available": true,
+    "sort_order": 3
+  }
+]

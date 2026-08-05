@@ -1,0 +1,44 @@
+[
+  {
+    "id": "ca31e3f7-2d0d-4cb4-9e77-c543866cd36f",
+    "name": "Viande Hachée",
+    "base_price": 0,
+    "available": true,
+    "sort_order": 1
+  },
+  {
+    "id": "8f5ae696-d875-4ff6-aac8-a68904087b12",
+    "name": "Tenders",
+    "base_price": 0,
+    "available": true,
+    "sort_order": 2
+  },
+  {
+    "id": "b2e73d14-8f4d-4c8a-9929-449a14e6abda",
+    "name": "Kebab",
+    "base_price": 0,
+    "available": true,
+    "sort_order": 3
+  },
+  {
+    "id": "31d90c32-0df3-4b85-8b66-ae5ec66bf3a3",
+    "name": "Nuggets",
+    "base_price": 0,
+    "available": true,
+    "sort_order": 4
+  },
+  {
+    "id": "f53f98ed-0957-498c-94f4-59ff0d9e309f",
+    "name": "Cordon Bleu",
+    "base_price": 0,
+    "available": true,
+    "sort_order": 5
+  },
+  {
+    "id": "0ff1466c-465e-45d3-a8c0-67292183f7f1",
+    "name": "Poulet",
+    "base_price": 0,
+    "available": true,
+    "sort_order": 6
+  }
+]

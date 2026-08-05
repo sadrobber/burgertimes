@@ -1,0 +1,110 @@
+[
+  {
+    "id": "3b6ad0c7-3d32-469f-9df3-0bb511bd3b33",
+    "slug": "signatures",
+    "label": {
+      "fr": "Burgers Signatures",
+      "en": "Signature Burgers"
+    },
+    "sort_order": 1,
+    "active": true,
+    "created_at": "2026-08-05T09:06:14.126794+00:00",
+    "updated_at": "2026-08-05T09:06:14.126804+00:00"
+  },
+  {
+    "id": "ff2adcb9-044f-46d2-8e1f-b5488eda7d66",
+    "slug": "classiques",
+    "label": {
+      "fr": "Les Classiques",
+      "en": "Classics"
+    },
+    "sort_order": 2,
+    "active": true,
+    "created_at": "2026-08-05T09:06:14.308755+00:00",
+    "updated_at": "2026-08-05T09:06:14.308774+00:00"
+  },
+  {
+    "id": "349d2cd3-6a01-48db-ba67-b5008e10af25",
+    "slug": "smash-burgers",
+    "label": {
+      "fr": "Smash Burgers",
+      "en": "Smash Burgers"
+    },
+    "sort_order": 3,
+    "active": true,
+    "created_at": "2026-08-05T09:06:14.565240+00:00",
+    "updated_at": "2026-08-05T09:06:14.565250+00:00"
+  },
+  {
+    "id": "1d380bb7-1439-4852-a94d-b7934500149c",
+    "slug": "wraps",
+    "label": {
+      "fr": "Wraps",
+      "en": "Wraps"
+    },
+    "sort_order": 4,
+    "active": true,
+    "created_at": "2026-08-05T09:06:14.767065+00:00",
+    "updated_at": "2026-08-05T09:06:14.767076+00:00"
+  },
+  {
+    "id": "6049d882-3047-4da7-87d5-987d69748798",
+    "slug": "sandwiches",
+    "label": {
+      "fr": "Sandwichs",
+      "en": "Sandwiches"
+    },
+    "sort_order": 5,
+    "active": true,
+    "created_at": "2026-08-05T09:06:15.091695+00:00",
+    "updated_at": "2026-08-05T09:06:15.091708+00:00"
+  },
+  {
+    "id": "0a53c041-b3a1-4c77-84f9-438c24389639",
+    "slug": "sides",
+    "label": {
+      "fr": "Tex Mex & Sides",
+      "en": "Tex Mex & Sides"
+    },
+    "sort_order": 6,
+    "active": true,
+    "created_at": "2026-08-05T09:06:15.266336+00:00",
+    "updated_at": "2026-08-05T09:06:15.266348+00:00"
+  },
+  {
+    "id": "eaeb02ad-b7de-4c68-b179-a137d9667e20",
+    "slug": "kids",
+    "label": {
+      "fr": "Menu Kids",
+      "en": "Kids Menu"
+    },
+    "sort_order": 7,
+    "active": true,
+    "created_at": "2026-08-05T09:06:15.492495+00:00",
+    "updated_at": "2026-08-05T09:06:15.492506+00:00"
+  },
+  {
+    "id": "997b330c-00d1-4c49-a8e7-582773246eaf",
+    "slug": "desserts",
+    "label": {
+      "fr": "Desserts",
+      "en": "Desserts"
+    },
+    "sort_order": 8,
+    "active": true,
+    "created_at": "2026-08-05T09:06:15.966035+00:00",
+    "updated_at": "2026-08-05T09:06:15.966047+00:00"
+  },
+  {
+    "id": "b118f112-046e-4df9-88b5-6afb267e5c64",
+    "slug": "drinks",
+    "label": {
+      "fr": "Boissons",
+      "en": "Drinks"
+    },
+    "sort_order": 9,
+    "active": true,
+    "created_at": "2026-08-05T09:06:16.078554+00:00",
+    "updated_at": "2026-08-05T09:06:16.078563+00:00"
+  }
+]

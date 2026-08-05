@@ -1,15 +1,30 @@
-"""Idempotent seed: admin user + default settings singleton + empty builder placeholders."""
+"""Idempotent seed for Burger Times.
+
+Runs on every backend startup. Loads static reference data (categories, menu
+items, sauces, tacos-builder collections) from JSON files in `seed_data/` and
+inserts any documents that are missing (matched by primary key). Existing
+docs are never overwritten so an admin's edits are safe.
+
+This is critical for production deploys: preview and production have separate
+Mongo databases, so bundling the real menu with the code is the only way a
+fresh deploy comes up with the full menu already loaded.
+"""
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, List
 
 from auth import hash_password, verify_password
 from models import Settings
 
 logger = logging.getLogger(__name__)
+
+
+SEED_DATA_DIR = Path(__file__).parent / "seed_data"
 
 
 DEFAULT_SODA_FLAVOURS = [
@@ -19,8 +34,6 @@ DEFAULT_SODA_FLAVOURS = [
     "Sprite",
     "Ice Tea",
     "Oasis Tropical",
-    "Perrier",
-    "Eau plate",
 ]
 
 DEFAULT_HOURS = {
@@ -34,14 +47,48 @@ DEFAULT_HOURS = {
 }
 
 
-DEFAULT_CATEGORIES = [
-    {"slug": "burgers", "label": {"fr": "Burgers", "en": "Burgers"}, "sort_order": 1},
-    {"slug": "sandwiches", "label": {"fr": "Sandwiches", "en": "Sandwiches"}, "sort_order": 2},
-    {"slug": "wraps", "label": {"fr": "Wraps", "en": "Wraps"}, "sort_order": 3},
-    {"slug": "sides", "label": {"fr": "Accompagnements", "en": "Sides"}, "sort_order": 4},
-    {"slug": "drinks", "label": {"fr": "Boissons", "en": "Drinks"}, "sort_order": 5},
-    {"slug": "desserts", "label": {"fr": "Desserts", "en": "Desserts"}, "sort_order": 6},
-]
+def _load_json(name: str) -> List[Dict[str, Any]]:
+    path = SEED_DATA_DIR / name
+    if not path.exists():
+        logger.warning("Seed file missing: %s", path)
+        return []
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, list):
+            logger.warning("Seed file %s did not contain a JSON array; skipping", name)
+            return []
+        return data
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to load seed file %s", name)
+        return []
+
+
+async def _seed_collection(
+    db,
+    collection_name: str,
+    file_name: str,
+    match_key: str = "id",
+) -> None:
+    """Insert any docs from ``file_name`` that don't already exist in ``collection_name``.
+
+    Matches on ``match_key`` (default ``id``) so re-running is idempotent.
+    Docs already present are left untouched — admin edits are preserved.
+    """
+    docs = _load_json(file_name)
+    if not docs:
+        return
+    inserted = 0
+    for doc in docs:
+        key_val = doc.get(match_key)
+        if key_val is None:
+            continue
+        existing = await db[collection_name].find_one({match_key: key_val})
+        if existing is None:
+            await db[collection_name].insert_one(dict(doc))
+            inserted += 1
+    if inserted:
+        logger.info("Seeded %d docs into %s (from %s)", inserted, collection_name, file_name)
 
 
 async def seed_admin(db) -> None:
@@ -74,14 +121,12 @@ async def seed_settings(db) -> None:
     existing = await db.settings.find_one({"id": "singleton"})
     if existing is None:
         s = Settings(soda_flavours=DEFAULT_SODA_FLAVOURS)
-        # apply default hours
-        s.hours_per_day = s.hours_per_day.model_copy()
         settings_doc = s.model_dump()
         settings_doc["hours_per_day"] = DEFAULT_HOURS
         await db.settings.insert_one(settings_doc)
         logger.info("Seeded settings singleton")
     else:
-        # Backfill: ensure keys exist
+        # Backfill: ensure keys exist so newly added settings features work on old DBs.
         updates: Dict[str, Any] = {}
         for key, default in {
             "soda_flavours": DEFAULT_SODA_FLAVOURS,
@@ -114,21 +159,16 @@ async def seed_settings(db) -> None:
             logger.info("Backfilled settings keys: %s", list(updates.keys()))
 
 
-async def seed_categories(db) -> None:
-    for cat in DEFAULT_CATEGORIES:
-        existing = await db.categories.find_one({"slug": cat["slug"]})
-        if existing is None:
-            doc = {
-                "id": _uuid(),
-                "slug": cat["slug"],
-                "label": cat["label"],
-                "sort_order": cat["sort_order"],
-                "active": True,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }
-            await db.categories.insert_one(doc)
-    logger.info("Categories seeded")
+async def seed_menu_data(db) -> None:
+    """Seed the full menu, categories, sauces, and tacos-builder from JSON files."""
+    await _seed_collection(db, "categories", "categories.json", match_key="slug")
+    await _seed_collection(db, "menu_items", "menu_items.json")
+    await _seed_collection(db, "sauces", "sauces.json")
+    await _seed_collection(db, "burger_styles", "burger_styles.json")
+    await _seed_collection(db, "burger_sizes", "burger_sizes.json")
+    await _seed_collection(db, "burger_meats", "burger_meats.json")
+    await _seed_collection(db, "burger_cheeses", "burger_cheeses.json")
+    await _seed_collection(db, "burger_supplements", "burger_supplements.json")
 
 
 async def ensure_indexes(db) -> None:
@@ -150,4 +190,4 @@ async def run_seed(db) -> None:
     await ensure_indexes(db)
     await seed_admin(db)
     await seed_settings(db)
-    await seed_categories(db)
+    await seed_menu_data(db)

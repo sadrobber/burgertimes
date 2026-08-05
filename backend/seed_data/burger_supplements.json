@@ -1,0 +1,44 @@
+[
+  {
+    "id": "89da6a74-18b8-41ab-93bf-982f08095a3d",
+    "name": "Bacon",
+    "base_price": 1,
+    "available": true,
+    "sort_order": 1
+  },
+  {
+    "id": "e975c02b-d365-41e7-bcbf-28b8040f90ca",
+    "name": "Œuf",
+    "base_price": 1,
+    "available": true,
+    "sort_order": 2
+  },
+  {
+    "id": "ed671e25-1ee3-4055-b3c7-c3e0b23a9f91",
+    "name": "Cheddar",
+    "base_price": 1,
+    "available": true,
+    "sort_order": 3
+  },
+  {
+    "id": "fe79649b-728e-4220-a712-4495580514cf",
+    "name": "Raclette",
+    "base_price": 1,
+    "available": true,
+    "sort_order": 4
+  },
+  {
+    "id": "701391bc-338a-4356-89d2-05d5a551202e",
+    "name": "Chèvre",
+    "base_price": 1,
+    "available": true,
+    "sort_order": 5
+  },
+  {
+    "id": "19a33560-4ab7-4017-9209-58ca87432b48",
+    "name": "Boursin",
+    "base_price": 1,
+    "available": true,
+    "sort_order": 6
+  }
+]

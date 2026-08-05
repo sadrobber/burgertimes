@@ -1,0 +1,22 @@
+{
+  "summary": "Verified seed idempotency and public API regression for Burger Times seed.py rewrite. All 9 backend tests passed: preview DB unchanged (menu=40, categories=9, sauces=12, meats=6, supplements=6, sizes=3, styles=1, cheeses=0); fresh scratch DB seeded produces exact same counts + 1 settings singleton + 1 admin user; running seed twice on scratch DB produces no duplicates. Admin login + /api/admin/menu + /api/checkout/quote + /api/restaurant/status all working.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_seed_and_apis.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "seed.py: idempotency logic is clean (match on id/slug, dict(doc) prevents in-place mutation, admin edits preserved).",
+    "seed_admin() correctly rehashes when password rotated; verify_password guards no-op path.",
+    "seed_settings() backfills missing keys on old DBs, good forward-compat pattern.",
+    "seed_data/settings.json is present in the directory but not wired through seed_menu_data — settings still comes from seed_settings() defaults. Not a bug, just an unused file; either wire it or delete to avoid confusion.",
+    "burger_cheeses.json is an empty array — _seed_collection early-returns on empty docs so the collection is never created; harmless because count=0 is the desired state, but noted for awareness."
+  ],
+  "updated_files": ["/app/backend/tests/test_seed_and_apis.py"],
+  "success_rate": {"backend": "100%", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "chahineisgoated@gmail.com / BurgerTimes2026! (admin login verified working)",
+  "seed_data_creation": "Created transient scratch MongoDB db 'seed_verification_<uuid>' during fresh-seed test; dropped in teardown_class.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "backend_test file is /app/backend/tests/test_seed_and_apis.py — run with: cd /app/backend && python -m pytest tests/test_seed_and_apis.py -v. Uses REACT_APP_BACKEND_URL from env. Fresh-seed test drops its own scratch DB after run — never touches test_database. If seed.py changes, re-run to validate idempotency.",
+  "rca of the issue": "Original bug (menu missing in production) RCA: preview and prod use separate Mongo databases; the old seed.py hardcoded only admin/settings/6 stock categories, so a fresh prod DB came up empty of the 40 menu items the owner added through admin UI in preview. Fix (verified): seed.py now loads /app/backend/seed_data/*.json (menu_items, categories, sauces, burger_* collections) and does an id/slug match idempotent insert on every startup — empty DBs auto-populate, existing DBs are untouched. Verified against fresh DB (all counts correct) and second run (no duplicates)."
+}

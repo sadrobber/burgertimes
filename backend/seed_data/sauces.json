@@ -1,0 +1,74 @@
+[
+  {
+    "id": "d74f0c25-152f-4b53-a82f-aad70d23d269",
+    "name": "Algérienne",
+    "sort_order": 1,
+    "active": true
+  },
+  {
+    "id": "36b7069b-24eb-4bdb-8eb3-6ee07df83cb2",
+    "name": "Harissa",
+    "sort_order": 2,
+    "active": true
+  },
+  {
+    "id": "bd26c467-c767-42f8-8e56-7be252ed927a",
+    "name": "Andalouse",
+    "sort_order": 3,
+    "active": true
+  },
+  {
+    "id": "9c789a06-c588-4d19-a13f-b47bc84a0ea5",
+    "name": "Ketchup",
+    "sort_order": 4,
+    "active": true
+  },
+  {
+    "id": "f86ef31b-e0c0-4eb3-82b4-8a091883f88d",
+    "name": "Barbecue",
+    "sort_order": 5,
+    "active": true
+  },
+  {
+    "id": "c3749394-c62b-4a54-9aa8-ee50dda39b99",
+    "name": "Moutarde",
+    "sort_order": 6,
+    "active": true
+  },
+  {
+    "id": "5bba0fab-c22c-40ec-a865-da57bbedcb55",
+    "name": "Big Mac",
+    "sort_order": 7,
+    "active": true
+  },
+  {
+    "id": "ab41e030-dc45-417e-902e-583742076c15",
+    "name": "Mayonnaise",
+    "sort_order": 8,
+    "active": true
+  },
+  {
+    "id": "92290c6b-2a82-4a5f-bab6-93d6fe71959c",
+    "name": "Biggy",
+    "sort_order": 9,
+    "active": true
+  },
+  {
+    "id": "ffb2b129-aa8a-4aec-b561-d706d8ac4bc1",
+    "name": "Poivre",
+    "sort_order": 10,
+    "active": true
+  },
+  {
+    "id": "6467bb8c-1079-425a-a210-6a0dc4bf3165",
+    "name": "Blanche",
+    "sort_order": 11,
+    "active": true
+  },
+  {
+    "id": "fa8969f1-1ab2-45fd-a718-c1ded1c70f43",
+    "name": "Samouraï",
+    "sort_order": 12,
+    "active": true
+  }
+]

@@ -1,41 +1,47 @@
 # Burger Times · PRD
 
 ## Original problem statement
-Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl`, phone: `04.97.07.17.93`, address: `6 Avenue de Villaine, 06240 Beausoleil`). Bold red-and-black visual identity, `BT-` order-number prefix, custom smash-burger builder (`burger_*` collections: styles, sizes, meats, cheeses, supplements), plus standard menu formulas and drinks. Bilingual FR/EN, pay-on-arrival only, Telegram + Resend integrations (wired but currently unconfigured), admin dashboard.
+Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl`, phone: `04.97.07.17.93`, address: `6 Avenue de Villaine, 06240 Beausoleil`). Bold red-and-black brutalist visual identity, `BT-` order-number prefix, custom **Tacos Builder** (1/2/3 meats · sauces · supplements · replaces the initial burger builder), plus standard menu formulas and drinks. Bilingual FR/EN, pay-on-arrival only, Telegram + Resend integrations, admin dashboard. **Production domain:** `https://burgertimes.fr`.
 
 ## Architecture
-- **Backend**: FastAPI + Motor/MongoDB (UUID string PKs, UTC ISO 8601 timestamps). Routes prefixed with `/api`. JWT + bcrypt admin auth (24h token, `Bearer` in `Authorization` header). Server-side pricing engine (`pricing.py`, `order_service.py`). Restaurant status engine (`restaurant_status.py`, `Europe/Paris` tz). Telegram + Resend services safe when env vars are unset (`telegram_service.py`, `email_service.py`). Idempotent seed (`seed.py`) on startup: creates admin user + settings singleton + default categories.
-- **Frontend**: React 19 + React Router v6 + Tailwind + shadcn/ui. Context: `I18nContext` (FR/EN, `bt_lang`), `CartContext` (localStorage `bt_cart_v1`), `AdminAuthContext` (`bt_admin_token`). Two axios instances in `lib/api.js`: `apiClient` and `adminClient` (auto-inject Bearer, redirect to `/admin/login` on 401). Framer-motion for staggered menu reveal & hero. Sonner for toasts.
-- **Design**: brutalist street-food theme — `Anton`/`Bebas Neue` display, `Outfit` body, `Permanent Marker` for hand-scrawled tags. Signal red `#EF2B2D` on near-black `#0A0A0A` off-white `#F5F1E8`. Hard offset shadows, thick borders, halftone dots, grain overlay. `rounded-none` everywhere.
+- **Backend**: FastAPI + Motor/MongoDB (UUID string PKs, UTC ISO 8601 timestamps). Routes prefixed with `/api`. JWT + bcrypt admin auth (24 h token). Server-side pricing engine (`pricing.py`, `order_service.py`). Restaurant status engine (`restaurant_status.py`, `Europe/Paris` tz). Telegram + Resend services safe when env vars unset. **Idempotent seed** now loads reference data (categories, menu items, sauces, tacos builder) from `backend/seed_data/*.json` on every startup — critical because preview and production have separate Mongo databases.
+- **Frontend**: React 19 + React Router v6 + Tailwind + shadcn/ui. Context: `I18nContext` (FR/EN), `CartContext`, `AdminAuthContext`. Two axios instances in `lib/api.js`. Framer-motion for animations. Sonner for toasts.
+- **Design**: brutalist street-food — `Anton`/`Bebas Neue` display, `Outfit` body, `Permanent Marker` accents. Signal red `#EF2B2D` on near-black `#0A0A0A`, off-white `#F5F1E8`. Hard offset shadows, thick borders, halftone dots, grain overlay, `rounded-none` everywhere.
 
 ## User personas
-- **Customer**: mobile visitor from Beausoleil / Monaco area, browses menu, builds a burger, chooses pickup or delivery, pays cash or card on site.
-- **Owner / kitchen staff**: signs into `/admin`, manages orders, edits menu, tweaks opening hours, syncs Telegram webhook.
+- **Customer**: mobile visitor from Beausoleil / Monaco area, browses menu, builds a tacos, chooses pickup or delivery, pays cash or card on site.
+- **Owner / kitchen staff**: signs into `/admin`, manages orders, edits menu, tweaks opening hours, receives Telegram tickets.
 
-## Core requirements (static)
+## Core requirements
 - Order flow: Home → Menu → configure items → Cart → Checkout → Success.
 - Pay-on-arrival only (`cash` or `card_in_person`).
-- Burger builder with flat-price + variable-price styles, meat count constrained by size or style.max_meats.
-- Restaurant status engine returns `open|closing_soon|closed`. Backend enforces via HTTP 423 on `/api/checkout/session` when closed.
-- Bilingual (FR/EN) via lightweight custom `I18nContext`.
-- Admin: dashboard metrics, orders (accept/preparing/ready/delivered/cancel + hard delete), menu CRUD w/ images, categories CRUD, burger builder CRUD, sauces, reviews approval, settings (hours, cutoff, ETA, delivery fee, sodas, force_closed, too_busy).
-- Order display IDs prefixed with `BT-`.
-- Pickup orders get a 4-digit `pickup_code`.
+- Tacos builder with size-based pricing (1/2/3 meats), sauces & supplements.
+- Restaurant status engine returns `open|closing_soon|closed`. Backend blocks `/api/checkout/session` (HTTP 423) when closed. Closed-state hero with live countdown + waitlist capture.
+- Bilingual (FR/EN) via lightweight `I18nContext`.
+- Admin: dashboard metrics, orders (accept/preparing/ready/delivered/cancel + hard delete), menu CRUD w/ images, categories CRUD, tacos builder CRUD, sauces, reviews approval, settings (hours, cutoff, ETA, % delivery fee, sodas, force_closed, too_busy, payment toggles, order limits, delivery postal codes).
+- Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
-- Full backend: models, pricing engine, order service, seed, restaurant status, JWT auth, Telegram/Resend services, admin + public routes.
-- Full frontend: brutalist red/black theme, Home hero, Menu grid + burger builder modal, Cart, Checkout (with server-side quote), Order Success with pickup code, admin login + layout + all 8 admin pages.
-- Admin seeded with the owner email `chahineisgoated@gmail.com` (password in `/app/memory/test_credentials.md`).
+- Full backend + frontend brutalist theme, tacos builder, checkout, admin dashboard (all 8 pages).
+- Payment toggles (cash/card), daily/weekly order limits, percentage delivery fee, delivery postal-code allowlist.
+- Closed-state hero with buttery-smooth live countdown (framer-motion) + waitlist email capture.
+- **Telegram** kitchen bot integration (`@BurgerTimes_bot`, live) with inline accept/ready/cancel buttons.
+- **Resend** email integration via **Emergent-managed proxy** (order confirmations, waitlist blasts, auto-notify on closed → open transition via Emergent Cron).
+- Full menu seeded (40 items across Signatures / Classiques / Smash / Wraps / Sandwiches / Tex Mex-Sides / Kids / Desserts / Drinks) + 12 sauces + 6 meats + 6 supplements + tacos sizes 1/2/3.
+- **Auto-seed of full menu data on every backend startup** (2026-02-XX): `backend/seed.py` now loads `categories.json`, `menu_items.json`, `sauces.json`, `burger_styles.json`, `burger_sizes.json`, `burger_meats.json`, `burger_supplements.json` from `backend/seed_data/`. Idempotent (matched by id/slug, never overwrites edits). This ensures fresh production deploys come up with the full menu already loaded.
 
-## Deferred / P0 backlog
-- Telegram bot token + kitchen chat ID (user asked to skip; wiring is in place — set env vars + click "Sync Telegram Webhook" in admin Settings).
-- Resend API key + verified sender domain (skipped by user).
-- Menu content seeding (user opted to enter items from admin).
-- Optional: seeded burger builder starter kit (styles/sizes/meats).
+## P1 backlog (upcoming)
+- **Live Order Sound** — play a ping + flash the admin dashboard when a fresh order lands.
+- **Kitchen Print Ticket** — thermal-printer-friendly ticket in the admin order drawer.
 
-## P1 backlog / next tasks
+## P2 backlog
 - Admin sortable / drag-reorder for menu & categories.
-- Order-print or receipt view.
-- Loyalty / punch-card style repeat-customer perk.
+- Loyalty / punch-card repeat-customer perk.
 - Analytics: hourly heatmap + top items.
 - PWA install + push notifications.
+- Rename `BurgerBuilder*` components → `TacosBuilder*` (cosmetic).
+
+## Notes
+- Admin owner email: `chahineisgoated@gmail.com` (password in `/app/memory/test_credentials.md`).
+- Language: user speaks English; UI labels in French.
+- Emergent Emails uses managed proxy — do NOT switch to plain Resend SDK.

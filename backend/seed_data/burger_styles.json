@@ -1,0 +1,10 @@
+[
+  {
+    "id": "4e775b35-9c3a-48b7-9db7-39ac1e623e64",
+    "name": "Tacos",
+    "description": "Compose ton tacos",
+    "price_modifier": 0,
+    "available": true,
+    "sort_order": 1
+  }
+]
