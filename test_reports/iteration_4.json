@@ -1,0 +1,43 @@
+{
+  "summary": "Backend-only verification of the Emergent email proxy -> direct Resend REST API swap. All 7 pytest cases pass. Module-level: email_service.is_configured() returns True with the newly-set RESEND_API_KEY / RESEND_FROM_EMAIL / EMAIL_FROM_NAME env vars; _from_header() returns 'Burger Times <orders@burgertimes.fr>'; the module is a proper no-op when RESEND_API_KEY is missing (verified in a clean subprocess). End-to-end: POST /api/checkout/session with customer_email=delivered@resend.dev returned 200 with order_id/order_number, and backend logs show `POST https://api.resend.com/emails HTTP/1.1 200 OK` followed by `INFO:email_service:Resend email sent to delivered@resend.dev (subject='Commande confirmée · #BT-...')`. Telegram sidecar still works: `POST https://api.telegram.org/bot.../sendMessage HTTP/1.1 200 OK` fired in the same request. Admin status update to 'accepted' triggered a second Resend send (subject 'Commande acceptée'). No new calls to integrations.emergentagent.com after the swap. /api/menu still returns 40 items and /api/categories 9, admin login still works.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "email_service_is_configured_true": "PASS - is_configured=True, _from_header='Burger Times <orders@burgertimes.fr>', _api_key startswith 're_', _from_email='orders@burgertimes.fr'.",
+    "email_service_noop_when_unset": "PASS - subprocess with RESEND_API_KEY unset: is_configured=False and send_order_email(...) returns without raising.",
+    "menu_regression_40": "PASS",
+    "categories_regression_9": "PASS",
+    "checkout_session_triggers_resend_and_telegram": "PASS - order BT-A6PP46 created (order_id returned), backend log shows POST https://api.resend.com/emails 200 OK + 'Resend email sent to delivered@resend.dev (subject=\"Commande confirmée · #BT-A6PP46\")' + POST https://api.telegram.org/bot.../sendMessage 200 OK. No integrations.emergentagent.com hits.",
+    "admin_status_accepted_triggers_email": "PASS - PUT /api/admin/orders/{id}/status {status:'accepted'} produced a second POST api.resend.com/emails 200 OK, subject 'Commande acceptée · #BT-A6PP46'.",
+    "cleanup_delete_order": "PASS - test order deleted via DELETE /api/admin/orders/{id}."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_resend_integration.py",
+    "/app/test_reports/pytest/resend_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "email_service._post_email logs subject at INFO but not the Resend message id from the response body — logging r.json().get('id') would make prod tracing easier when correlating with the Resend dashboard.",
+    "send_order_email is awaited synchronously in POST /api/checkout/session under a try/except; Resend p99 latency is ~800ms, so a slow Resend call will delay the checkout HTTP response by up to 30s (httpx timeout). Consider asyncio.create_task(...) for true fire-and-forget, matching the Telegram pattern which is already inline but wraps update logic separately.",
+    "No retry on 5xx from Resend. A single transient upstream error will lose the confirmation email silently (only a WARNING log). Acceptable for MVP but worth a followup."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_resend_integration.py"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7)",
+    "frontend": "n/a (not requested)"
+  },
+  "test_credentials": "Admin: chahineisgoated@gmail.com / BurgerTimes2026! (loaded from /app/backend/.env). Resend recipient sink: delivered@resend.dev.",
+  "seed_data_creation": "One test order created (order_number BT-A6PP46) and deleted at end of test class.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Resend direct-API integration verified end-to-end on the public preview URL. Evidence lines in /var/log/supervisor/backend.err.log: 'POST https://api.resend.com/emails HTTP/1.1 200 OK' and 'INFO:email_service:Resend email sent to delivered@resend.dev'. Older 'integrations.emergentagent.com/api/v1/email/send' entries are historical from prior iterations — no new hits post-swap. Reusable regression file: /app/backend/tests/test_resend_integration.py."
+}

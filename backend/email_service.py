@@ -1,12 +1,13 @@
-"""Emergent-managed Resend email service.
+"""Resend direct email service.
 
-Sends transactional emails through the platform proxy at
-``https://integrations.emergentagent.com``. Authenticated with a per-app
-``X-Email-Key`` header. The ``from_name`` (display name) is REQUIRED on every
-send and read from the ``EMAIL_FROM_NAME`` env var; the from-address itself is
-managed by the platform and cannot be overridden.
+Sends transactional emails through the Resend REST API using the owner's own
+API key and verified sending domain (e.g. `orders@burgertimes.fr`). Safe when
+`RESEND_API_KEY` is unset — every call becomes a no-op.
 
-Safe when ``EMERGENT_EMAIL_KEY`` is unset — every call becomes a no-op.
+Env vars:
+- RESEND_API_KEY: `re_...` API key from https://resend.com/api-keys
+- RESEND_FROM_EMAIL: verified sender address on a domain you own
+- EMAIL_FROM_NAME: display name shown to recipients ("Burger Times")
 """
 from __future__ import annotations
 
@@ -18,12 +19,17 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# CONSTANT — do not read from env. This survives deployment.
-EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+# Resend REST API base — CONSTANT, do not read from env.
+RESEND_API_URL = "https://api.resend.com/emails"
 
 
-def _email_key() -> Optional[str]:
-    v = os.environ.get("EMERGENT_EMAIL_KEY")
+def _api_key() -> Optional[str]:
+    v = os.environ.get("RESEND_API_KEY")
+    return v if v else None
+
+
+def _from_email() -> Optional[str]:
+    v = os.environ.get("RESEND_FROM_EMAIL")
     return v if v else None
 
 
@@ -31,8 +37,13 @@ def _from_name() -> str:
     return os.environ.get("EMAIL_FROM_NAME") or "Burger Times"
 
 
+def _from_header() -> str:
+    """Build the RFC-5322 `From:` header value: `Display Name <address>`."""
+    return f"{_from_name()} <{_from_email()}>"
+
+
 def is_configured() -> bool:
-    return bool(_email_key())
+    return bool(_api_key() and _from_email())
 
 
 def _fmt_eur(v: float) -> str:
@@ -158,36 +169,39 @@ def _template(order: Dict[str, Any], template: str) -> Tuple[str, str]:
 
 
 async def _post_email(to: str, subject: str, html: str) -> bool:
-    """Low-level send. Never raises. Returns True on 2xx."""
+    """Low-level send via Resend REST API. Never raises. Returns True on 2xx."""
     if not is_configured() or not to:
         return False
     payload: Dict[str, Any] = {
+        "from": _from_header(),
         "to": [to],
         "subject": subject,
         "html": html,
-        "from_name": _from_name(),
     }
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(
-                f"{EMAIL_BASE_URL}/api/v1/email/send",
-                headers={"X-Email-Key": _email_key()},
+                RESEND_API_URL,
+                headers={
+                    "Authorization": f"Bearer {_api_key()}",
+                    "Content-Type": "application/json",
+                },
                 json=payload,
             )
             if r.status_code >= 300:
-                logger.warning("Email send failed: %s %s", r.status_code, r.text)
+                logger.warning("Resend send failed: %s %s", r.status_code, r.text)
                 return False
-            logger.info("Email sent to %s (subject=%r)", to, subject)
+            logger.info("Resend email sent to %s (subject=%r)", to, subject)
             return True
     except Exception:  # noqa: BLE001
-        logger.exception("Email send exception")
+        logger.exception("Resend send exception")
         return False
 
 
 async def send_order_email(order: Dict[str, Any], template: str) -> None:
     """Fire-and-forget order lifecycle email. Never raises."""
     if not is_configured():
-        logger.info("Email not configured; skipping %s", template)
+        logger.info("Resend not configured; skipping %s", template)
         return
     email = order.get("customer_email")
     if not email:
