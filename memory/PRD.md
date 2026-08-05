@@ -36,6 +36,10 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - **Live Order Sound** — play a ping + flash the admin dashboard when a fresh order lands.
 - **Kitchen Print Ticket** — thermal-printer-friendly ticket in the admin order drawer.
 
+## Fixed — Resend key rotation (2026-02-XX)
+- Previous `RESEND_API_KEY` (`re_2xiY...jgt`) was revoked on Resend's side (raw curl returned 401 "API key is invalid"). User provided fresh key `re_B5bcMqLa_...QJ`, updated in `/app/backend/.env` and applied via `sudo supervisorctl restart backend`. Order-confirmation + status-update emails now return HTTP 200 from api.resend.com and log 'Resend email sent to ...' — verified by testing agent iteration_8 (30/30 backend tests pass, no 401s in logs).
+- Hardened `load_dotenv(ROOT_DIR / '.env', override=True)` in `server.py` so future env rotations survive a WatchFiles hot-reload without a supervisor restart.
+
 ## Implemented — Menu polish & auto scroll-to-top (2026-02-XX)
 - Removed the "Tous" chip and any empty categories (like the legacy `burgers`) from the customer menu at `/menu`. Category chips are filtered to only those with at least one menu item so future stale categories stay hidden automatically. Default active tab is now the first real category (Signatures) so items are visible immediately.
 - New `ScrollToTop` component mounted inside `<BrowserRouter>` — every route change fires `window.scrollTo({top:0})` instantly, so navigating from any page to `/menu` lands the visitor on the **Compose ton Tacos** CTA.
