@@ -11,12 +11,14 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Home as HomeIcon,
+  Truck,
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext.jsx";
 
 const links = [
   { to: "/admin", end: true, label: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
   { to: "/admin/orders", label: "Commandes", icon: ClipboardList, id: "orders" },
+  { to: "/admin/stats/delivery", label: "Livraisons", icon: Truck, id: "delivery-stats" },
   { to: "/admin/menu", label: "Menu", icon: UtensilsCrossed, id: "menu" },
   { to: "/admin/categories", label: "Catégories", icon: Tags, id: "categories" },
   { to: "/admin/burger", label: "Burger Builder", icon: Beef, id: "burger" },

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="7" time="2.887" timestamp="2026-08-05T16:44:00.607010+00:00" hostname="agent-env-2e27b95e-59e6-47ea-8de8-d6b10f149601"><testcase classname="tests.test_delivery_stats" name="test_auth_required_no_token" time="0.399" /><testcase classname="tests.test_delivery_stats" name="test_shape_days_7" time="0.603" /><testcase classname="tests.test_delivery_stats" name="test_range_days_1" time="0.176" /><testcase classname="tests.test_delivery_stats" name="test_range_days_365" time="0.221" /><testcase classname="tests.test_delivery_stats" name="test_range_days_zero_invalid" time="0.140" /><testcase classname="tests.test_delivery_stats" name="test_range_days_over_max_invalid" time="0.131" /><testcase classname="tests.test_delivery_stats" name="test_aggregation_with_seed" time="0.030"><failure message="pymongo.errors.BulkWriteError: batch op errors occurred, full error: {'writeErrors': [{'index': 1, 'code': 11000, 'errmsg': 'E11000 duplicate key error collection: test_database.orders index: order_number_1 dup key: { order_number: null }', 'keyPattern': {'order_number': 1}, 'keyValue': {'order_number': None}, 'op': {'id': 'test-stat-2', 'fulfillment': 'delivery', 'status': 'delivered', 'subtotal': 15, 'delivery_fee': 1.5, 'total': 16.5, 'created_at': '2026-08-04T16:44:02.931250Z', '_id': ObjectId('6a736852248dc94af2a13c25')}}], 'writeConcernErrors': [], 'nInserted': 1, 'nUpserted': 0, 'nMatched': 0, 'nModified': 0, 'nRemoved': 0, 'upserted': []}">backend/tests/test_delivery_stats.py:104: in test_aggregation_with_seed
+    db.orders.insert_many(seed)
+/root/.venv/lib/python3.11/site-packages/pymongo/_csot.py:107: in csot_wrapper
+    return func(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/pymongo/collection.py:755: in insert_many
+    blk.execute(write_concern, session=session)
+/root/.venv/lib/python3.11/site-packages/pymongo/bulk.py:576: in execute
+    return self.execute_command(generator, write_concern, session)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/pymongo/bulk.py:446: in execute_command
+    _raise_bulk_write_error(full_result)
+/root/.venv/lib/python3.11/site-packages/pymongo/bulk.py:157: in _raise_bulk_write_error
+    raise BulkWriteError(full_result)
+E   pymongo.errors.BulkWriteError: batch op errors occurred, full error: {'writeErrors': [{'index': 1, 'code': 11000, 'errmsg': 'E11000 duplicate key error collection: test_database.orders index: order_number_1 dup key: { order_number: null }', 'keyPattern': {'order_number': 1}, 'keyValue': {'order_number': None}, 'op': {'id': 'test-stat-2', 'fulfillment': 'delivery', 'status': 'delivered', 'subtotal': 15, 'delivery_fee': 1.5, 'total': 16.5, 'created_at': '2026-08-04T16:44:02.931250Z', '_id': ObjectId('6a736852248dc94af2a13c25')}}], 'writeConcernErrors': [], 'nInserted': 1, 'nUpserted': 0, 'nMatched': 0, 'nModified': 0, 'nRemoved': 0, 'upserted': []}</failure></testcase></testsuite></testsuites>

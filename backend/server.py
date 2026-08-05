@@ -836,6 +836,103 @@ async def admin_stats(_: dict = Depends(require_admin)):
     }
 
 
+@api.get("/admin/stats/delivery-fees")
+async def admin_delivery_fee_stats(
+    _: dict = Depends(require_admin),
+    days: int = Query(default=30, ge=1, le=365),
+):
+    """Return per-day delivery-fee totals in the restaurant's local timezone.
+
+    Counts only delivery orders (fulfillment='delivery') that were not
+    cancelled or expired. Returns:
+      - daily: [{date, orders, delivery_fees, subtotal, avg_fee}]
+      - totals: {today, this_week, this_month, all_time, in_range}
+    """
+    settings = await db.settings.find_one({"id": "singleton"}) or {}
+    tz_name = settings.get("timezone") or "Europe/Paris"
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:  # noqa: BLE001
+        tz = ZoneInfo("Europe/Paris")
+
+    void = {"cancelled", "expired"}
+    docs = await db.orders.find(
+        {"fulfillment": "delivery", "status": {"$nin": list(void)}}
+    ).to_list(20000)
+
+    now_local = datetime.now(tz)
+    today_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start_local = (today_local - timedelta(days=today_local.weekday()))
+    month_start_local = today_local.replace(day=1)
+    range_start_local = today_local - timedelta(days=days - 1)
+
+    daily_map: Dict[str, Dict[str, float]] = {}
+    totals = {"today": 0.0, "this_week": 0.0, "this_month": 0.0, "all_time": 0.0, "in_range": 0.0}
+    counts = {"today": 0, "this_week": 0, "this_month": 0, "all_time": 0, "in_range": 0}
+    subtotals = {"today": 0.0, "this_week": 0.0, "this_month": 0.0, "all_time": 0.0, "in_range": 0.0}
+
+    for d in docs:
+        fee = float(d.get("delivery_fee") or 0.0)
+        sub = float(d.get("subtotal") or 0.0)
+        created = d.get("created_at")
+        if not created:
+            continue
+        try:
+            dt_utc = datetime.fromisoformat(created.replace("Z", "+00:00"))
+        except Exception:  # noqa: BLE001
+            continue
+        dt_local = dt_utc.astimezone(tz)
+        day_key = dt_local.strftime("%Y-%m-%d")
+
+        entry = daily_map.setdefault(day_key, {"date": day_key, "orders": 0, "delivery_fees": 0.0, "subtotal": 0.0})
+        entry["orders"] += 1
+        entry["delivery_fees"] = round(entry["delivery_fees"] + fee, 2)
+        entry["subtotal"] = round(entry["subtotal"] + sub, 2)
+
+        totals["all_time"] += fee
+        subtotals["all_time"] += sub
+        counts["all_time"] += 1
+        if dt_local >= today_local:
+            totals["today"] += fee
+            subtotals["today"] += sub
+            counts["today"] += 1
+        if dt_local >= week_start_local:
+            totals["this_week"] += fee
+            subtotals["this_week"] += sub
+            counts["this_week"] += 1
+        if dt_local >= month_start_local:
+            totals["this_month"] += fee
+            subtotals["this_month"] += sub
+            counts["this_month"] += 1
+        if dt_local >= range_start_local:
+            totals["in_range"] += fee
+            subtotals["in_range"] += sub
+            counts["in_range"] += 1
+
+    # Fill every day in the requested range so the chart has no gaps.
+    daily = []
+    cursor = range_start_local
+    while cursor <= today_local:
+        key = cursor.strftime("%Y-%m-%d")
+        e = daily_map.get(key, {"date": key, "orders": 0, "delivery_fees": 0.0, "subtotal": 0.0})
+        daily.append({
+            "date": e["date"],
+            "orders": e["orders"],
+            "delivery_fees": round(e["delivery_fees"], 2),
+            "subtotal": round(e["subtotal"], 2),
+        })
+        cursor += timedelta(days=1)
+
+    return {
+        "range_days": days,
+        "timezone": tz_name,
+        "totals": {k: round(v, 2) for k, v in totals.items()},
+        "counts": counts,
+        "subtotals": {k: round(v, 2) for k, v in subtotals.items()},
+        "daily": daily,
+    }
+
+
 # ----- Telegram webhook ----------------------------------------------------
 
 

@@ -23,6 +23,7 @@ import BurgerBuilderAdmin from "@/pages/admin/BurgerBuilderAdmin.jsx";
 import SaucesAdmin from "@/pages/admin/SaucesAdmin.jsx";
 import ReviewsAdmin from "@/pages/admin/ReviewsAdmin.jsx";
 import SettingsAdmin from "@/pages/admin/SettingsAdmin.jsx";
+import DeliveryStatsAdmin from "@/pages/admin/DeliveryStatsAdmin.jsx";
 
 function AdminGuard({ children }) {
   const { status } = useAdminAuth();
@@ -71,6 +72,7 @@ function App() {
                 <Route path="burger" element={<BurgerBuilderAdmin />} />
                 <Route path="sauces" element={<SaucesAdmin />} />
                 <Route path="reviews" element={<ReviewsAdmin />} />
+                <Route path="stats/delivery" element={<DeliveryStatsAdmin />} />
                 <Route path="settings" element={<SettingsAdmin />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
