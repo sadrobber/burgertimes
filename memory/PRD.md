@@ -36,6 +36,11 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - **Live Order Sound** — play a ping + flash the admin dashboard when a fresh order lands.
 - **Kitchen Print Ticket** — thermal-printer-friendly ticket in the admin order drawer.
 
+## Implemented — Delivery-fee analytics (2026-02-XX)
+- New backend endpoint `GET /api/admin/stats/delivery-fees?days=N` (default 30, 1-365). Aggregates orders where `fulfillment='delivery'` and `status ∉ {cancelled, expired}` in the restaurant's local tz (`Europe/Paris`). Returns `totals` + `counts` + `subtotals` for {today, this_week, this_month, all_time, in_range} plus a `daily` array (every day in the range, zero-filled for gap-free charting).
+- New admin page `/admin/stats/delivery` (`DeliveryStatsAdmin.jsx`) with: range picker chips (7d / 14d / 30d / 90d / 1y), 4 KPI cards, 3 summary tiles (period fees / period subtotal / avg fee per delivery), a **recharts** bar chart of fees per day, and a chronological daily journal table. Uses the existing brutalist theme.
+- Nav link **Livraisons** (`Truck` icon) added to `AdminLayout.jsx` between Commandes and Menu (`data-testid="admin-nav-delivery-stats"`).
+
 ## P2 backlog
 - Admin sortable / drag-reorder for menu & categories.
 - Loyalty / punch-card repeat-customer perk.
