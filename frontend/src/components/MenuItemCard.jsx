@@ -89,19 +89,45 @@ export default function MenuItemCard({ item, sodaFlavours = [] }) {
           <div className="mt-4 space-y-3">
             {item.formats && item.formats.length > 0 && (
               <div>
-                <div className="bt-label">Format</div>
-                <div className="flex flex-wrap gap-2">
-                  {item.formats.map((f) => (
-                    <button
-                      key={f.name}
-                      onClick={() => setSelectedFormat(f.name)}
-                      data-testid={`item-${item.id}-format-${f.name}`}
-                      className={`bt-chip ${selectedFormat === f.name ? "active" : ""}`}
-                    >
-                      {f.name}
-                    </button>
-                  ))}
+                <div className="bt-label">
+                  {item.category === "kids" ? "Choix du plat" : "Format"}
                 </div>
+                {item.category === "kids" ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {item.formats.map((f) => (
+                      <button
+                        key={f.name}
+                        onClick={() => setSelectedFormat(f.name)}
+                        data-testid={`item-${item.id}-format-${f.name}`}
+                        className={`bt-option ${selectedFormat === f.name ? "selected" : ""} text-left p-3`}
+                      >
+                        <div className="font-accent uppercase tracking-widest text-sm">{f.name}</div>
+                        <div className="text-xs text-[#A1A1A1] mt-1">{formatEur(f.price_seul)}</div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {item.formats.map((f) => (
+                      <button
+                        key={f.name}
+                        onClick={() => setSelectedFormat(f.name)}
+                        data-testid={`item-${item.id}-format-${f.name}`}
+                        className={`bt-chip ${selectedFormat === f.name ? "active" : ""}`}
+                      >
+                        {f.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {item.category === "kids" && (
+                  <div className="mt-3 border-l-2 border-[#EF2B2D] pl-3">
+                    <div className="bt-label">Inclus dans le menu</div>
+                    <div className="text-sm text-[#B3B3B3]">
+                      Frites · Capri-Sun · Kinder Maxi · Compote
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {hasMenu && (

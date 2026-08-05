@@ -102,6 +102,19 @@ export default function Checkout() {
     };
   }, [cartPayload, fulfillment, payment]);
 
+  const allowedPostalCodes = useMemo(
+    () =>
+      (settings?.delivery_postal_codes || [])
+        .map((v) => String(v).trim())
+        .filter(Boolean),
+    [settings],
+  );
+  const postalIsServed =
+    fulfillment !== "delivery" ||
+    allowedPostalCodes.length === 0 ||
+    !form.postal.trim() ||
+    allowedPostalCodes.includes(form.postal.trim());
+
   const canSubmit =
     items.length > 0 &&
     form.first.trim() &&
@@ -144,19 +157,6 @@ export default function Checkout() {
   };
 
   const closed = status?.state === "closed";
-
-  const allowedPostalCodes = useMemo(
-    () =>
-      (settings?.delivery_postal_codes || [])
-        .map((v) => String(v).trim())
-        .filter(Boolean),
-    [settings],
-  );
-  const postalIsServed =
-    fulfillment !== "delivery" ||
-    allowedPostalCodes.length === 0 ||
-    !form.postal.trim() ||
-    allowedPostalCodes.includes(form.postal.trim());
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#F5F1E8]">
