@@ -5,7 +5,6 @@ import Header from "@/components/layout/Header.jsx";
 import Footer from "@/components/layout/Footer.jsx";
 import MenuItemCard from "@/components/MenuItemCard.jsx";
 import BurgerBuilderModal from "@/components/BurgerBuilderModal.jsx";
-import StatusBanner from "@/components/StatusBanner.jsx";
 import { apiClient } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext.jsx";
 
@@ -62,12 +61,9 @@ export default function Menu() {
     <div className="min-h-screen bg-[#0A0A0A] text-[#F5F1E8]">
       <Header />
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
-          <div>
-            <div className="font-marker text-[#EF2B2D] text-xl -rotate-2">Chaud devant</div>
-            <h1 className="font-display text-6xl md:text-7xl uppercase mt-2">{t("menu.title")}</h1>
-          </div>
-          <StatusBanner variant="banner" />
+        <div className="mb-8">
+          <div className="font-marker text-[#EF2B2D] text-xl -rotate-2">Chaud devant</div>
+          <h1 className="font-display text-6xl md:text-7xl uppercase mt-2">{t("menu.title")}</h1>
         </div>
 
         {/* Build-a-burger CTA */}
