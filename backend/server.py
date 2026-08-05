@@ -53,7 +53,7 @@ from models import (
 from order_service import build_snapshots, gen_order_number, gen_pickup_code
 from pricing import BurgerBuilderConfig
 from restaurant_status import compute_status
-from seed import run_seed
+from seed import force_reseed_reference_data, run_seed
 from telegram_service import (
     answer_callback_query,
     edit_kitchen_message,
@@ -441,6 +441,21 @@ async def admin_delete_review(rid: str, _: dict = Depends(require_admin)):
     return {"deleted": res.deleted_count}
 
 
+# ----- Seed / reset --------------------------------------------------------
+
+
+@api.post("/admin/seed/reseed")
+async def admin_force_reseed(_: dict = Depends(require_admin)):
+    """Wipe reference collections and re-insert them from the shipped JSON files.
+
+    Restores the menu, categories, sauces, tacos-builder and the operational
+    settings fields (hours, delivery %) after a bad deploy or data drift.
+    Does NOT touch orders, admin_users or the waitlist.
+    """
+    result = await force_reseed_reference_data(db)
+    return {"ok": True, **result}
+
+
 # ----- Checkout / orders ---------------------------------------------------
 
 
@@ -544,30 +559,29 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
     if payload.payment_method not in ("cash", "card_in_person"):
         raise HTTPException(status_code=400, detail="Invalid payment method")
 
-    if payload.fulfillment == "delivery":
+    if payload.fulfillment == "delivery" and create:
         if not (payload.address_line1 and payload.postal_code and payload.city):
             raise HTTPException(status_code=400, detail="Adresse de livraison requise")
-        if create:
-            allowed = [
-                str(x).strip()
-                for x in (settings.get("delivery_postal_codes") or [])
-                if str(x).strip()
-            ]
-            if allowed:
-                incoming = (payload.postal_code or "").strip()
-                if incoming not in allowed:
-                    raise HTTPException(
-                        status_code=400,
-                        detail={
-                            "message": (
-                                f"On ne livre pas au {incoming}. "
-                                f"Codes acceptés : {', '.join(allowed)}."
-                            ),
-                            "kind": "postal_code_not_served",
-                            "allowed_postal_codes": allowed,
-                            "postal_code": incoming,
-                        },
-                    )
+        allowed = [
+            str(x).strip()
+            for x in (settings.get("delivery_postal_codes") or [])
+            if str(x).strip()
+        ]
+        if allowed:
+            incoming = (payload.postal_code or "").strip()
+            if incoming not in allowed:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "message": (
+                            f"On ne livre pas au {incoming}. "
+                            f"Codes acceptés : {', '.join(allowed)}."
+                        ),
+                        "kind": "postal_code_not_served",
+                        "allowed_postal_codes": allowed,
+                        "postal_code": incoming,
+                    },
+                )
 
     # Load menu items (only available)
     menu_docs = await db.menu_items.find({"available": True}).to_list(2000)

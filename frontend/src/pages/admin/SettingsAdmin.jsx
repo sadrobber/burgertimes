@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { adminClient, fmtError, formatEur } from "@/lib/api";
-import { Save, Send, Trash2, Bell, CreditCard, Wallet } from "lucide-react";
+import { Save, Send, Trash2, Bell, CreditCard, Wallet, RefreshCw } from "lucide-react";
 
 const DAYS = [
   ["mon", "Lundi"],
@@ -17,6 +17,7 @@ export default function SettingsAdmin() {
   const [s, setS] = useState(null);
   const [waitlist, setWaitlist] = useState([]);
   const [notifyingWaitlist, setNotifyingWaitlist] = useState(false);
+  const [reseeding, setReseeding] = useState(false);
 
   useEffect(() => {
     adminClient.get("/settings").then((r) => setS(r.data));
@@ -125,6 +126,28 @@ export default function SettingsAdmin() {
       setWaitlist(waitlist.filter((w) => w.id !== id));
     } catch (e) {
       toast.error(fmtError(e));
+    }
+  };
+
+  const forceReseed = async () => {
+    if (
+      !window.confirm(
+        "Réinitialiser le menu, les sauces, les tacos, les catégories, les horaires et les frais de livraison depuis les fichiers de base ?\n\nToute modification manuelle sera écrasée. Les commandes et clients ne sont pas touchés.",
+      )
+    )
+      return;
+    setReseeding(true);
+    try {
+      const { data } = await adminClient.post("/admin/seed/reseed");
+      toast.success(
+        `Menu réinitialisé : ${data.menu_items} plats, ${data.categories} catégories, ${data.sauces} sauces.`,
+      );
+      const r = await adminClient.get("/settings");
+      setS(r.data);
+    } catch (e) {
+      toast.error(fmtError(e));
+    } finally {
+      setReseeding(false);
     }
   };
 
@@ -573,6 +596,30 @@ export default function SettingsAdmin() {
           className="bt-btn-primary py-2 px-4 text-sm"
         >
           <Send className="w-4 h-4" /> Sync webhook Telegram
+        </button>
+      </div>
+
+      {/* Danger zone — force reseed */}
+      <div className="bt-card p-5 space-y-3 border-2 border-[#EF2B2D]">
+        <div className="font-display text-2xl uppercase text-[#EF2B2D]">Zone rouge</div>
+        <div className="font-accent uppercase tracking-widest text-sm">
+          Réinitialiser le menu depuis la sauvegarde
+        </div>
+        <p className="text-sm text-[#A1A1A1]">
+          Si en production le menu est vide ou que les horaires ont sauté après un déploiement,
+          clique ce bouton une fois. Ça remet en place tous les plats, catégories, sauces, tacos,
+          horaires et le frais de livraison en % (10 % · gratuit dès 30 €) tels qu&apos;ils sont
+          définis dans le code. <strong>Toute modification manuelle sera écrasée.</strong>{" "}
+          Les commandes, les clients et la liste d&apos;attente ne sont pas touchés.
+        </p>
+        <button
+          onClick={forceReseed}
+          disabled={reseeding}
+          data-testid="settings-force-reseed"
+          className="bt-btn-primary py-2 px-4 text-sm disabled:opacity-40"
+        >
+          <RefreshCw className={`w-4 h-4 ${reseeding ? "animate-spin" : ""}`} />{" "}
+          {reseeding ? "Réinitialisation…" : "Réinitialiser depuis la sauvegarde"}
         </button>
       </div>
     </div>

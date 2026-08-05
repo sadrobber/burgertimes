@@ -171,6 +171,59 @@ async def seed_menu_data(db) -> None:
     await _seed_collection(db, "burger_supplements", "burger_supplements.json")
 
 
+REFERENCE_COLLECTIONS = [
+    ("categories", "categories.json"),
+    ("menu_items", "menu_items.json"),
+    ("sauces", "sauces.json"),
+    ("burger_styles", "burger_styles.json"),
+    ("burger_sizes", "burger_sizes.json"),
+    ("burger_meats", "burger_meats.json"),
+    ("burger_cheeses", "burger_cheeses.json"),
+    ("burger_supplements", "burger_supplements.json"),
+]
+
+
+async def force_reseed_reference_data(db) -> Dict[str, int]:
+    """Wipe and re-insert every reference collection from the JSON files.
+
+    Used by the admin `Reset menu from seed` action to recover a production DB
+    whose reference data drifted or was never populated. Does NOT touch
+    orders, waitlist, admin_users. Resets a specific subset of settings
+    fields (hours_per_day, delivery_fee_percent, free_delivery_threshold,
+    delivery_postal_codes) but preserves everything else on the settings doc.
+    """
+    result: Dict[str, int] = {}
+    for coll, filename in REFERENCE_COLLECTIONS:
+        docs = _load_json(filename)
+        if not docs:
+            result[coll] = 0
+            continue
+        await db[coll].delete_many({})
+        if docs:
+            await db[coll].insert_many([dict(d) for d in docs])
+        result[coll] = len(docs)
+        logger.info("Force-reseeded %d docs into %s", len(docs), coll)
+
+    # Reset the operational settings fields the owner cares about.
+    settings_reset = {
+        "hours_per_day": DEFAULT_HOURS,
+        "delivery_fee_percent": 10.0,
+        "free_delivery_threshold": 30.0,
+        "delivery_postal_codes": [],
+    }
+    existing = await db.settings.find_one({"id": "singleton"})
+    if existing is None:
+        s = Settings(soda_flavours=DEFAULT_SODA_FLAVOURS)
+        doc = s.model_dump()
+        doc.update(settings_reset)
+        await db.settings.insert_one(doc)
+    else:
+        await db.settings.update_one({"id": "singleton"}, {"$set": settings_reset})
+    result["settings_reset"] = 1
+    logger.info("Force-reseeded settings hours/delivery fields")
+    return result
+
+
 async def ensure_indexes(db) -> None:
     await db.admin_users.create_index("email", unique=True)
     await db.categories.create_index("slug", unique=True)
