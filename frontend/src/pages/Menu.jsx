@@ -64,10 +64,10 @@ export default function Menu() {
           <div className="flex-1">
             <div className="font-marker text-[#EF2B2D] text-lg -rotate-1">Sur mesure</div>
             <div className="font-display text-3xl md:text-4xl uppercase leading-none mt-1">
-              Compose ton burger
+              Compose ton Tacos
             </div>
             <p className="text-[#D1D1D1] mt-2 max-w-lg">
-              Style, taille, viandes, fromages, suppléments. Signature Burger Times.
+              Style, taille, viandes, suppléments, sauces. Fait comme tu l&apos;aimes.
             </p>
           </div>
           <button

@@ -44,6 +44,10 @@ export default function BurgerBuilderModal({ open, onClose }) {
         setConfig(cfg);
         setSettings(s);
         setSauces(sc || []);
+        // Auto-select the sole style when only one is configured (e.g. Tacos).
+        if ((cfg?.styles || []).length === 1) {
+          setStyleId(cfg.styles[0].id);
+        }
       })
       .catch(() => toast.error("Impossible de charger la configuration"));
   }, [open]);
@@ -60,7 +64,10 @@ export default function BurgerBuilderModal({ open, onClose }) {
   const requiredMeats = isFlat ? style?.max_meats || 1 : size?.nb_meats || 1;
 
   const steps = useMemo(() => {
-    const ordered = ["format", "style"];
+    const styles = config?.styles || [];
+    const ordered = ["format"];
+    // Skip the style step when there's only one style — it's auto-selected below.
+    if (styles.length !== 1) ordered.push("style");
     if (!isFlat) ordered.push("size");
     ordered.push("meats");
     if ((config?.cheeses || []).length > 0) ordered.push("cheeses");
@@ -169,7 +176,7 @@ export default function BurgerBuilderModal({ open, onClose }) {
             <div className="text-xs font-accent tracking-widest text-[#EF2B2D]">
               {t("menu.build_burger")}
             </div>
-            <h3 className="font-display text-2xl uppercase leading-none">Burger sur mesure</h3>
+            <h3 className="font-display text-2xl uppercase leading-none">Tacos sur mesure</h3>
           </div>
           <button
             data-testid="burger-builder-close"
@@ -399,7 +406,7 @@ export default function BurgerBuilderModal({ open, onClose }) {
           </div>
           <button
             onClick={goNext}
-            disabled={!canNext() || (styleId && !(isFlat || size) && currentStep !== "style" && currentStep !== "size")}
+            disabled={!canNext()}
             data-testid="burger-builder-next"
             className="bt-btn-primary py-3 px-6 text-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
