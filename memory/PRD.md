@@ -36,6 +36,10 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - **Live Order Sound** — play a ping + flash the admin dashboard when a fresh order lands.
 - **Kitchen Print Ticket** — thermal-printer-friendly ticket in the admin order drawer.
 
+## Implemented — Menu polish & auto scroll-to-top (2026-02-XX)
+- Removed the "Tous" chip and any empty categories (like the legacy `burgers`) from the customer menu at `/menu`. Category chips are filtered to only those with at least one menu item so future stale categories stay hidden automatically. Default active tab is now the first real category (Signatures) so items are visible immediately.
+- New `ScrollToTop` component mounted inside `<BrowserRouter>` — every route change fires `window.scrollTo({top:0})` instantly, so navigating from any page to `/menu` lands the visitor on the **Compose ton Tacos** CTA.
+
 ## Implemented — Delivery-fee analytics (2026-02-XX)
 - New backend endpoint `GET /api/admin/stats/delivery-fees?days=N` (default 30, 1-365). Aggregates orders where `fulfillment='delivery'` and `status ∉ {cancelled, expired}` in the restaurant's local tz (`Europe/Paris`). Returns `totals` + `counts` + `subtotals` for {today, this_week, this_month, all_time, in_range} plus a `daily` array (every day in the range, zero-filled for gap-free charting).
 - New admin page `/admin/stats/delivery` (`DeliveryStatsAdmin.jsx`) with: range picker chips (7d / 14d / 30d / 90d / 1y), 4 KPI cards, 3 summary tiles (period fees / period subtotal / avg fee per delivery), a **recharts** bar chart of fees per day, and a chronological daily journal table. Uses the existing brutalist theme.

@@ -24,6 +24,7 @@ import SaucesAdmin from "@/pages/admin/SaucesAdmin.jsx";
 import ReviewsAdmin from "@/pages/admin/ReviewsAdmin.jsx";
 import SettingsAdmin from "@/pages/admin/SettingsAdmin.jsx";
 import DeliveryStatsAdmin from "@/pages/admin/DeliveryStatsAdmin.jsx";
+import ScrollToTop from "@/components/ScrollToTop.jsx";
 
 function AdminGuard({ children }) {
   const { status } = useAdminAuth();
@@ -37,6 +38,7 @@ function App() {
       <AdminAuthProvider>
         <CartProvider>
           <BrowserRouter>
+            <ScrollToTop />
             <Toaster
               richColors
               theme="dark"

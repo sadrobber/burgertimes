@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only verification of (1) Menu category-chip cleanup (no Tous, no stale burgers, default Signatures active) and (2) global ScrollToTop route listener. Every acceptance criterion from the review request passed. Menu shows exactly 9 category chips (signatures, classiques, smash-burgers, wraps, sandwiches, sides, kids, desserts, drinks). Signatures is active on first render and renders 8 items. Kids chip renders Menu Kids. ScrollToTop resets window.scrollY to 0 on: Home→/menu, /menu→/cart, /cart→/checkout, /admin/orders→/admin/settings, /admin/orders→/admin/stats/delivery.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_7.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "The review request referenced the header cart testid as 'header-cart' but the actual attribute in Header.jsx is data-testid='cart-icon-link'. Not a bug — just a documentation discrepancy for future testers. Consider aligning testid names with the request's naming convention, or update docs.",
+    "In Menu.jsx, the Wraps category currently renders 6 items in the preview DB, not the 3 mentioned in the review request. Functionality (category switching) works correctly — this is a data content discrepancy, not a code bug.",
+    "ScrollToTop uses behavior: 'instant' which is a non-standard value; Chromium accepts it (treats as auto/immediate) but Firefox may fall back to 'auto'. Works in practice for the deployed environment. Consider omitting the behavior key entirely for maximum compatibility."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not tested)", "frontend": "100%"},
+  "test_credentials": "Admin: chahineisgoated@gmail.com / BurgerTimes2026! — login worked",
+  "seed_data_creation": "None. Added one Mozza Sticks (x8) to cart during checkout scroll test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Category chip data-testids are `cat-{slug}` and the header cart link is `cart-icon-link` (NOT `header-cart`). ScrollToTop is mounted in App.js above Routes and works on all client-side route changes. Menu default active category is the first visible category (currently 'signatures'). Wraps has 6 items in preview DB (not 3 as stated in some review docs).",
+  "rca of the issue": "N/A — no issues found. All requested features work as specified."
+}

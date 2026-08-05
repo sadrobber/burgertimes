@@ -14,7 +14,7 @@ export default function Menu() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [settings, setSettings] = useState(null);
-  const [activeCat, setActiveCat] = useState("all");
+  const [activeCat, setActiveCat] = useState(null);
   const [loading, setLoading] = useState(true);
   const [builderOpen, setBuilderOpen] = useState(false);
 
@@ -33,8 +33,22 @@ export default function Menu() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Only show categories that have at least one menu item — hides stale
+  // categories like the legacy "burgers" that no longer have items linked.
+  const visibleCategories = useMemo(() => {
+    const withItems = new Set(items.map((it) => it.category));
+    return categories.filter((c) => withItems.has(c.slug));
+  }, [items, categories]);
+
+  // Default the active tab to the first visible category once data lands.
+  useEffect(() => {
+    if (activeCat === null && visibleCategories.length > 0) {
+      setActiveCat(visibleCategories[0].slug);
+    }
+  }, [activeCat, visibleCategories]);
+
   const filtered = useMemo(() => {
-    if (activeCat === "all") return items;
+    if (!activeCat) return items;
     return items.filter((it) => it.category === activeCat);
   }, [items, activeCat]);
 
@@ -81,14 +95,7 @@ export default function Menu() {
 
         {/* Category tabs */}
         <div className="flex flex-wrap gap-2 mb-8">
-          <button
-            onClick={() => setActiveCat("all")}
-            data-testid="cat-all"
-            className={`bt-chip ${activeCat === "all" ? "active" : ""}`}
-          >
-            {t("menu.all")}
-          </button>
-          {categories.map((c) => (
+          {visibleCategories.map((c) => (
             <button
               key={c.id}
               onClick={() => setActiveCat(c.slug)}
