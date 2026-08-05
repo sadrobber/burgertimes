@@ -26,7 +26,7 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Payment toggles (cash/card), daily/weekly order limits, percentage delivery fee, delivery postal-code allowlist.
 - Closed-state hero with buttery-smooth live countdown (framer-motion) + waitlist email capture.
 - **Telegram** kitchen bot integration (`@BurgerTimes_bot`, live) with inline accept/ready/cancel buttons.
-- **Resend** email integration via **Emergent-managed proxy** (order confirmations, waitlist blasts, auto-notify on closed → open transition via Emergent Cron).
+- **Resend** email integration **direct API** (2026-02-XX): uses owner's own Resend API key sending from verified custom domain `orders@burgertimes.fr` (order confirmations, waitlist blasts, auto-notify on closed → open transition via Emergent Cron). Domain verified in Resend eu-west-1. Test send succeeded (message id af6e11ad-89b6-48e8-b58a-b350f1bf2411).
 - Full menu seeded (40 items across Signatures / Classiques / Smash / Wraps / Sandwiches / Tex Mex-Sides / Kids / Desserts / Drinks) + 12 sauces + 6 meats + 6 supplements + tacos sizes 1/2/3.
 - **Auto-seed of full menu data on every backend startup** (2026-02-XX): `backend/seed.py` now loads `categories.json`, `menu_items.json`, `sauces.json`, `burger_styles.json`, `burger_sizes.json`, `burger_meats.json`, `burger_supplements.json` from `backend/seed_data/`. Idempotent (matched by id/slug, never overwrites edits). This ensures fresh production deploys come up with the full menu already loaded.
 
