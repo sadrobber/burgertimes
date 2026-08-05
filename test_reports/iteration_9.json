@@ -1,0 +1,38 @@
+{
+  "summary": "Verified Telegram webhook end-to-end in the PREVIEW environment. All 12 pytest tests pass: security (missing/wrong/correct secret), full status flow (accept→preparing→ready→delivered), cancel flow, unknown/malformed callback data, missing callback_query, plus regression on delivery-fee stats, admin stats, force-reseed (correct path is /api/admin/seed/reseed), and delivery-fee-in-quote>0. Confirms no code-side breakage — the production issue is purely the missing/mismatched TELEGRAM_WEBHOOK_SECRET env var on production as diagnosed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_telegram_webhook.py",
+    "/app/test_reports/pytest/telegram_webhook.xml"
+  ],
+  "action_items": [
+    "PRODUCTION FIX (user action): Set TELEGRAM_WEBHOOK_SECRET=bt_tg_wh_9f4c7e2a1b8d6e3f5a9c0b7d4e2f8a1c6b3d9e5f on production (burgertimes.fr) env, then restart backend. Telegram inline buttons will resume working immediately since the webhook is already registered to production with drop_pending_updates=true."
+  ],
+  "critical_code_review_comments": [
+    "server.py:958 correctly rejects both missing and wrong secret headers with 401 (no info leak). Good.",
+    "server.py:966-968 gracefully handles malformed callback data (returns 200 to Telegram to avoid retry storm). Good.",
+    "The webhook handler swallows edit_kitchen_message/send_order_email exceptions with logger.exception so a broken email/tg edit won't corrupt the status transition. Good defensive coding.",
+    "Minor: /api/admin/seed/reseed is the actual endpoint path — the original review request mentioned 'force-reseed endpoint' generically; the route path in code is /admin/seed/reseed (line 447). No bug, just noting nomenclature for future testers."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_telegram_webhook.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "not tested (per request)"
+  },
+  "test_credentials": "Admin chahineisgoated@gmail.com / BurgerTimes2026! confirmed working. Telegram secret from /app/backend/.env confirmed working.",
+  "seed_data_creation": "Two temporary [TEST ORDER] orders (customer_last_name TgTest-accept, TgTest-cancel) created during flow tests. teardown_module cleans them via admin DELETE. Force-reseed also runs and refreshes reference data — no impact on flow tests since they run serially.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Telegram webhook path is /api/telegram/webhook, secret header is X-Telegram-Bot-Api-Secret-Token, value in /app/backend/.env TELEGRAM_WEBHOOK_SECRET. Force-reseed endpoint is /api/admin/seed/reseed (NOT /api/admin/force-reseed). Run this test file serially (-o addopts='') because xdist parallel execution can race force_reseed against order-based flows on the same worker.",
+  "rca of the issue": "USER-REPORTED BUG (production): Telegram inline buttons on burgertimes.fr silently do nothing. Reproduction: Telegram sends callback_query to https://www.burgertimes.fr/api/telegram/webhook with X-Telegram-Bot-Api-Secret-Token header — production backend returns 401 'Invalid webhook secret' because production env var TELEGRAM_WEBHOOK_SECRET is missing or different from what was registered with Telegram (which used the preview value bt_tg_wh_...). Mitigation: set TELEGRAM_WEBHOOK_SECRET on production to bt_tg_wh_9f4c7e2a1b8d6e3f5a9c0b7d4e2f8a1c6b3d9e5f (matching what setWebhook registered) and restart. Preview verified 100% functional; no code change required."
+}
