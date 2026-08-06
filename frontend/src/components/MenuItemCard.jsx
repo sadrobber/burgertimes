@@ -80,10 +80,11 @@ export default function MenuItemCard({ item, sodaFlavours = [] }) {
         </div>
         {item.is_new && (
           <img
-            src="https://customer-assets-39nsmqrw.emergentagent.net/job_burger-times-bsl/artifacts/yu3vnf4h_1000000370-removebg-preview.png"
+            src="/new-badge.png"
             alt="Nouveau"
             data-testid={`item-${item.id}-new-badge`}
-            className="absolute top-1 right-1 w-16 h-16 md:w-20 md:h-20 rotate-12 pointer-events-none drop-shadow-[2px_2px_0_rgba(0,0,0,0.6)]"
+            className="absolute -top-2 -right-2 w-12 h-12 md:w-14 md:h-14 rotate-12 pointer-events-none"
+            style={{ background: "transparent" }}
           />
         )}
       </div>

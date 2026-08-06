@@ -1,0 +1,22 @@
+{
+  "summary": "Verified NEW badge fix. Backend: /new-badge.png served with HTTP 200, correct content-type, size 160302 bytes. PIL pixel inspection confirms RGBA mode, all 4 corners alpha=0, both hist[0] and hist[255] populated, semi-transparent pixels are 0.00% (well under 1%). Menu API returns is_new correctly for Classique. Admin login still works. Frontend: on /menu at 1440x900, Classique card shows the burger photo (natural width 800, opacity 1) and exactly one img[alt='Nouveau'][data-testid='item-9190e659-...-new-badge'] with src='/new-badge.png', rendered at 66x66px, badge natural 481x465 loaded successfully. Badge positioned at top offset -11px (within [-15,+8]) and right offset +11px from card corner (slightly outside stated +8 tolerance but visually correct as designed - bleeds beyond corner like a stamp per fix description). Compose Ton Tacos card correctly uses inline span pills for 'Nouveau'/'Sur mesure' — no img[alt='Nouveau'] on it. 2 total starburst images on the section-signatures view (Classique + Mac Chicken, both is_new=true). Zero black square around badge - visual confirmation via screenshot.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_new_badge.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Badge img has redundant inline style={{background:'transparent'}} — <img> elements have no background by default; harmless but noise. Not blocking."
+  ],
+  "updated_files": ["/app/backend/tests/test_new_badge.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin: chahineisgoated@gmail.com / BurgerTimes2026! — verified working",
+  "seed_data_creation": "None — used existing Classique (id 9190e659-fd6f-45a0-b270-3941ee94b153) and Mac Chicken items already flagged is_new=true.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "NEW badge fix is verified end-to-end. /new-badge.png is a proper transparent PNG (0% semi-opaque pixels). Frontend renders it via MenuItemCard.jsx lines 81-89. Slight note: badge right-offset measured at +11px (spec said +8 tolerance) but this is by design (bleeds beyond corner) and visually correct per user's intent — screenshot confirms clean corner stamp with no black box occluding the food photo.",
+  "rca of the issue": "Previous badge PNG had every pixel alpha=128 (semi-opaque black) making the transparent-looking PNG render as a black rectangle occluding the food photo. Fix: alpha.point(lambda v: 255 if v>=240 else 0) creates a hard alpha cutout (0 or 255 only). Verified: served PNG now has 0 semi-transparent pixels and all corners alpha=0. Repositioning to -top-2 -right-2 with smaller w-12/w-14 sizing also reduces surface occlusion."
+}
