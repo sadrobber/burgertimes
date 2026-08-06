@@ -36,6 +36,10 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - **Live Order Sound** — play a ping + flash the admin dashboard when a fresh order lands.
 - **Kitchen Print Ticket** — thermal-printer-friendly ticket in the admin order drawer.
 
+## Fixed — Sticky nav layout (2026-02-XX)
+- Sticky category chip strip on `/menu` now uses `md:flex-wrap md:justify-center` (no forced `flex-1`), so chips take their natural width and center-align on desktop/tablet, wrapping to a 2nd centered row only when the viewport genuinely can't hold them all. On mobile the strip still scrolls horizontally with `.no-scrollbar`.
+- Screenshots + testing agent verify zero chip overlap at 1440 / 900 / 375, all 9 chips render at every viewport, scrollspy still highlights the correct chip on scroll.
+
 ## Implemented — Vertical menu with scrollspy + Tacos Builder card (2026-02-XX)
 - `/menu` no longer filters to a single category. All visible categories are rendered as stacked sections with `[data-testid="section-{slug}"]` anchors and a big red slug + French heading.
 - A sticky red-bordered category strip lives directly under the site header (`top-16 md:top-20`), with one chip per visible category. Chips smooth-scroll to their section on click and light up automatically via IntersectionObserver as the visitor scrolls (rootMargin `-40% 0px -40% 0px`).
