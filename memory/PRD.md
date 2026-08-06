@@ -36,6 +36,11 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - **Live Order Sound** — play a ping + flash the admin dashboard when a fresh order lands.
 - **Kitchen Print Ticket** — thermal-printer-friendly ticket in the admin order drawer.
 
+## Hardened — Fail-fast DB + /api/health diagnostic (2026-02-XX)
+- Set explicit Motor timeouts on the Mongo client: `serverSelectionTimeoutMS=4000, connectTimeoutMS=4000, socketTimeoutMS=8000`. Prior default was 30s — any broken `MONGO_URL` used to look like a 504 gateway timeout to the customer. Now it fails fast with a real error.
+- Wrapped `run_seed(db)` in `asyncio.wait_for(..., timeout=12s)` so the app boots even if Mongo is unreachable at startup (logs a clear error instead of crash-looping).
+- New public endpoint `GET /api/health` returns a snapshot of Mongo reachability (`mongo: ok | unreachable | error`), `menu_items_count`, and the `integrations` block showing which env vars are configured in the current environment (`resend_configured`, `telegram_bot_configured`, etc.). This is the one-shot production diagnostic — hit `https://www.burgertimes.fr/api/health` any time to see exactly what's missing.
+
 ## Fixed — Sticky nav layout (2026-02-XX)
 - Sticky category chip strip on `/menu` now uses `md:flex-wrap md:justify-center` (no forced `flex-1`), so chips take their natural width and center-align on desktop/tablet, wrapping to a 2nd centered row only when the viewport genuinely can't hold them all. On mobile the strip still scrolls horizontally with `.no-scrollbar`.
 - Screenshots + testing agent verify zero chip overlap at 1440 / 900 / 375, all 9 chips render at every viewport, scrollspy still highlights the correct chip on scroll.
