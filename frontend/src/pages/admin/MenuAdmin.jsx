@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { adminClient, fmtError, formatEur, menuImageUrl } from "@/lib/api";
-import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Save, Trash2, X, Search } from "lucide-react";
 
 const emptyItem = {
   name: "",
@@ -21,12 +21,34 @@ export default function MenuAdmin() {
   const [items, setItems] = useState([]);
   const [cats, setCats] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [query, setQuery] = useState("");
+  const [catFilter, setCatFilter] = useState("all");
 
   const load = () => {
     adminClient.get("/admin/menu").then((r) => setItems(r.data || []));
     adminClient.get("/admin/categories").then((r) => setCats(r.data || []));
   };
   useEffect(() => { load(); }, []);
+
+  const catLabel = (slug) => {
+    const c = cats.find((x) => x.slug === slug);
+    if (!c) return slug;
+    return typeof c.label === "string" ? c.label : c.label?.fr || c.label?.en || slug;
+  };
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((it) => {
+      if (catFilter !== "all" && it.category !== catFilter) return false;
+      if (!q) return true;
+      return (
+        (it.name || "").toLowerCase().includes(q) ||
+        (it.description || "").toLowerCase().includes(q) ||
+        (it.category || "").toLowerCase().includes(q) ||
+        catLabel(it.category).toLowerCase().includes(q)
+      );
+    });
+  }, [items, query, catFilter, cats]);
 
   const save = async (item) => {
     try {
@@ -52,7 +74,7 @@ export default function MenuAdmin() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <div className="font-marker text-[#EF2B2D] -rotate-1">La carte</div>
           <h1 className="font-display text-5xl uppercase leading-none">Menu</h1>
@@ -60,14 +82,59 @@ export default function MenuAdmin() {
         <button
           data-testid="menu-new-btn"
           onClick={() => setEditing({ ...emptyItem, category: cats[0]?.slug || "" })}
-          className="bt-btn-primary"
+          className="bt-btn-primary self-start md:self-auto"
         >
           <Plus className="w-4 h-4" /> Nouveau
         </button>
       </div>
 
+      {/* Search + category filter */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#A1A1A1] pointer-events-none" />
+          <input
+            data-testid="menu-search-input"
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Chercher un plat, ex. tacos, sandwich, coca…"
+            className="bt-input pl-10"
+          />
+        </div>
+        <select
+          data-testid="menu-category-filter"
+          value={catFilter}
+          onChange={(e) => setCatFilter(e.target.value)}
+          className="bt-input sm:w-64"
+        >
+          <option value="all">Toutes les catégories ({items.length})</option>
+          {cats.map((c) => {
+            const n = items.filter((it) => it.category === c.slug).length;
+            return (
+              <option key={c.id} value={c.slug}>
+                {catLabel(c.slug)} ({n})
+              </option>
+            );
+          })}
+        </select>
+        {(query || catFilter !== "all") && (
+          <button
+            data-testid="menu-filter-clear"
+            onClick={() => { setQuery(""); setCatFilter("all"); }}
+            className="bt-btn-ghost text-xs px-3"
+          >
+            <X className="w-3 h-3" /> Effacer
+          </button>
+        )}
+      </div>
+
+      <div className="text-xs text-[#A1A1A1] uppercase tracking-widest" data-testid="menu-result-count">
+        {filtered.length} plat{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}
+        {(query || catFilter !== "all") && ` sur ${items.length}`}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((it) => (
+        {filtered.map((it) => (
           <div key={it.id} className="bt-card overflow-hidden" data-testid={`admin-menu-item-${it.id}`}>
             <div className="aspect-[4/3] bg-[#0A0A0A] overflow-hidden">
               {it.has_image ? (
@@ -108,9 +175,11 @@ export default function MenuAdmin() {
             </div>
           </div>
         ))}
-        {items.length === 0 && (
+        {filtered.length === 0 && (
           <div className="col-span-full bt-card p-8 text-center text-sm text-[#A1A1A1]">
-            Ajoute ton premier plat.
+            {items.length === 0
+              ? "Ajoute ton premier plat."
+              : "Aucun plat ne correspond à ta recherche."}
           </div>
         )}
       </div>
