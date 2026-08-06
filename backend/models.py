@@ -94,6 +94,7 @@ class MenuItem(BaseModel):
     variants: List[str] = Field(default_factory=list)
     uses_soda_flavours: bool = False
     available: bool = True
+    is_new: bool = False
     has_image: bool = False
     sort_order: int = 0
     created_at: str = Field(default_factory=utc_now_iso)
@@ -110,6 +111,7 @@ class MenuItemCreate(BaseModel):
     variants: List[str] = Field(default_factory=list)
     uses_soda_flavours: bool = False
     available: bool = True
+    is_new: bool = False
     sort_order: int = 0
     image_base64: Optional[str] = None
 
@@ -124,6 +126,7 @@ class MenuItemUpdate(BaseModel):
     variants: Optional[List[str]] = None
     uses_soda_flavours: Optional[bool] = None
     available: Optional[bool] = None
+    is_new: Optional[bool] = None
     sort_order: Optional[int] = None
     image_base64: Optional[str] = None
 

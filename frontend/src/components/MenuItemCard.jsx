@@ -75,9 +75,17 @@ export default function MenuItemCard({ item, sodaFlavours = [] }) {
             <div className="font-display text-4xl text-[#EF2B2D]/40 uppercase">BT</div>
           </div>
         )}
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-3 left-3">
           <span className="bt-price-pill">{formatEur(item.price_seul)}</span>
         </div>
+        {item.is_new && (
+          <img
+            src="https://customer-assets-39nsmqrw.emergentagent.net/job_burger-times-bsl/artifacts/yu3vnf4h_1000000370-removebg-preview.png"
+            alt="Nouveau"
+            data-testid={`item-${item.id}-new-badge`}
+            className="absolute top-1 right-1 w-16 h-16 md:w-20 md:h-20 rotate-12 pointer-events-none drop-shadow-[2px_2px_0_rgba(0,0,0,0.6)]"
+          />
+        )}
       </div>
       <div className="p-4 flex-1 flex flex-col">
         <div className="font-display text-2xl uppercase leading-none">{item.name}</div>

@@ -13,6 +13,7 @@ const emptyItem = {
   variants: [],
   uses_soda_flavours: false,
   available: true,
+  is_new: false,
   sort_order: 0,
   image_base64: null,
 };
@@ -275,7 +276,7 @@ function EditItem({ item, categories, onClose, onSave }) {
               />
             </label>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <label className="inline-flex items-center gap-2 text-sm">
               <input
                 data-testid="menu-input-uses-soda"
@@ -295,6 +296,21 @@ function EditItem({ item, categories, onClose, onSave }) {
                 onChange={(e) => set("available", e.target.checked)}
               />
               Disponible
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                data-testid="menu-input-is-new"
+                type="checkbox"
+                className="w-4 h-4"
+                checked={!!it.is_new}
+                onChange={(e) => set("is_new", e.target.checked)}
+              />
+              <span className="inline-flex items-center gap-1">
+                Nouveau
+                <span className="inline-block px-1.5 py-0.5 bg-[#EF2B2D] text-[#F5F1E8] font-accent uppercase tracking-widest text-[10px]">
+                  NEW
+                </span>
+              </span>
             </label>
             <label className="inline-flex items-center gap-2 text-sm">
               Tri
