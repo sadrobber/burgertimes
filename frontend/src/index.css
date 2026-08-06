@@ -250,3 +250,9 @@
 [data-debug-wrapper="true"] {
   display: contents !important;
 }
+
+
+/* Hide the native scrollbar on horizontal scroll strips (e.g. sticky category
+   chip strip on /menu). The strip is still scrollable via touch/wheel. */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }

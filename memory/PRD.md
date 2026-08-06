@@ -36,6 +36,12 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - **Live Order Sound** — play a ping + flash the admin dashboard when a fresh order lands.
 - **Kitchen Print Ticket** — thermal-printer-friendly ticket in the admin order drawer.
 
+## Implemented — Vertical menu with scrollspy + Tacos Builder card (2026-02-XX)
+- `/menu` no longer filters to a single category. All visible categories are rendered as stacked sections with `[data-testid="section-{slug}"]` anchors and a big red slug + French heading.
+- A sticky red-bordered category strip lives directly under the site header (`top-16 md:top-20`), with one chip per visible category. Chips smooth-scroll to their section on click and light up automatically via IntersectionObserver as the visitor scrolls (rootMargin `-40% 0px -40% 0px`).
+- The **Tacos Builder** is now shown as a menu-item-shaped card (`TacosBuilderCard.jsx`, `data-testid="menu-item-tacos-builder"`) inline at the top of the first visible category (Signatures). It has a real tacos photo from Unsplash with a graceful "BT" halftone fallback, a "Nouveau" ribbon + "Sur mesure" price pill, and both the card and its button open the existing builder modal (`data-testid="open-burger-builder"`).
+- Removed the old big red "Sur mesure · Compose ton Tacos" CTA banner that used to sit above the menu.
+
 ## Fixed — Resend key rotation (2026-02-XX)
 - Previous `RESEND_API_KEY` (`re_2xiY...jgt`) was revoked on Resend's side (raw curl returned 401 "API key is invalid"). User provided fresh key `re_B5bcMqLa_...QJ`, updated in `/app/backend/.env` and applied via `sudo supervisorctl restart backend`. Order-confirmation + status-update emails now return HTTP 200 from api.resend.com and log 'Resend email sent to ...' — verified by testing agent iteration_8 (30/30 backend tests pass, no 401s in logs).
 - Hardened `load_dotenv(ROOT_DIR / '.env', override=True)` in `server.py` so future env rotations survive a WatchFiles hot-reload without a supervisor restart.
