@@ -84,7 +84,6 @@ export default function MenuItemCard({ item, sodaFlavours = [] }) {
             alt="Nouveau"
             data-testid={`item-${item.id}-new-badge`}
             className="absolute -top-2 -right-2 w-12 h-12 md:w-14 md:h-14 rotate-12 pointer-events-none"
-            style={{ background: "transparent" }}
           />
         )}
       </div>
