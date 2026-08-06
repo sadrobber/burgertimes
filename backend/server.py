@@ -64,7 +64,15 @@ from telegram_service import (
 # ----- Database ------------------------------------------------------------
 
 mongo_url = os.environ["MONGO_URL"]
-client = AsyncIOMotorClient(mongo_url)
+# Explicit timeouts so a broken MONGO_URL fails fast (2-4s) with a clear error
+# instead of hanging 30s and returning a gateway 504. If prod DB is genuinely
+# reachable, the connect happens in <1s so these limits never fire.
+client = AsyncIOMotorClient(
+    mongo_url,
+    serverSelectionTimeoutMS=4000,
+    connectTimeoutMS=4000,
+    socketTimeoutMS=8000,
+)
 db = client[os.environ["DB_NAME"]]
 
 # ----- App -----------------------------------------------------------------
@@ -103,8 +111,18 @@ def _strip_image(d: Optional[dict]) -> Optional[dict]:
 
 @app.on_event("startup")
 async def on_startup() -> None:
+    # Seed is best-effort — if MongoDB is unreachable we still want the app to
+    # boot so /api/health can report the failure clearly instead of the
+    # process crash-looping.
+    import asyncio
+
     try:
-        await run_seed(db)
+        await asyncio.wait_for(run_seed(db), timeout=12.0)
+    except asyncio.TimeoutError:
+        logger.error(
+            "Seed timed out after 12s — MongoDB is likely unreachable. "
+            "Check MONGO_URL env var and network access from this container."
+        )
     except Exception:  # noqa: BLE001
         logger.exception("Seed failed")
 
@@ -120,6 +138,39 @@ async def on_shutdown() -> None:
 @api.get("/")
 async def root() -> dict:
     return {"name": "burger-times", "status": "ok"}
+
+
+@api.get("/health")
+async def health():
+    """Deep health check. Reports Mongo reachability without hanging."""
+    import asyncio
+
+    payload: Dict[str, Any] = {"api": "ok"}
+    # Mongo ping with a hard 3-second cap so this endpoint is always fast.
+    try:
+        await asyncio.wait_for(client.admin.command("ping"), timeout=3.0)
+        payload["mongo"] = "ok"
+    except asyncio.TimeoutError:
+        payload["mongo"] = "unreachable (timeout after 3s — check MONGO_URL in this env)"
+    except Exception as e:  # noqa: BLE001
+        payload["mongo"] = f"error: {type(e).__name__}: {str(e)[:200]}"
+
+    # Menu-items count sanity — helps you see whether the DB is empty.
+    try:
+        payload["menu_items_count"] = await asyncio.wait_for(
+            db.menu_items.count_documents({}), timeout=3.0
+        )
+    except Exception as e:  # noqa: BLE001
+        payload["menu_items_count"] = f"error: {type(e).__name__}"
+
+    payload["integrations"] = {
+        "resend_configured": bool(os.environ.get("RESEND_API_KEY")),
+        "resend_from": os.environ.get("RESEND_FROM_EMAIL") or None,
+        "telegram_bot_configured": bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
+        "telegram_kitchen_chat": bool(os.environ.get("TELEGRAM_KITCHEN_CHAT_ID")),
+        "telegram_webhook_secret_configured": bool(os.environ.get("TELEGRAM_WEBHOOK_SECRET")),
+    }
+    return payload
 
 
 # ----- Admin auth ----------------------------------------------------------
