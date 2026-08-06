@@ -83,13 +83,6 @@ export default function Home() {
               <Link to="/menu" data-testid="hero-order-cta" className="bt-btn-primary">
                 {t("cta.order_now")} <ArrowRight className="w-5 h-5" />
               </Link>
-              <a
-                href={`tel:${(settings?.contact_phone || "0497071793").replace(/\./g, "")}`}
-                className="bt-btn-secondary"
-                data-testid="hero-phone-cta"
-              >
-                <Phone className="w-4 h-4" /> {settings?.contact_phone || "04.97.07.17.93"}
-              </a>
             </motion.div>
             <div className="mt-5 md:mt-6">
               <StatusBanner variant="banner" />
