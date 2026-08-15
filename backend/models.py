@@ -131,6 +131,10 @@ class MenuItemUpdate(BaseModel):
     image_base64: Optional[str] = None
 
 
+class BuilderImageUpdate(BaseModel):
+    image_base64: Optional[str] = None
+
+
 # ----- Sauces --------------------------------------------------------------
 
 
@@ -288,6 +292,7 @@ class Settings(BaseModel):
     order_limit_max: int = 100
     order_limit_message: str = "On est débordés — la cuisine tourne à fond sur les commandes en cours. Reviens dans quelques heures, promis on garde de la place pour toi."
     last_notified_open_state: Optional[str] = None
+    has_builder_image: bool = False
     updated_at: str = Field(default_factory=utc_now_iso)
 
 

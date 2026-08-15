@@ -1,20 +1,30 @@
 import React from "react";
 import { Sparkles } from "lucide-react";
 import { useI18n } from "@/context/I18nContext.jsx";
+import { builderImageUrl } from "@/lib/api";
 
-// Fallback image if the CDN one ever 404s — same "BT" halftone panel used
-// elsewhere for menu items without a picture.
-const TACOS_IMAGE_URL =
+// Stock fallback used only if no custom picture was uploaded from the admin
+// (or if it ever 404s) — same "BT" halftone panel used elsewhere for menu
+// items without a picture.
+const FALLBACK_IMAGE_URL =
   "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=1200&auto=format&fit=crop&q=80";
 
 /**
  * A menu-item-shaped card for the Tacos Builder. Sits inline with the other
  * menu cards so the customer discovers it without an extra CTA banner.
  * Clicking anywhere on the card (or the Add button) opens the builder modal.
+ * Tries the admin-uploaded picture first, falls back to a stock photo, then
+ * to a plain "BT" placeholder if that ever fails too.
  */
 export default function TacosBuilderCard({ onOpen }) {
   const { t } = useI18n();
+  const [src, setSrc] = React.useState(builderImageUrl());
   const [imgOk, setImgOk] = React.useState(true);
+
+  const handleError = () => {
+    if (src !== FALLBACK_IMAGE_URL) setSrc(FALLBACK_IMAGE_URL);
+    else setImgOk(false);
+  };
 
   return (
     <div
@@ -33,10 +43,10 @@ export default function TacosBuilderCard({ onOpen }) {
       <div className="aspect-[4/3] w-full overflow-hidden bg-[#1A1A1A] relative">
         {imgOk ? (
           <img
-            src={TACOS_IMAGE_URL}
+            src={src}
             alt="Compose ton Tacos"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            onError={() => setImgOk(false)}
+            onError={handleError}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bt-halftone">

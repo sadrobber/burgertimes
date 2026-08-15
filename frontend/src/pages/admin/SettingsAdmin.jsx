@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { adminClient, fmtError, formatEur } from "@/lib/api";
-import { Save, Send, Trash2, Bell, CreditCard, Wallet, RefreshCw } from "lucide-react";
+import { adminClient, fmtError, formatEur, builderImageUrl } from "@/lib/api";
+import { Save, Send, Trash2, Bell, CreditCard, Wallet, RefreshCw, ImagePlus } from "lucide-react";
 
 const DAYS = [
   ["mon", "Lundi"],
@@ -18,6 +18,9 @@ export default function SettingsAdmin() {
   const [waitlist, setWaitlist] = useState([]);
   const [notifyingWaitlist, setNotifyingWaitlist] = useState(false);
   const [reseeding, setReseeding] = useState(false);
+  const [builderImgPreview, setBuilderImgPreview] = useState(null);
+  const [uploadingBuilderImg, setUploadingBuilderImg] = useState(false);
+  const [builderImgVersion, setBuilderImgVersion] = useState(0);
 
   useEffect(() => {
     adminClient.get("/settings").then((r) => setS(r.data));
@@ -129,6 +132,45 @@ export default function SettingsAdmin() {
     }
   };
 
+  const uploadBuilderImage = (file) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = e.target.result;
+      setBuilderImgPreview(base64);
+      setUploadingBuilderImg(true);
+      try {
+        const { data } = await adminClient.put("/admin/settings/builder-image", {
+          image_base64: base64,
+        });
+        setS((prev) => ({ ...prev, has_builder_image: data.has_builder_image }));
+        setBuilderImgVersion((v) => v + 1);
+        toast.success("Image du Tacos Builder mise à jour");
+      } catch (err) {
+        toast.error(fmtError(err));
+        setBuilderImgPreview(null);
+      } finally {
+        setUploadingBuilderImg(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeBuilderImage = async () => {
+    if (!window.confirm("Retirer l'image personnalisée et revenir à la photo par défaut ?")) return;
+    setUploadingBuilderImg(true);
+    try {
+      await adminClient.put("/admin/settings/builder-image", { image_base64: null });
+      setS((prev) => ({ ...prev, has_builder_image: false }));
+      setBuilderImgPreview(null);
+      setBuilderImgVersion((v) => v + 1);
+      toast.success("Image retirée");
+    } catch (err) {
+      toast.error(fmtError(err));
+    } finally {
+      setUploadingBuilderImg(false);
+    }
+  };
+
   const forceReseed = async () => {
     if (
       !window.confirm(
@@ -191,6 +233,53 @@ export default function SettingsAdmin() {
             onChange={(e) => set("closed_message", e.target.value)}
           />
         </label>
+      </div>
+
+      {/* Tacos builder image */}
+      <div className="bt-card p-5 space-y-4">
+        <div className="font-display text-2xl uppercase inline-flex items-center gap-2">
+          <ImagePlus className="w-5 h-5 text-[#EF2B2D]" /> Image du Tacos Builder
+        </div>
+        <p className="text-sm text-[#A1A1A1]">
+          Photo affichée sur la carte « Compose ton Tacos » dans le menu. Laisse vide pour
+          garder la photo par défaut.
+        </p>
+        <div className="flex items-start gap-4 flex-wrap">
+          <div className="w-40 h-32 border-2 border-[#262626] bg-[#0A0A0A] overflow-hidden flex-shrink-0">
+            {builderImgPreview || s.has_builder_image ? (
+              <img
+                data-testid="settings-builder-image-preview"
+                src={builderImgPreview || `${builderImageUrl()}?v=${builderImgVersion}`}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-xs text-[#666] text-center px-2">
+                Photo par défaut
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <input
+              data-testid="settings-builder-image-input"
+              type="file"
+              accept="image/*"
+              disabled={uploadingBuilderImg}
+              onChange={(e) => e.target.files?.[0] && uploadBuilderImage(e.target.files[0])}
+            />
+            {s.has_builder_image && (
+              <button
+                onClick={removeBuilderImage}
+                disabled={uploadingBuilderImg}
+                data-testid="settings-builder-image-remove"
+                className="bt-btn-ghost px-2 text-xs text-[#EF2B2D] disabled:opacity-40 block"
+              >
+                <Trash2 className="w-3 h-3" /> Retirer l&apos;image personnalisée
+              </button>
+            )}
+            {uploadingBuilderImg && <div className="text-xs text-[#A1A1A1]">Envoi…</div>}
+          </div>
+        </div>
       </div>
 
       {/* Paiements */}

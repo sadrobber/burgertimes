@@ -53,6 +53,10 @@ export function menuImageUrl(itemId) {
   return `${API_BASE}/menu/${itemId}/image`;
 }
 
+export function builderImageUrl() {
+  return `${API_BASE}/builder-image`;
+}
+
 export function formatEur(n) {
   const v = Number.isFinite(n) ? n : 0;
   return `${v.toFixed(2)} €`;

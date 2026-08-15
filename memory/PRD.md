@@ -34,9 +34,17 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - **Admin force-reseed (Zone rouge)** (2026-02-XX): `POST /api/admin/seed/reseed` wipes and re-inserts every reference collection from the shipped JSON files AND resets `hours_per_day`, `delivery_fee_percent=10`, `free_delivery_threshold=30`, `delivery_postal_codes=[]` on the settings singleton. Surfaced as a red-bordered "Zone rouge" panel at the bottom of `/admin/settings` (`data-testid="settings-force-reseed"`). Orders, admin users, and waitlist are untouched.
 - **Delivery-fee quote fix** (2026-02-XX): `_quote_or_create` in `server.py` used to hard-reject any delivery quote missing an address, which meant the checkout page never displayed the delivery-fee line to customers before they typed a full address. Address requirement is now gated on `create=True` only; quotes always compute the fee.
 
+## Fixed — Tacos Builder image now editable from admin (2026-02-XX)
+- **Root cause**: the "Compose ton Tacos" card image was hardcoded to a fixed Unsplash URL inside `TacosBuilderCard.jsx` — it was never a `MenuItem` (no id) and had no field in `Settings`, so there was genuinely no admin UI anywhere to change it.
+- **Fix**: added `has_builder_image: bool` to the `Settings` model + a `builder_image_base64` field stored (but never returned) on the settings singleton doc. New endpoints: `PUT /api/admin/settings/builder-image` (admin, body `{image_base64}`, `null` clears it) and public `GET /api/builder-image` (serves the JPEG bytes, mirrors the existing per-menu-item image pattern). `_strip_image()` now also strips `builder_image_base64` everywhere settings docs are returned so the base64 blob never leaks to `GET /api/settings`.
+- New "Image du Tacos Builder" card at the top of `/admin/settings` (`data-testid="settings-builder-image-input"`) — file picker uploads and saves immediately (independent of the big "Enregistrer" button), with a live preview and a "Retirer l'image personnalisée" button to revert to default.
+- `TacosBuilderCard.jsx` now tries the custom uploaded image first (`GET /api/builder-image`), falls back to the original stock Unsplash photo on 404, and falls back further to the "BT" halftone placeholder tile if that also fails.
+- Verified via curl (upload → `has_builder_image:true` → image bytes served correctly → no leakage into `/api/menu`) and a screenshot of the new admin upload UI + the customer-facing menu card.
+
 ## P1 backlog (upcoming)
 - **Live Order Sound** — play a ping + flash the admin dashboard when a fresh order lands.
 - **Kitchen Print Ticket** — thermal-printer-friendly ticket in the admin order drawer.
+- **Sold-Out Toggle** — let the owner mark any menu item unavailable ("86'd") without deleting it.
 
 ## Hardened — Fail-fast DB + /api/health diagnostic (2026-02-XX)
 - Set explicit Motor timeouts on the Mongo client: `serverSelectionTimeoutMS=4000, connectTimeoutMS=4000, socketTimeoutMS=8000`. Prior default was 30s — any broken `MONGO_URL` used to look like a 504 gateway timeout to the customer. Now it fails fast with a real error.

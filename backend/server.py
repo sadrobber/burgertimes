@@ -28,6 +28,7 @@ from email_service import send_open_notice, send_order_email
 from email_service import is_configured as _email_configured
 from models import (
     AdminLoginPayload,
+    BuilderImageUpdate,
     BuilderItemCreate,
     Category,
     CategoryCreate,
@@ -103,6 +104,7 @@ def _strip_image(d: Optional[dict]) -> Optional[dict]:
     if not d:
         return d
     d.pop("image_base64", None)
+    d.pop("builder_image_base64", None)
     return d
 
 
@@ -200,7 +202,7 @@ async def get_settings():
     if doc is None:
         # Should be seeded; return default just in case.
         return Settings().model_dump()
-    return _strip_mongo(doc)
+    return _strip_image(_strip_mongo(doc))
 
 
 @api.put("/settings")
@@ -224,7 +226,49 @@ async def update_settings(
     await db.settings.update_one({"id": "singleton"}, {"$set": changes})
     doc.update(changes)
     background.add_task(_maybe_notify_waitlist_on_open)
-    return _strip_mongo(doc)
+    return _strip_image(_strip_mongo(doc))
+
+
+@api.get("/builder-image")
+async def builder_image():
+    doc = await db.settings.find_one({"id": "singleton"})
+    if not doc or not doc.get("builder_image_base64"):
+        raise HTTPException(status_code=404, detail="No image")
+    raw = doc["builder_image_base64"]
+    if "," in raw:
+        raw = raw.split(",", 1)[1]
+    try:
+        data = base64.b64decode(raw)
+    except Exception:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail="Invalid image")
+    return FAResponse(content=data, media_type="image/jpeg")
+
+
+@api.put("/admin/settings/builder-image")
+async def admin_update_builder_image(payload: BuilderImageUpdate, _: dict = Depends(require_admin)):
+    doc = await db.settings.find_one({"id": "singleton"})
+    if doc is None:
+        base = Settings().model_dump()
+        base["id"] = "singleton"
+        await db.settings.insert_one(base)
+    if payload.image_base64:
+        await db.settings.update_one(
+            {"id": "singleton"},
+            {"$set": {
+                "builder_image_base64": payload.image_base64,
+                "has_builder_image": True,
+                "updated_at": utc_now_iso(),
+            }},
+        )
+    else:
+        await db.settings.update_one(
+            {"id": "singleton"},
+            {
+                "$set": {"has_builder_image": False, "updated_at": utc_now_iso()},
+                "$unset": {"builder_image_base64": ""},
+            },
+        )
+    return {"has_builder_image": bool(payload.image_base64)}
 
 
 @api.get("/restaurant/status")
