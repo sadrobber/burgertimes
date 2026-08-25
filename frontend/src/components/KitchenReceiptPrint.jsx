@@ -55,19 +55,19 @@ function buildReceiptInnerHtml(order) {
     order.fulfillment === "delivery"
       ? `<div class="kr-block">
           <div class="kr-bold">LIVRAISON</div>
-          ${customerName ? `<div>Client : ${esc(customerName)}</div>` : ""}
-          ${order.customer_phone ? `<div>Tel : ${esc(order.customer_phone)}</div>` : ""}
+          ${customerName ? `<div class="kr-strong">Client : ${esc(customerName)}</div>` : ""}
+          ${order.customer_phone ? `<div class="kr-strong">Tel : ${esc(order.customer_phone)}</div>` : ""}
           ${
             order.address_line1 || order.address_line2
-              ? `<div>${esc(order.address_line1)}${order.address_line2 ? `, ${esc(order.address_line2)}` : ""}</div>`
+              ? `<div class="kr-strong">${esc(order.address_line1)}${order.address_line2 ? `, ${esc(order.address_line2)}` : ""}</div>`
               : ""
           }
-          ${order.postal_code || order.city ? `<div>${esc(order.postal_code)} ${esc(order.city)}</div>` : ""}
+          ${order.postal_code || order.city ? `<div class="kr-strong">${esc(order.postal_code)} ${esc(order.city)}</div>` : ""}
         </div>`
       : `<div class="kr-block">
           <div class="kr-bold">${esc(fulfillmentLabel)}</div>
-          ${customerName ? `<div>Client : ${esc(customerName)}</div>` : ""}
-          ${order.customer_phone ? `<div>Tel : ${esc(order.customer_phone)}</div>` : ""}
+          ${customerName ? `<div class="kr-strong">Client : ${esc(customerName)}</div>` : ""}
+          ${order.customer_phone ? `<div class="kr-strong">Tel : ${esc(order.customer_phone)}</div>` : ""}
           ${order.pickup_code ? `<div>Code retrait : ${esc(order.pickup_code)}</div>` : ""}
         </div>`;
 
@@ -92,7 +92,7 @@ function buildReceiptInnerHtml(order) {
       .replace(".", ",")} EUR</span></div>
     <div class="kr-divider"></div>
     ${fulfillmentBlock}
-    <div class="kr-block">Paiement : ${esc(PAYMENT_LABEL[order.payment_method] || order.payment_method)}</div>`;
+    <div class="kr-block kr-strong">Paiement : ${esc(PAYMENT_LABEL[order.payment_method] || order.payment_method)}</div>`;
 }
 
 /**
@@ -112,6 +112,14 @@ const RECEIPT_CSS = `
     width: 76mm; margin: 0 auto; padding: 2mm 0;
     font-family: "Courier New", Courier, monospace;
     font-size: 11pt; line-height: 1.25;
+    /* Thermal heads render anti-aliased thin strokes as sparse dots, so the
+       non-bold lines (address, phone, payment) came out visibly lighter than
+       the bold header. Bolding the whole ticket evens that out. Courier is
+       monospace, so bold does NOT change advance width - verified identical
+       layout: same body height, same page height, same address wrapping.
+       Do NOT raise the font sizes to chase darkness; that grows the ticket
+       and pushes long address lines into extra wraps. */
+    font-weight: 700;
   }
   .kr-center { text-align: center; }
   .kr-bold { font-weight: 700; }
@@ -129,6 +137,11 @@ const RECEIPT_CSS = `
   }
   .kr-note { border: 1.5px solid #000; padding: 1.5mm; margin: 2mm 0; font-size: 10.5pt; }
   .kr-block { font-size: 10pt; margin: 1mm 0; }
+  .kr-strong {
+    font-weight: 700;
+    font-size: 11pt;
+    color: #000;
+  }
 `;
 
 function buildStandaloneDoc(order) {

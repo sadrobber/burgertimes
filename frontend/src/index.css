@@ -292,6 +292,9 @@ html.kt-printing #kitchen-print-standalone {
   background: #fff;
   color: #000;
   font-family: "Courier New", Courier, monospace;
+  /* Kept in sync with RECEIPT_CSS in KitchenReceiptPrint.jsx - see the note
+     there. Bold evens out thermal darkness at zero layout cost (monospace). */
+  font-weight: 700;
 }
 #kitchen-print-standalone .kr-center { text-align: center; }
 #kitchen-print-standalone .kr-bold { font-weight: 700; }
@@ -319,3 +322,8 @@ html.kt-printing #kitchen-print-standalone {
   font-size: 10.5pt;
 }
 #kitchen-print-standalone .kr-block { font-size: 10pt; margin: 1mm 0; }
+#kitchen-print-standalone .kr-strong {
+  font-weight: 700;
+  font-size: 11pt;
+  color: #000;
+}
