@@ -20,11 +20,12 @@ function esc(value) {
 }
 
 /**
- * Builds a fully standalone 80mm ticket HTML document (own inline <style>,
- * black text on a white background) — completely isolated from the app's
- * dark brutalist theme so it can never inherit it during print.
+ * Builds the INNER markup of the 80mm ticket (no <html>/<head> wrapper —
+ * this gets injected directly into the live page, see printKitchenReceipt
+ * below). Styling comes from the always-on (non-`@media print`) rules
+ * scoped under `#kitchen-print-standalone` in index.css.
  */
-function buildReceiptHtml(order) {
+function buildReceiptInnerHtml(order) {
   const { date, time } = fmtDateTime(order.created_at);
   const customerName = `${order.customer_first_name || ""} ${order.customer_last_name || ""}`.trim();
   const cleanNote = (order.notes || "").replace("[TEST ORDER]", "").trim();
@@ -70,123 +71,90 @@ function buildReceiptHtml(order) {
           ${order.pickup_code ? `<div>Code retrait : ${esc(order.pickup_code)}</div>` : ""}
         </div>`;
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8" />
-<title>Commande ${esc(order.order_number)}</title>
-<style>
-  @page { size: 80mm auto; margin: 2mm; }
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0; padding: 0; background: #fff; color: #000;
-    font-family: "Courier New", Courier, monospace;
-    width: 76mm;
-  }
-  .kr-center { text-align: center; }
-  .kr-bold { font-weight: 700; }
-  .kr-xl { font-size: 15pt; letter-spacing: 1px; }
-  .kr-xxl { font-size: 19pt; margin: 2mm 0; }
-  .kr-lg { font-size: 13pt; }
-  .kr-row { display: flex; justify-content: space-between; font-size: 10pt; margin: 1mm 0; }
-  .kr-divider { border-top: 1px dashed #000; margin: 2mm 0; }
-  .kr-divider-thin { border-top: 1px dashed #000; margin: 1.5mm 0; }
-  .kr-item { font-size: 11pt; margin-bottom: 1mm; }
-  .kr-mods { padding-left: 3mm; font-size: 9.5pt; }
-  .kr-callout {
-    display: inline-block; font-weight: 700; border: 1px solid #000;
-    padding: 0.5mm 1.5mm; margin-top: 1mm; font-size: 10pt; text-transform: uppercase;
-  }
-  .kr-note { border: 1.5px solid #000; padding: 1.5mm; margin: 2mm 0; font-size: 10.5pt; }
-  .kr-block { font-size: 10pt; margin: 1mm 0; }
-</style>
-</head>
-<body>
-  <div class="kr-center kr-bold kr-xl">BURGER TIMES</div>
-  <div class="kr-divider"></div>
-  <div class="kr-center kr-bold kr-xxl">COMMANDE #${esc(order.order_number)}</div>
-  <div class="kr-center kr-bold">${esc(fulfillmentLabel)}</div>
-  <div class="kr-row"><span>${esc(date)}</span><span>${esc(time)}</span></div>
-  <div class="kr-divider"></div>
-  ${itemsHtml}
-  ${
-    cleanNote
-      ? `<div class="kr-note"><div class="kr-bold">NOTE CLIENT :</div><div class="kr-bold">${esc(
-          cleanNote.toUpperCase()
-        )}</div></div>`
-      : ""
-  }
-  <div class="kr-divider"></div>
-  <div class="kr-row kr-bold kr-lg"><span>TOTAL :</span><span>${(order.total || 0)
-    .toFixed(2)
-    .replace(".", ",")} EUR</span></div>
-  <div class="kr-divider"></div>
-  ${fulfillmentBlock}
-  <div class="kr-block">Paiement : ${esc(PAYMENT_LABEL[order.payment_method] || order.payment_method)}</div>
-</body>
-</html>`;
+  return `
+    <div class="kr-center kr-bold kr-xl">BURGER TIMES</div>
+    <div class="kr-divider"></div>
+    <div class="kr-center kr-bold kr-xxl">COMMANDE #${esc(order.order_number)}</div>
+    <div class="kr-center kr-bold">${esc(fulfillmentLabel)}</div>
+    <div class="kr-row"><span>${esc(date)}</span><span>${esc(time)}</span></div>
+    <div class="kr-divider"></div>
+    ${itemsHtml}
+    ${
+      cleanNote
+        ? `<div class="kr-note"><div class="kr-bold">NOTE CLIENT :</div><div class="kr-bold">${esc(
+            cleanNote.toUpperCase()
+          )}</div></div>`
+        : ""
+    }
+    <div class="kr-divider"></div>
+    <div class="kr-row kr-bold kr-lg"><span>TOTAL :</span><span>${(order.total || 0)
+      .toFixed(2)
+      .replace(".", ",")} EUR</span></div>
+    <div class="kr-divider"></div>
+    ${fulfillmentBlock}
+    <div class="kr-block">Paiement : ${esc(PAYMENT_LABEL[order.payment_method] || order.payment_method)}</div>`;
 }
 
-let activeIframe = null;
+let activeContainer = null;
+
+function teardown(onDone) {
+  document.documentElement.classList.remove("kt-printing");
+  if (activeContainer && activeContainer.parentNode) {
+    activeContainer.parentNode.removeChild(activeContainer);
+  }
+  activeContainer = null;
+  onDone?.();
+}
 
 /**
- * Prints an order's 80mm kitchen ticket via a hidden, fully isolated
- * <iframe> — the iframe gets its OWN document with its OWN inline <style>,
- * so it can never inherit this app's dark theme, grain overlay, or any
- * ancestor CSS/layout. This is the ONLY printing mechanism (no backend
- * bridge): on the Android/SUNMI tablet, the OS-level ESC/POS print service
- * (already paired over Bluetooth) handles the job once the employee taps
- * print in the native dialog that `iframe.contentWindow.print()` opens.
+ * Prints an order's 80mm kitchen ticket.
  *
- * `onDone` is a best-effort callback (fires on the iframe's `afterprint`,
- * or after a generous fallback timeout on browsers that never fire it) —
- * purely for the "Imprimé" telemetry badge, never gates order status.
+ * Some Android tablet browsers (confirmed on the real SUNMI device) do NOT
+ * isolate an <iframe>'s content when printing and simply rasterize whatever
+ * is currently visible on the page — so relying on `@media print` CSS or a
+ * hidden iframe is unsafe. Instead, this literally swaps what is on screen:
+ * it appends a receipt container as the last child of <body> and toggles a
+ * plain (non-media-scoped) `kt-printing` class on <html> that hides the
+ * React root (#root) and the dark-theme grain overlay via ordinary CSS
+ * rules (see index.css) — so the receipt is the ONLY thing visible/on the
+ * page when `window.print()` fires, regardless of whether the browser
+ * honours print-specific stylesheets at all. Everything is restored right
+ * after (on `afterprint`, or a generous fallback timeout).
+ *
+ * No backend bridge: the OS-level ESC/POS print service (paired over
+ * Bluetooth to the SUNMI printer) picks up the job from the native print
+ * dialog `window.print()` opens.
+ *
+ * `onDone` is best-effort telemetry only (drives the "Imprimé" badge),
+ * never gates order status.
  */
 export function printKitchenReceipt(order, onDone) {
   if (!order) return;
-  if (activeIframe) {
-    activeIframe.remove();
-    activeIframe = null;
-  }
+  teardown(); // defensively clear any stuck previous run
 
-  const iframe = document.createElement("iframe");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
-  iframe.setAttribute("aria-hidden", "true");
-  document.body.appendChild(iframe);
-  activeIframe = iframe;
+  const container = document.createElement("div");
+  container.id = "kitchen-print-standalone";
+  container.innerHTML = buildReceiptInnerHtml(order);
+  document.body.appendChild(container);
+  activeContainer = container;
+  document.documentElement.classList.add("kt-printing");
 
   let done = false;
-  let fallbackTimer = null;
   const cleanup = () => {
     if (done) return;
     done = true;
-    if (fallbackTimer) clearTimeout(fallbackTimer);
-    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-    if (activeIframe === iframe) activeIframe = null;
-    onDone?.();
+    window.removeEventListener("afterprint", cleanup);
+    teardown(onDone);
   };
+  window.addEventListener("afterprint", cleanup);
 
-  iframe.onload = () => {
-    const win = iframe.contentWindow;
-    try {
-      win.addEventListener("afterprint", cleanup);
-    } catch {
-      // Some Android WebViews don't support afterprint on the iframe window.
-    }
-    win.focus();
-    win.print();
-    // Fallback cleanup for browsers that never fire `afterprint` — long
-    // enough to not yank the iframe while the native print dialog is open.
-    fallbackTimer = setTimeout(cleanup, 30000);
-  };
-
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  doc.write(buildReceiptHtml(order));
-  doc.close();
+  // Give the browser two frames to actually paint the swapped DOM before
+  // triggering print — some Android WebViews rasterize immediately and
+  // would otherwise still catch the dashboard mid-transition.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      window.print();
+      setTimeout(cleanup, 30000);
+    });
+  });
 }

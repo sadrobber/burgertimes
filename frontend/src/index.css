@@ -257,8 +257,65 @@
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
-/* Kitchen tablet (/kitchen) print styling lives entirely inside the hidden
-   print <iframe>'s own standalone HTML document + inline <style> (see
-   `printKitchenReceipt` / `buildReceiptHtml` in KitchenReceiptPrint.jsx) —
-   fully isolated from this app's dark theme/grain overlay so the receipt
-   can never inherit them. Nothing needed in this global stylesheet. */
+/* ---------------------------------------------------------------------- */
+/* Kitchen tablet — 80mm thermal ticket printing                          */
+/* ---------------------------------------------------------------------- */
+/* The SUNMI Android tablet's browser does not reliably honour @media print
+   (it appears to rasterize whatever is currently on screen), so instead of
+   print-only CSS we toggle this PLAIN class on <html> right before calling
+   window.print() (see printKitchenReceipt in KitchenReceiptPrint.jsx) —
+   it hides the whole app + grain overlay and shows only the receipt in
+   every media type, so the print output is correct even on browsers with
+   no real print-media support at all. */
+@page {
+  size: 80mm auto;
+  margin: 2mm;
+}
+#kitchen-print-standalone {
+  display: none;
+}
+html.kt-printing body::before {
+  display: none !important;
+}
+html.kt-printing #root {
+  display: none !important;
+}
+html.kt-printing,
+html.kt-printing body {
+  background: #fff !important;
+}
+html.kt-printing #kitchen-print-standalone {
+  display: block;
+  width: 76mm;
+  margin: 0 auto;
+  padding: 2mm 0;
+  background: #fff;
+  color: #000;
+  font-family: "Courier New", Courier, monospace;
+}
+#kitchen-print-standalone .kr-center { text-align: center; }
+#kitchen-print-standalone .kr-bold { font-weight: 700; }
+#kitchen-print-standalone .kr-xl { font-size: 15pt; letter-spacing: 1px; }
+#kitchen-print-standalone .kr-xxl { font-size: 19pt; margin: 2mm 0; }
+#kitchen-print-standalone .kr-lg { font-size: 13pt; }
+#kitchen-print-standalone .kr-row { display: flex; justify-content: space-between; font-size: 10pt; margin: 1mm 0; }
+#kitchen-print-standalone .kr-divider { border-top: 1px dashed #000; margin: 2mm 0; }
+#kitchen-print-standalone .kr-divider-thin { border-top: 1px dashed #000; margin: 1.5mm 0; }
+#kitchen-print-standalone .kr-item { font-size: 11pt; margin-bottom: 1mm; }
+#kitchen-print-standalone .kr-mods { padding-left: 3mm; font-size: 9.5pt; }
+#kitchen-print-standalone .kr-callout {
+  display: inline-block;
+  font-weight: 700;
+  border: 1px solid #000;
+  padding: 0.5mm 1.5mm;
+  margin-top: 1mm;
+  font-size: 10pt;
+  text-transform: uppercase;
+}
+#kitchen-print-standalone .kr-note {
+  border: 1.5px solid #000;
+  padding: 1.5mm;
+  margin: 2mm 0;
+  font-size: 10.5pt;
+}
+#kitchen-print-standalone .kr-block { font-size: 10pt; margin: 1mm 0; }
