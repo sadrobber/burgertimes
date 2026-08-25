@@ -59,12 +59,6 @@ from restaurant_status import compute_status
 from seed import force_reseed_reference_data, run_seed
 import sunmi_service
 from sunmi_receipt import build_test_ticket, to_hex
-from telegram_service import (
-    answer_callback_query,
-    edit_kitchen_message,
-    send_kitchen_order,
-    set_webhook as tg_set_webhook,
-)
 
 # ----- Database ------------------------------------------------------------
 
@@ -110,6 +104,19 @@ def _strip_image(d: Optional[dict]) -> Optional[dict]:
     d.pop("image_base64", None)
     d.pop("builder_image_base64", None)
     return d
+
+
+# Menu photos are stored inline as base64 data URLs (~95 kB each). No list
+# endpoint ever returns them - _strip_image drops them again immediately, and
+# the browser fetches each photo from /menu/{id}/image instead. Without this
+# projection every menu listing and every checkout quote pulled the whole
+# photo set out of Mongo and into RAM just to throw it away: measured at
+# 3.71 MB fetched and 11.3 MB peak allocation per request for a 40-item menu,
+# versus 0.01 MB / 0.2 MB with it. That per-request cost is what exhausted the
+# 512Mi container under concurrent load (both prod pods OOMKilled 2026-08-25
+# 18:18 UTC). Keep this projection on any query that does not serve the image
+# itself.
+NO_IMAGE_FIELDS = {"image_base64": 0, "builder_image_base64": 0}
 
 
 # ----- Startup -------------------------------------------------------------
@@ -172,9 +179,6 @@ async def health():
     payload["integrations"] = {
         "resend_configured": bool(os.environ.get("RESEND_API_KEY")),
         "resend_from": os.environ.get("RESEND_FROM_EMAIL") or None,
-        "telegram_bot_configured": bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
-        "telegram_kitchen_chat": bool(os.environ.get("TELEGRAM_KITCHEN_CHAT_ID")),
-        "telegram_webhook_secret_configured": bool(os.environ.get("TELEGRAM_WEBHOOK_SECRET")),
     }
     return payload
 
@@ -328,13 +332,13 @@ async def admin_delete_category(cat_id: str, _: dict = Depends(require_admin)):
 
 @api.get("/menu")
 async def list_menu():
-    docs = await db.menu_items.find({"available": True}).sort([("sort_order", 1), ("name", 1)]).to_list(500)
+    docs = await db.menu_items.find({"available": True}, NO_IMAGE_FIELDS).sort([("sort_order", 1), ("name", 1)]).to_list(500)
     return [_strip_image(_strip_mongo(d)) for d in docs]
 
 
 @api.get("/admin/menu")
 async def admin_list_menu(_: dict = Depends(require_admin)):
-    docs = await db.menu_items.find().sort([("sort_order", 1), ("name", 1)]).to_list(2000)
+    docs = await db.menu_items.find({}, NO_IMAGE_FIELDS).sort([("sort_order", 1), ("name", 1)]).to_list(2000)
     return [_strip_image(_strip_mongo(d)) for d in docs]
 
 
@@ -683,7 +687,7 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
                 )
 
     # Load menu items (only available)
-    menu_docs = await db.menu_items.find({"available": True}).to_list(2000)
+    menu_docs = await db.menu_items.find({"available": True}, NO_IMAGE_FIELDS).to_list(2000)
     menu_items = {d["id"]: _strip_mongo(d) for d in menu_docs}
     burger_cfg = await _load_builder_config()
 
@@ -755,21 +759,7 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
     }
     await db.orders.insert_one(dict(order))
 
-    # Fire-and-forget notifications
-    try:
-        tg = await send_kitchen_order(order)
-        if tg:
-            await db.orders.update_one(
-                {"id": order["id"]},
-                {
-                    "$set": {
-                        "kitchen_message_id": tg["message_id"],
-                        "kitchen_chat_id": tg["chat_id"],
-                    }
-                },
-            )
-    except Exception:  # noqa: BLE001
-        logger.exception("Telegram fire-and-forget failed")
+    # Fire-and-forget notification
     try:
         await send_order_email(order, "order_confirmed")
     except Exception:  # noqa: BLE001
@@ -882,7 +872,7 @@ async def _apply_status(order_id: str, new_status: str, actor: str, note: Option
 
 
 async def _finalize_order_status(order_id: str, status: str, actor: str, note: Optional[str] = None) -> dict:
-    """Apply a status transition + fire the existing email/Telegram side effects.
+    """Apply a status transition + fire the existing email side effect.
 
     Shared by the admin orders dashboard AND the /kitchen accept/decline
     endpoints so both surfaces stay in sync with the same order lifecycle.
@@ -903,16 +893,6 @@ async def _finalize_order_status(order_id: str, status: str, actor: str, note: O
             await send_order_email(updated, tpl)
     except Exception:  # noqa: BLE001
         logger.exception("email send failed")
-    try:
-        if updated.get("kitchen_chat_id") and updated.get("kitchen_message_id"):
-            await edit_kitchen_message(
-                updated["kitchen_chat_id"],
-                updated["kitchen_message_id"],
-                updated,
-                status.upper(),
-            )
-    except Exception:  # noqa: BLE001
-        logger.exception("Telegram edit failed")
     return updated
 
 
@@ -1194,78 +1174,6 @@ async def admin_sunmi_test_print(_: dict = Depends(require_admin)):
             detail={"message": "Échec d'impression du ticket de test.", "sunmi": result},
         )
     return {"ok": True, "trade_no": trade_no, "sunmi": result}
-
-
-# ----- Telegram webhook ----------------------------------------------------
-
-
-@api.post("/telegram/set-webhook")
-async def tg_set_webhook_route(
-    request: Request,
-    public_base_url: Optional[str] = Query(default=None),
-    _: dict = Depends(require_admin),
-):
-    if not public_base_url:
-        # infer from request
-        proto = request.headers.get("x-forwarded-proto") or ("https" if request.url.scheme == "https" else "http")
-        host = request.headers.get("x-forwarded-host") or request.headers.get("host", "")
-        public_base_url = f"{proto}://{host}"
-    result = await tg_set_webhook(public_base_url)
-    return result
-
-
-@api.post("/telegram/webhook")
-async def tg_webhook(request: Request):
-    header = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
-    expected = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
-    if not expected or header != expected:
-        raise HTTPException(status_code=401, detail="Invalid webhook secret")
-    body = await request.json()
-    cbq = body.get("callback_query")
-    if not cbq:
-        return {"ok": True}
-    data = cbq.get("data", "")
-    parts = data.split("|")
-    if len(parts) != 3 or parts[0] != "order":
-        await answer_callback_query(cbq["id"], "Unknown action")
-        return {"ok": True}
-    _, action, order_id = parts
-    status_map = {
-        "accept": "accepted",
-        "preparing": "preparing",
-        "ready": "ready",
-        "delivered": "delivered",
-        "cancel": "cancelled",
-    }
-    new_status = status_map.get(action)
-    if not new_status:
-        await answer_callback_query(cbq["id"], "Unknown action")
-        return {"ok": True}
-    updated = await _apply_status(order_id, new_status, "kitchen", None)
-    try:
-        if updated and updated.get("kitchen_chat_id") and updated.get("kitchen_message_id"):
-            await edit_kitchen_message(
-                updated["kitchen_chat_id"],
-                updated["kitchen_message_id"],
-                updated,
-                new_status.upper(),
-            )
-    except Exception:  # noqa: BLE001
-        logger.exception("Telegram edit after webhook failed")
-    try:
-        template_map = {
-            "accepted": "order_accepted",
-            "ready": "order_ready",
-            "delivered": None,
-            "cancelled": "order_cancelled",
-        }
-        tpl = template_map.get(new_status)
-        if tpl and updated:
-            await send_order_email(updated, tpl)
-    except Exception:  # noqa: BLE001
-        logger.exception("Email after webhook failed")
-    await answer_callback_query(cbq["id"], f"✅ {new_status.upper()}")
-    return {"ok": True}
 
 
 # ----- Waitlist ------------------------------------------------------------
