@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { kitchenClient, fmtError, formatEur } from "@/lib/api";
 import { useKitchenAuth } from "@/context/KitchenAuthContext.jsx";
-import KitchenReceiptPrint from "@/components/KitchenReceiptPrint.jsx";
+import { printKitchenReceipt } from "@/components/KitchenReceiptPrint.jsx";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,25 +79,20 @@ export default function Kitchen() {
   const [online, setOnline] = useState(true);
   const [busyIds, setBusyIds] = useState({});
   const [soundOn, setSoundOn] = useState(false);
-  const [printOrder, setPrintOrder] = useState(null);
   const seenIds = useRef(new Set());
   const initialized = useRef(false);
   const soundOnRef = useRef(false);
 
   // Native browser/Android print — the ONLY printing mechanism. Triggered
-  // from the same user click (Accepter & Imprimer / Réimprimer) by setting
-  // printOrder, which mounts <KitchenReceiptPrint> (visible only via the
-  // @media print rules in index.css) and immediately calls window.print().
-  useEffect(() => {
-    if (!printOrder) return undefined;
-    const handleAfterPrint = () => {
-      kitchenClient.post(`/kitchen/orders/${printOrder.id}/mark-printed`).catch(() => {});
-      setPrintOrder(null);
-    };
-    window.addEventListener("afterprint", handleAfterPrint);
-    window.print();
-    return () => window.removeEventListener("afterprint", handleAfterPrint);
-  }, [printOrder]);
+  // from the same user click (Accepter & Imprimer / Réimprimer): builds a
+  // hidden, fully isolated <iframe> with its own ticket document (see
+  // KitchenReceiptPrint.jsx) and calls window.print() on it, so the print
+  // output can never inherit this page's dark theme.
+  const printAndMark = (order) => {
+    printKitchenReceipt(order, () => {
+      kitchenClient.post(`/kitchen/orders/${order.id}/mark-printed`).catch(() => {});
+    });
+  };
 
   const load = useCallback(async () => {
     try {
@@ -158,7 +153,7 @@ export default function Kitchen() {
         toast.info(`Commande #${order.order_number} déjà traitée`);
       } else {
         toast.success(`Commande #${order.order_number} acceptée`);
-        setPrintOrder(data.order);
+        printAndMark(data.order);
       }
       load();
     });
@@ -170,7 +165,7 @@ export default function Kitchen() {
       load();
     });
 
-  const reprint = (order) => setPrintOrder(order);
+  const reprint = (order) => printAndMark(order);
 
   const doLogout = () => {
     logout();
@@ -262,8 +257,6 @@ export default function Kitchen() {
           ))
         )}
       </main>
-
-      <KitchenReceiptPrint order={printOrder} />
     </div>
   );
 }
