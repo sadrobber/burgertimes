@@ -1,15 +1,15 @@
-"""End-to-end backend tests for the new /kitchen tablet feature.
+"""End-to-end backend tests for the /kitchen tablet feature.
 
 Covers:
 - Kitchen auth (login success/failure, /me)
 - Route protection (kitchen token forbidden on admin routes)
 - Order creation via customer checkout (with temporary hours-widening if closed)
 - /kitchen/orders listing tabs (new/accepted/declined)
-- Accept flow (moves to accepted, kitchen_print_status=print_failed because
-  KITCHEN_PRINT_ENDPOINT is unset — expected)
+- Accept flow (moves to accepted; printing is now 100% client-side via
+  window.print(), so accept no longer touches kitchen_print_status at all)
+- mark-printed telemetry endpoint (called by the frontend after window.print())
 - Decline flow (with reason)
 - Idempotency of accept/decline
-- Retry-print & Reprint against the simulated failure state
 - Admin PUT /admin/orders/{id}/status still works (regression via shared helper)
 """
 from __future__ import annotations
@@ -37,6 +37,15 @@ def _load_backend_url() -> str:
 
 
 BASE_URL = _load_backend_url()
+
+# Force pytest-xdist to schedule EVERY test in this module onto the SAME
+# worker process. This module widens the shared /api/settings opening-hours
+# singleton for its session-scoped `ensure_open` fixture — if two xdist
+# workers each ran their own copy of that fixture against the same shared
+# backend/DB, one worker's teardown (restoring "original" hours it captured
+# BEFORE the other worker widened them) could permanently clobber the real
+# restaurant hours. Co-locating on one worker eliminates that race entirely.
+pytestmark = pytest.mark.xdist_group(name="kitchen_flow_serial")
 
 ADMIN_EMAIL = "chahineisgoated@gmail.com"
 ADMIN_PASSWORD = "BurgerTimes2026!"
@@ -83,10 +92,15 @@ def hdr_kitchen(kitchen_token):
 
 @pytest.fixture(scope="session")
 def ensure_open(hdr_admin):
-    """Widen today's opening hours so checkout doesn't get blocked. Restore after."""
+    """Widen today's opening hours so checkout doesn't get blocked. Restore after.
+
+    Safe to widen/restore unconditionally: `pytestmark = xdist_group(...)`
+    above guarantees this whole module (and therefore this fixture) only
+    ever runs inside a single worker process, so there is no other worker
+    racing on the shared /api/settings singleton.
+    """
     s = requests.get(f"{BASE_URL}/api/settings", timeout=15).json()
     original_hours = s.get("hours_per_day", {}) or {}
-    # widen all days to 00:00-23:59 open just for the test session
     wide = {}
     for day in ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]:
         wide[day] = {"is_open": True, "ranges": [{"open": "00:00", "close": "23:59"}]}
@@ -98,7 +112,6 @@ def ensure_open(hdr_admin):
     )
     assert r.status_code == 200, f"Could not widen hours: {r.status_code} {r.text}"
     yield
-    # restore
     try:
         requests.put(
             f"{BASE_URL}/api/settings",
@@ -177,10 +190,17 @@ def _create_test_order(created_order_ids) -> str:
     return oid
 
 
-# ---------- auth tests -------------------------------------------------------
+# ---------- all tests below share ONE class so pytest-xdist's default ------
+# ---------- "loadscope" strategy keeps them on the same worker -------------
+#
+# (loadscope groups test METHODS by class and free functions by module — with
+# 6 separate classes, different classes could land on different xdist
+# workers, and the session-scoped `ensure_open` fixture below would then race
+# across workers on the shared /api/settings singleton, permanently
+# clobbering real opening hours. One class == one scope == one worker.)
 
 
-class TestKitchenAuth:
+class TestKitchenFlow:
     def test_kitchen_login_success(self, kitchen_token):
         assert isinstance(kitchen_token, str) and len(kitchen_token) > 20
 
@@ -219,8 +239,6 @@ class TestKitchenAuth:
 
 # ---------- listing ----------------------------------------------------------
 
-
-class TestKitchenOrdersListing:
     def test_list_shape(self, hdr_kitchen):
         r = requests.get(f"{BASE_URL}/api/kitchen/orders", headers=hdr_kitchen, timeout=15)
         assert r.status_code == 200
@@ -232,11 +250,7 @@ class TestKitchenOrdersListing:
 
 # ---------- accept flow ------------------------------------------------------
 
-
-class TestKitchenAcceptFlow:
-    def test_accept_moves_to_accepted_and_records_print_failed(
-        self, hdr_kitchen, created_order_ids
-    ):
+    def test_accept_moves_to_accepted(self, hdr_kitchen, created_order_ids):
         oid = _create_test_order(created_order_ids)
 
         # verify it appears in new tab
@@ -249,14 +263,10 @@ class TestKitchenAcceptFlow:
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["already_decided"] is False
-        # print bridge is unset -> print_failed with print_bridge_not_configured
-        assert body["ok"] is False, f"Expected ok=false due to unset bridge, got {body}"
         order = body["order"]
         assert order["kitchen_decision"] == "accepted"
         assert order["status"] == "accepted"
-        assert order["kitchen_print_status"] == "print_failed"
-        assert order["kitchen_print_error"] == "print_bridge_not_configured"
-        assert order["kitchen_print_attempts"] >= 1
+        assert order["kitchen_print_status"] == "pending"  # printing is client-side now
 
         # verify it moved
         listing = requests.get(f"{BASE_URL}/api/kitchen/orders", headers=hdr_kitchen).json()
@@ -275,46 +285,37 @@ class TestKitchenAcceptFlow:
         assert r1.json()["already_decided"] is False
         assert r2.json()["already_decided"] is True
 
-        # Verify attempts counter didn't increment on the second (no-op) call
-        doc = r2.json()["order"]
-        first_attempts = r1.json()["order"]["kitchen_print_attempts"]
-        assert doc["kitchen_print_attempts"] == first_attempts
-
-    def test_retry_print_on_accepted_order(self, hdr_kitchen, created_order_ids):
+    def test_mark_printed_after_accept(self, hdr_kitchen, created_order_ids):
+        """Frontend calls this right after window.print() (best-effort telemetry)."""
         oid = _create_test_order(created_order_ids)
-        requests.post(f"{BASE_URL}/api/kitchen/orders/{oid}/accept", headers=hdr_kitchen).json()
+        requests.post(f"{BASE_URL}/api/kitchen/orders/{oid}/accept", headers=hdr_kitchen)
         r = requests.post(
-            f"{BASE_URL}/api/kitchen/orders/{oid}/retry-print", headers=hdr_kitchen, timeout=20
+            f"{BASE_URL}/api/kitchen/orders/{oid}/mark-printed", headers=hdr_kitchen, timeout=20
         )
         assert r.status_code == 200, r.text
         d = r.json()
-        assert d["ok"] is False
-        assert d["order"]["kitchen_print_status"] == "print_failed"
-        assert d["order"]["kitchen_print_attempts"] >= 2  # accept + retry
+        assert d["ok"] is True
+        assert d["order"]["kitchen_print_status"] == "printed"
+        assert d["order"]["kitchen_print_attempts"] >= 1
 
-    def test_retry_print_rejected_when_not_accepted(self, hdr_kitchen, created_order_ids):
-        oid = _create_test_order(created_order_ids)
-        r = requests.post(
-            f"{BASE_URL}/api/kitchen/orders/{oid}/retry-print", headers=hdr_kitchen, timeout=20
+        # Calling it again (reprint) just increments attempts, no error
+        r2 = requests.post(
+            f"{BASE_URL}/api/kitchen/orders/{oid}/mark-printed", headers=hdr_kitchen, timeout=20
         )
-        assert r.status_code == 400
+        assert r2.status_code == 200
+        assert r2.json()["order"]["kitchen_print_attempts"] >= 2
 
-    def test_reprint_endpoint_works(self, hdr_kitchen, created_order_ids):
-        oid = _create_test_order(created_order_ids)
-        requests.post(f"{BASE_URL}/api/kitchen/orders/{oid}/accept", headers=hdr_kitchen).json()
+    def test_mark_printed_unknown_order_404(self, hdr_kitchen):
         r = requests.post(
-            f"{BASE_URL}/api/kitchen/orders/{oid}/reprint", headers=hdr_kitchen, timeout=20
+            f"{BASE_URL}/api/kitchen/orders/does-not-exist/mark-printed",
+            headers=hdr_kitchen,
+            timeout=20,
         )
-        assert r.status_code == 200
-        d = r.json()
-        assert d["manual_reprint"] is True
-        assert d["ok"] is False  # still bridge_not_configured
+        assert r.status_code == 404
 
 
 # ---------- decline flow -----------------------------------------------------
 
-
-class TestKitchenDeclineFlow:
     def test_decline_with_reason(self, hdr_kitchen, created_order_ids):
         oid = _create_test_order(created_order_ids)
         r = requests.post(
@@ -366,8 +367,6 @@ class TestKitchenDeclineFlow:
 
 # ---------- regression: admin dashboard status update still works ------------
 
-
-class TestAdminOrderStatusRegression:
     def test_admin_status_update_after_kitchen_accept(
         self, hdr_admin, hdr_kitchen, created_order_ids
     ):
@@ -405,8 +404,6 @@ class TestAdminOrderStatusRegression:
 
 # ---------- restaurant status regression -------------------------------------
 
-
-class TestPublicRegression:
     def test_menu_still_public(self):
         r = requests.get(f"{BASE_URL}/api/menu", timeout=15)
         assert r.status_code == 200

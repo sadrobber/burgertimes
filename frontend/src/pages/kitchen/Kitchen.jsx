@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { kitchenClient, fmtError, formatEur } from "@/lib/api";
 import { useKitchenAuth } from "@/context/KitchenAuthContext.jsx";
+import KitchenReceiptPrint from "@/components/KitchenReceiptPrint.jsx";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,13 +18,11 @@ import {
 import {
   CheckCircle2,
   XCircle,
-  RotateCcw,
   Wifi,
   WifiOff,
   LogOut,
   Printer,
   Clock,
-  AlertTriangle,
   Volume2,
 } from "lucide-react";
 
@@ -80,9 +79,25 @@ export default function Kitchen() {
   const [online, setOnline] = useState(true);
   const [busyIds, setBusyIds] = useState({});
   const [soundOn, setSoundOn] = useState(false);
+  const [printOrder, setPrintOrder] = useState(null);
   const seenIds = useRef(new Set());
   const initialized = useRef(false);
   const soundOnRef = useRef(false);
+
+  // Native browser/Android print — the ONLY printing mechanism. Triggered
+  // from the same user click (Accepter & Imprimer / Réimprimer) by setting
+  // printOrder, which mounts <KitchenReceiptPrint> (visible only via the
+  // @media print rules in index.css) and immediately calls window.print().
+  useEffect(() => {
+    if (!printOrder) return undefined;
+    const handleAfterPrint = () => {
+      kitchenClient.post(`/kitchen/orders/${printOrder.id}/mark-printed`).catch(() => {});
+      setPrintOrder(null);
+    };
+    window.addEventListener("afterprint", handleAfterPrint);
+    window.print();
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, [printOrder]);
 
   const load = useCallback(async () => {
     try {
@@ -141,10 +156,9 @@ export default function Kitchen() {
       const { data } = await kitchenClient.post(`/kitchen/orders/${order.id}/accept`);
       if (data.already_decided) {
         toast.info(`Commande #${order.order_number} déjà traitée`);
-      } else if (data.ok) {
-        toast.success(`Commande #${order.order_number} acceptée et imprimée`);
       } else {
-        toast.error(`Acceptée, mais impression échouée (#${order.order_number})`);
+        toast.success(`Commande #${order.order_number} acceptée`);
+        setPrintOrder(data.order);
       }
       load();
     });
@@ -156,21 +170,7 @@ export default function Kitchen() {
       load();
     });
 
-  const retryPrint = (order) =>
-    withBusy(order, async () => {
-      const { data } = await kitchenClient.post(`/kitchen/orders/${order.id}/retry-print`);
-      if (data.ok) toast.success("Ticket imprimé");
-      else toast.error("Impression toujours en échec");
-      load();
-    });
-
-  const reprint = (order) =>
-    withBusy(order, async () => {
-      const { data } = await kitchenClient.post(`/kitchen/orders/${order.id}/reprint`);
-      if (data.ok) toast.success("Ticket réimprimé");
-      else toast.error("Réimpression échouée");
-      load();
-    });
+  const reprint = (order) => setPrintOrder(order);
 
   const doLogout = () => {
     logout();
@@ -257,17 +257,18 @@ export default function Kitchen() {
               busy={!!busyIds[order.id]}
               onAccept={() => accept(order)}
               onDecline={(reason) => decline(order, reason)}
-              onRetryPrint={() => retryPrint(order)}
               onReprint={() => reprint(order)}
             />
           ))
         )}
       </main>
+
+      <KitchenReceiptPrint order={printOrder} />
     </div>
   );
 }
 
-function OrderCard({ order, tab, busy, onAccept, onDecline, onRetryPrint, onReprint }) {
+function OrderCard({ order, tab, busy, onAccept, onDecline, onReprint }) {
   const [declineReason, setDeclineReason] = useState("");
   const isNew = tab === "new";
   const cleanNote = (order.notes || "").replace("[TEST ORDER]", "").trim();
@@ -409,48 +410,14 @@ function OrderCard({ order, tab, busy, onAccept, onDecline, onRetryPrint, onRepr
 
       {tab === "accepted" && (
         <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
-          <PrintStatusBadge status={order.kitchen_print_status} error={order.kitchen_print_error} />
-          {order.kitchen_print_status === "print_failed" && (
-            <button
-              data-testid={`kitchen-retry-print-${order.id}`}
-              onClick={onRetryPrint}
-              disabled={busy}
-              className="bt-btn-primary py-3 px-4 text-sm disabled:opacity-40"
-            >
-              <RotateCcw className="w-4 h-4" /> Réessayer l&apos;impression
-            </button>
-          )}
-          {order.kitchen_print_status === "printed" && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <button
-                  data-testid={`kitchen-reprint-${order.id}`}
-                  disabled={busy}
-                  className="bt-btn-ghost py-3 px-4 text-sm disabled:opacity-40"
-                >
-                  <Printer className="w-4 h-4" /> Réimprimer
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="bg-[#141414] border-2 border-[#EF2B2D] rounded-none text-[#F5F1E8]">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Réimprimer le ticket #{order.order_number} ?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Un nouveau ticket sera envoyé à l&apos;imprimante cuisine.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-none">Annuler</AlertDialogCancel>
-                  <AlertDialogAction
-                    data-testid={`kitchen-reprint-confirm-${order.id}`}
-                    className="rounded-none bg-[#EF2B2D]"
-                    onClick={onReprint}
-                  >
-                    Réimprimer
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+          <PrintStatusBadge status={order.kitchen_print_status} />
+          <button
+            data-testid={`kitchen-reprint-${order.id}`}
+            onClick={onReprint}
+            className="bt-btn-ghost py-3 px-4 text-sm"
+          >
+            <Printer className="w-4 h-4" /> Réimprimer
+          </button>
         </div>
       )}
 
@@ -463,19 +430,19 @@ function OrderCard({ order, tab, busy, onAccept, onDecline, onRetryPrint, onRepr
   );
 }
 
-function PrintStatusBadge({ status, error }) {
+function PrintStatusBadge({ status }) {
   const cfg =
-    {
-      printed: { color: "#3DDC97", label: "Imprimé", Icon: CheckCircle2 },
-      print_failed: { color: "#EF2B2D", label: "Échec impression", Icon: AlertTriangle },
-    }[status] || { color: "#FFB800", label: "En attente d'impression", Icon: Clock };
+    { printed: { color: "#3DDC97", label: "Imprimé", Icon: CheckCircle2 } }[status] || {
+      color: "#FFB800",
+      label: "En attente d'impression",
+      Icon: Clock,
+    };
   const { color, label, Icon } = cfg;
   return (
     <span
       data-testid="kitchen-print-badge"
       className="inline-flex items-center gap-2 text-sm font-accent uppercase tracking-widest"
       style={{ color }}
-      title={error || undefined}
     >
       <Icon className="w-4 h-4" /> {label}
     </span>

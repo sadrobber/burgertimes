@@ -27,8 +27,6 @@ from starlette.middleware.cors import CORSMiddleware
 from auth import create_admin_token, require_admin, require_kitchen, verify_password
 from email_service import send_open_notice, send_order_email
 from email_service import is_configured as _email_configured
-import kitchen_print_bridge
-from kitchen_receipt import build_kitchen_ticket
 from models import (
     AdminLoginPayload,
     BuilderImageUpdate,
@@ -752,7 +750,6 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
         "kitchen_print_status": "pending",
         "kitchen_print_attempts": 0,
         "kitchen_printed_at": None,
-        "kitchen_print_error": None,
         "created_at": utc_now_iso(),
         "updated_at": utc_now_iso(),
     }
@@ -934,7 +931,7 @@ async def admin_delete_order(order_id: str, _: dict = Depends(require_admin)):
     return {"deleted": res.deleted_count}
 
 
-# ----- Kitchen tablet (real-time accept/decline + local print bridge) -----
+# ----- Kitchen tablet (real-time accept/decline; native browser print) ----
 
 
 @api.post("/kitchen/login")
@@ -971,51 +968,13 @@ async def kitchen_orders(_: dict = Depends(require_kitchen)):
     }
 
 
-async def _print_and_record(order_id: str, order_doc: dict, manual_reprint: bool = False) -> dict:
-    receipt_bytes = build_kitchen_ticket(order_doc)
-    result = await kitchen_print_bridge.print_kitchen_receipt(order_doc, receipt_bytes)
-    now = utc_now_iso()
-    if result.get("ok"):
-        await db.orders.update_one(
-            {"id": order_id},
-            {
-                "$set": {
-                    "kitchen_print_status": "printed",
-                    "kitchen_printed_at": now,
-                    "kitchen_print_error": None,
-                    "updated_at": now,
-                },
-                "$inc": {"kitchen_print_attempts": 1},
-            },
-        )
-    else:
-        await db.orders.update_one(
-            {"id": order_id},
-            {
-                "$set": {
-                    "kitchen_print_status": "print_failed",
-                    "kitchen_print_error": result.get("error") or "unknown_error",
-                    "updated_at": now,
-                },
-                "$inc": {"kitchen_print_attempts": 1},
-            },
-        )
-        logger.warning("Kitchen print failed for order %s: %s", order_id, result.get("error"))
-    doc = await db.orders.find_one({"id": order_id})
-    return {
-        "ok": bool(result.get("ok")),
-        "manual_reprint": manual_reprint,
-        "order": _strip_mongo(doc),
-    }
-
-
 @api.post("/kitchen/orders/{order_id}/accept")
 async def kitchen_accept_order(order_id: str, kitchen: dict = Depends(require_kitchen)):
     now = utc_now_iso()
     actor = kitchen.get("email", "kitchen")
     # Atomic, concurrency-safe transition: only the FIRST tap (or duplicate
-    # webhook-style retry) wins the decision — a second concurrent request
-    # matches zero documents and is treated as an idempotent no-op below.
+    # retry) wins the decision — a second concurrent request matches zero
+    # documents and is treated as an idempotent no-op below.
     claimed = await db.orders.find_one_and_update(
         {
             "id": order_id,
@@ -1031,9 +990,7 @@ async def kitchen_accept_order(order_id: str, kitchen: dict = Depends(require_ki
         return {"already_decided": True, "order": _strip_mongo(existing)}
 
     updated = await _finalize_order_status(order_id, "accepted", actor, note="Acceptée depuis /kitchen")
-    result = await _print_and_record(order_id, updated)
-    result["already_decided"] = False
-    return result
+    return {"already_decided": False, "order": updated}
 
 
 @api.post("/kitchen/orders/{order_id}/decline")
@@ -1070,25 +1027,28 @@ async def kitchen_decline_order(
     return {"already_decided": False, "order": updated}
 
 
-@api.post("/kitchen/orders/{order_id}/retry-print")
-async def kitchen_retry_print(order_id: str, _: dict = Depends(require_kitchen)):
-    doc = await db.orders.find_one({"id": order_id})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Commande introuvable")
-    if doc.get("kitchen_decision") != "accepted":
-        raise HTTPException(
-            status_code=400,
-            detail="La commande doit être acceptée avant de réessayer l'impression.",
-        )
-    return await _print_and_record(order_id, _strip_mongo(doc))
+@api.post("/kitchen/orders/{order_id}/mark-printed")
+async def kitchen_mark_printed(order_id: str, _: dict = Depends(require_kitchen)):
+    """Best-effort telemetry only — called by the frontend right after it
+    triggers the native browser/Android print dialog (window.print()).
 
-
-@api.post("/kitchen/orders/{order_id}/reprint")
-async def kitchen_reprint(order_id: str, _: dict = Depends(require_kitchen)):
-    doc = await db.orders.find_one({"id": order_id})
-    if not doc:
+    Printing itself is entirely client-side (see Kitchen.jsx +
+    KitchenReceiptPrint.jsx); the backend has no way to know whether the
+    employee actually pressed print or cancelled the dialog, so this just
+    records "a print was triggered" for the accepted-tab badge.
+    """
+    now = utc_now_iso()
+    res = await db.orders.update_one(
+        {"id": order_id},
+        {
+            "$set": {"kitchen_print_status": "printed", "kitchen_printed_at": now, "updated_at": now},
+            "$inc": {"kitchen_print_attempts": 1},
+        },
+    )
+    if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Commande introuvable")
-    return await _print_and_record(order_id, _strip_mongo(doc), manual_reprint=True)
+    doc = await db.orders.find_one({"id": order_id})
+    return {"ok": True, "order": _strip_mongo(doc)}
 
 
 @api.get("/admin/stats")

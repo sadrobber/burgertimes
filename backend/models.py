@@ -411,10 +411,9 @@ class Order(BaseModel):
     kitchen_decision_at: Optional[str] = None
     kitchen_decision_by: Optional[str] = None
     kitchen_decline_reason: Optional[str] = None
-    kitchen_print_status: str = "pending"  # pending | printed | print_failed
+    kitchen_print_status: str = "pending"  # pending | printed
     kitchen_print_attempts: int = 0
     kitchen_printed_at: Optional[str] = None
-    kitchen_print_error: Optional[str] = None
     created_at: str = Field(default_factory=utc_now_iso)
     updated_at: str = Field(default_factory=utc_now_iso)
 
