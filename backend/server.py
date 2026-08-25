@@ -206,7 +206,7 @@ async def admin_me(payload: dict = Depends(require_admin)):
 
 @api.get("/settings")
 async def get_settings():
-    doc = await db.settings.find_one({"id": "singleton"})
+    doc = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS)
     if doc is None:
         # Should be seeded; return default just in case.
         return Settings().model_dump()
@@ -281,7 +281,7 @@ async def admin_update_builder_image(payload: BuilderImageUpdate, _: dict = Depe
 
 @api.get("/restaurant/status")
 async def restaurant_status():
-    settings = await db.settings.find_one({"id": "singleton"}) or Settings().model_dump()
+    settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or Settings().model_dump()
     _strip_mongo(settings)
     return compute_status(settings)
 
@@ -649,7 +649,7 @@ def _compute_delivery_fee(fulfillment: str, subtotal: float, settings: dict) -> 
 
 
 async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
-    settings = await db.settings.find_one({"id": "singleton"}) or Settings().model_dump()
+    settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or Settings().model_dump()
     _strip_mongo(settings)
 
     if create:
@@ -1062,7 +1062,7 @@ async def admin_delivery_fee_stats(
       - daily: [{date, orders, delivery_fees, subtotal, avg_fee}]
       - totals: {today, this_week, this_month, all_time, in_range}
     """
-    settings = await db.settings.find_one({"id": "singleton"}) or {}
+    settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or {}
     tz_name = settings.get("timezone") or "Europe/Paris"
     try:
         tz = ZoneInfo(tz_name)

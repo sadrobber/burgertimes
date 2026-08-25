@@ -1,7 +1,7 @@
-"""Resend email + Telegram integration regression tests.
+"""Resend email integration regression tests.
 
 Focus: Emergent proxy → direct Resend API swap. Confirms that
-- /api/checkout/session triggers a Resend send (200/202) and Telegram send
+- /api/checkout/session triggers a Resend send (200/202)
 - PUT /api/admin/orders/{id}/status triggers a follow-up Resend send
 - email_service module reports configured & no-op when unset
 - /api/menu, /api/categories, /api/admin/login regressions still pass
@@ -80,8 +80,8 @@ def _tail_log(nbytes: int = 30000) -> str:
         return ""
 
 
-# ---------- Order + email/telegram end-to-end ----------
-class TestOrderEmailTelegram:
+# ---------- Order + email end-to-end ----------
+class TestOrderEmail:
     created_order_id = None
     created_order_number = None
 
@@ -97,7 +97,7 @@ class TestOrderEmailTelegram:
         cats = r.json() if isinstance(r.json(), list) else r.json().get("items", [])
         assert len(cats) == 9
 
-    def test_place_order_triggers_resend_and_telegram(self):
+    def test_place_order_triggers_resend(self):
         # Grab a Classique burger (or any) — first menu item is fine
         menu = requests.get(f"{BASE_URL}/api/menu", timeout=15).json()
         items = menu if isinstance(menu, list) else menu.get("items", [])
@@ -135,8 +135,8 @@ class TestOrderEmailTelegram:
         body = r.json()
         assert body.get("order_id")
         assert body.get("order_number")
-        TestOrderEmailTelegram.created_order_id = body["order_id"]
-        TestOrderEmailTelegram.created_order_number = body["order_number"]
+        TestOrderEmail.created_order_id = body["order_id"]
+        TestOrderEmail.created_order_number = body["order_number"]
 
         # Give fire-and-forget tasks a moment
         time.sleep(4)
@@ -156,14 +156,9 @@ class TestOrderEmailTelegram:
         assert resend_hit, (
             "No Resend API log line found after checkout. Tail:\n" + fresh[-2000:]
         )
-        # Telegram call happened
-        tg_hit = "api.telegram.org" in fresh or "sendMessage" in fresh
-        # Telegram is best-effort — warn but don't hard-fail if chat unreachable
-        if not tg_hit:
-            print("WARNING: no Telegram sendMessage log line found. Tail:\n" + fresh[-1500:])
 
     def test_admin_status_update_triggers_email(self, admin_token):
-        oid = TestOrderEmailTelegram.created_order_id
+        oid = TestOrderEmail.created_order_id
         assert oid, "no order id from previous test"
 
         try:
@@ -194,7 +189,7 @@ class TestOrderEmailTelegram:
         )
 
     def test_cleanup_delete_order(self, admin_token):
-        oid = TestOrderEmailTelegram.created_order_id
+        oid = TestOrderEmail.created_order_id
         if not oid:
             return
         requests.delete(

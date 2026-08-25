@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header.jsx";
 import Footer from "@/components/layout/Footer.jsx";
 import { apiClient, formatEur } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext.jsx";
+import { popPendingSavePrompt, saveCustomer } from "@/lib/savedCustomer";
 
 const STATUS_LABEL = {
   pending: "En attente",
@@ -23,6 +24,16 @@ export default function OrderSuccess() {
   const [order, setOrder] = useState(null);
   const [err, setErr] = useState(null);
   const { t } = useI18n();
+
+  // Bridged from Checkout.jsx via sessionStorage right after a successful
+  // order — asking "save your info?" here (not on Checkout) so it never
+  // delays placing the order itself. Shown at most once per order.
+  const [pendingProfile, setPendingProfile] = useState(() => popPendingSavePrompt());
+
+  const handleSaveChoice = (save) => {
+    if (save && pendingProfile) saveCustomer(pendingProfile);
+    setPendingProfile(null);
+  };
 
   useEffect(() => {
     if (!orderId) return;
@@ -72,6 +83,31 @@ export default function OrderSuccess() {
                 </div>
                 <div className="text-xs text-[#A1A1A1] mt-2">
                   Montre ce code au comptoir pour récupérer la commande.
+                </div>
+              </div>
+            )}
+
+            {pendingProfile && (
+              <div
+                data-testid="save-profile-prompt"
+                className="bt-card p-5 flex items-center justify-between gap-4 flex-wrap border-[#EF2B2D]"
+              >
+                <div className="text-sm">Sauvegarder tes infos pour un checkout plus rapide la prochaine fois ?</div>
+                <div className="flex gap-2">
+                  <button
+                    data-testid="save-profile-yes"
+                    onClick={() => handleSaveChoice(true)}
+                    className="bt-btn-primary py-2 px-4 text-sm"
+                  >
+                    Oui
+                  </button>
+                  <button
+                    data-testid="save-profile-no"
+                    onClick={() => handleSaveChoice(false)}
+                    className="bt-btn-secondary py-2 px-4 text-sm"
+                  >
+                    Non
+                  </button>
                 </div>
               </div>
             )}

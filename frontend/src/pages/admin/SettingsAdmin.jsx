@@ -94,16 +94,6 @@ export default function SettingsAdmin() {
     setDay(key, day);
   };
 
-  const syncWebhook = async () => {
-    try {
-      const { data } = await adminClient.post("/telegram/set-webhook");
-      if (data.ok) toast.success("Webhook Telegram synchronisé");
-      else toast.error(data.description || data.error || "Impossible de synchroniser");
-    } catch (e) {
-      toast.error(fmtError(e));
-    }
-  };
-
   const notifyWaitlist = async () => {
     if (!window.confirm(`Notifier ${waitlist.length} personne(s) et vider la liste ?`)) return;
     setNotifyingWaitlist(true);
@@ -671,21 +661,6 @@ export default function SettingsAdmin() {
             ))}
           </div>
         )}
-      </div>
-
-      <div className="bt-card p-5 space-y-3">
-        <div className="font-display text-2xl uppercase">Telegram</div>
-        <p className="text-sm text-[#A1A1A1]">
-          Configure `TELEGRAM_BOT_TOKEN`, `TELEGRAM_KITCHEN_CHAT_ID` et `TELEGRAM_WEBHOOK_SECRET`
-          dans le backend, puis clique ci-dessous pour enregistrer le webhook.
-        </p>
-        <button
-          onClick={syncWebhook}
-          data-testid="telegram-sync"
-          className="bt-btn-primary py-2 px-4 text-sm"
-        >
-          <Send className="w-4 h-4" /> Sync webhook Telegram
-        </button>
       </div>
 
       {/* Danger zone — force reseed */}

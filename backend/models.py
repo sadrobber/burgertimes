@@ -400,10 +400,6 @@ class Order(BaseModel):
     payment_status: str
     status: str = "pending"
     pickup_code: Optional[str] = None
-    kitchen_message_id: Optional[int] = None
-    kitchen_chat_id: Optional[str] = None
-    driver_message_id: Optional[int] = None
-    driver_chat_id: Optional[str] = None
     accepted_by: Optional[str] = None
     status_history: List[StatusHistoryEntry] = Field(default_factory=list)
     test_order: bool = False

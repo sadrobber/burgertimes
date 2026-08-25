@@ -1,0 +1,42 @@
+{
+  "summary": "Verified 3 changes: (1) Telegram fully removed backend+frontend, (2) checkout country selector with pinned Monaco/Italie/États-Unis + French-alphabetical rest and dial-code prefixed to stored phone, (3) 'Remember me' save prompt on order success + autofill banner on next /checkout. Backend pytest 4/4 passing. Frontend E2E flow passes end-to-end including admin regression (settings has no Telegram) and kitchen regression.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/menu", "issues": ["Several menu items return 404 on their /api/menu/{id}/image image URL (Mac Chicken, some signatures, some drinks). Cosmetic — falls back to 'BT' placeholder, but 404s appear in console. Pre-existing seed data issue, not related to this change set."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_telegram_removal_and_country.py",
+    "/app/test_reports/pytest/telegram_country.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "OrderSuccess.jsx: popPendingSavePrompt() is called inside useState initializer — fine (runs once), but note it consumes sessionStorage before the order data has loaded, so a fast refresh of /order/success loses the save prompt. Acceptable trade-off (product-defined 'ask at most once'), just flagging.",
+    "Checkout.jsx builds customer_phone as `${dialCode} ${form.phone.trim()}` — the space between dial-code and local number ends up stored in DB (e.g. '+377 612345678'). Consistent with admin/kitchen display seen in screenshots; if you ever consume phone programmatically (SMS, tel: links) strip spaces or store E.164 separately."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_telegram_removal_and_country.py"
+  ],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "admin: chahineisgoated@gmail.com / BurgerTimes2026! ; kitchen: cuisine@burgertimes.fr / CuisineBT2026!",
+  "seed_data_creation": "Created 1 real pickup+cash order via Checkout flow: customer TESTMonaco PrefixUser, phone +377 612345678, order BT-SNGQ0R (id 339bb533-aa91-4a5f-b333-97d07514e23d), status pending — visible in admin/orders and kitchen dashboard.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Telegram is fully gone from /api/health integrations block and both /api/telegram/{webhook,set-webhook} routes return 404. Country selector: 34 options total, first 3 pinned = MC/IT/US, then alphabetical (Allemagne, Andorre, Autriche, ...); FR sits at index 12 in the list but is the default selected value. localStorage key `bt_saved_customer` stores {first,last,phone,countryIso,email,address1,address2,postal,city}; sessionStorage bridge `bt_pending_save_prompt` is auto-consumed by OrderSuccess. Kitchen dashboard confirmed to display the +377 prefix correctly (screenshot verified). Menu image 404s (Mac Chicken etc.) are pre-existing missing-image seed data, unrelated.",
+  "verified_flows": [
+    "GET /api/health -> integrations only has resend_configured/resend_from (no telegram_*)",
+    "POST /api/telegram/webhook -> 404",
+    "POST /api/telegram/set-webhook -> 404",
+    "GET /api/admin/orders -> 200 with auth",
+    "Checkout country selector default FR, options[0]=MC +377, [1]=IT +39, [2]=US +1, [3]=DE (alphabetical)",
+    "Full checkout with Monaco selected -> order created, phone stored as '+377 612345678'",
+    "OrderSuccess shows save-profile-prompt with Oui/Non buttons, Oui writes bt_saved_customer to localStorage",
+    "Next /checkout visit shows checkout-remember-banner with 'Es-tu TESTMonaco PrefixUser ?', Oui-remplir autofills name/phone/email AND country=MC",
+    "Admin /admin/settings page shows zero occurrences of 'telegram' text",
+    "Admin /admin/orders shows the new order with +377 612345678",
+    "Kitchen login + dashboard load, show the +377 order with Accepter/Refuser buttons"
+  ]
+}

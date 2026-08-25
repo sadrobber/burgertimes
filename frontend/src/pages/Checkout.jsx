@@ -9,6 +9,8 @@ import { apiClient, fmtError, formatEur } from "@/lib/api";
 import { useRestaurantStatus } from "@/hooks/useRestaurantStatus";
 import StatusBanner from "@/components/StatusBanner.jsx";
 import ClosedHero from "@/components/ClosedHero.jsx";
+import { COUNTRY_CODES, DEFAULT_COUNTRY_ISO, findCountry } from "@/lib/countryCodes";
+import { getSavedCustomer, setPendingSavePrompt } from "@/lib/savedCustomer";
 
 export default function Checkout() {
   const { items, clear } = useCart();
@@ -30,8 +32,33 @@ export default function Checkout() {
     city: "",
     notes: "",
   });
+  const [countryIso, setCountryIso] = useState(DEFAULT_COUNTRY_ISO);
   const [submitting, setSubmitting] = useState(false);
   const [quote, setQuote] = useState(null);
+
+  // "Remember me" — recognize a returning customer from a previous checkout
+  // (stored in localStorage, no account/backend involved) and offer to
+  // autofill instead of forcing them to retype everything.
+  const [savedProfile] = useState(() => getSavedCustomer());
+  const [rememberBannerDismissed, setRememberBannerDismissed] = useState(false);
+  const showRememberBanner = !!savedProfile && !rememberBannerDismissed;
+
+  const applySavedProfile = () => {
+    if (!savedProfile) return;
+    setForm((f) => ({
+      ...f,
+      first: savedProfile.first || "",
+      last: savedProfile.last || "",
+      phone: savedProfile.phone || "",
+      email: savedProfile.email || "",
+      address1: savedProfile.address1 || "",
+      address2: savedProfile.address2 || "",
+      postal: savedProfile.postal || "",
+      city: savedProfile.city || "",
+    }));
+    setCountryIso(savedProfile.countryIso || DEFAULT_COUNTRY_ISO);
+    setRememberBannerDismissed(true);
+  };
 
   const cashEnabled = settings?.payment_cash_enabled !== false;
   const cardEnabled = settings?.payment_card_enabled !== false;
@@ -73,6 +100,9 @@ export default function Checkout() {
     }));
   }, [items]);
 
+  const dialCode = findCountry(countryIso).dial;
+  const fullPhone = form.phone.trim() ? `${dialCode} ${form.phone.trim()}` : "";
+
   useEffect(() => {
     if (items.length === 0) {
       setQuote(null);
@@ -83,7 +113,7 @@ export default function Checkout() {
       fulfillment,
       customer_first_name: form.first || "x",
       customer_last_name: form.last || "x",
-      customer_phone: form.phone || "0000000000",
+      customer_phone: fullPhone || "0000000000",
       payment_method: payment,
       address_line1: form.address1 || null,
       address_line2: form.address2 || null,
@@ -137,7 +167,7 @@ export default function Checkout() {
         fulfillment,
         customer_first_name: form.first.trim(),
         customer_last_name: form.last.trim(),
-        customer_phone: form.phone.trim(),
+        customer_phone: fullPhone,
         customer_email: form.email.trim() || null,
         address_line1: form.address1.trim() || null,
         address_line2: form.address2.trim() || null,
@@ -147,6 +177,20 @@ export default function Checkout() {
         notes: form.notes,
       };
       const { data } = await apiClient.post("/checkout/session", payload);
+      // Bridge the just-submitted contact details to the success page, which
+      // asks "save this for next time?" — kept out of this page so the
+      // question never blocks/delays placing the order itself.
+      setPendingSavePrompt({
+        first: form.first.trim(),
+        last: form.last.trim(),
+        phone: form.phone.trim(),
+        countryIso,
+        email: form.email.trim(),
+        address1: form.address1.trim(),
+        address2: form.address2.trim(),
+        postal: form.postal.trim(),
+        city: form.city.trim(),
+      });
       clear();
       nav(`/order/success?order_id=${encodeURIComponent(data.order_id)}`);
     } catch (e) {
@@ -167,6 +211,33 @@ export default function Checkout() {
         {closed && (
           <div data-testid="checkout-closed-notice" className="mb-6">
             <ClosedHero />
+          </div>
+        )}
+
+        {showRememberBanner && (
+          <div
+            data-testid="checkout-remember-banner"
+            className="bt-card p-4 mb-6 flex items-center justify-between gap-4 flex-wrap border-[#EF2B2D]"
+          >
+            <div className="text-sm">
+              Es-tu <span className="font-bold">{savedProfile.first} {savedProfile.last}</span> ?
+            </div>
+            <div className="flex gap-2">
+              <button
+                data-testid="checkout-remember-yes"
+                onClick={applySavedProfile}
+                className="bt-btn-primary py-2 px-4 text-sm"
+              >
+                Oui, remplir
+              </button>
+              <button
+                data-testid="checkout-remember-no"
+                onClick={() => setRememberBannerDismissed(true)}
+                className="bt-btn-secondary py-2 px-4 text-sm"
+              >
+                Non
+              </button>
+            </div>
           </div>
         )}
 
@@ -220,12 +291,27 @@ export default function Checkout() {
                   />
                 </Field>
                 <Field label={t("checkout.phone")} required>
-                  <input
-                    data-testid="input-phone"
-                    className="bt-input"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  />
+                  <div className="flex gap-2">
+                    <select
+                      data-testid="input-phone-country"
+                      className="bt-input w-auto max-w-[9.5rem] flex-shrink-0"
+                      value={countryIso}
+                      onChange={(e) => setCountryIso(e.target.value)}
+                    >
+                      {COUNTRY_CODES.map((c) => (
+                        <option key={c.iso} value={c.iso}>
+                          {c.flag} {c.dial}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      data-testid="input-phone"
+                      className="bt-input"
+                      placeholder="6 12 34 56 78"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    />
+                  </div>
                 </Field>
                 <Field label={t("checkout.email")}>
                   <input

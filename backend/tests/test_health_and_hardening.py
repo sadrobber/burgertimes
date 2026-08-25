@@ -15,7 +15,6 @@ if not BASE_URL:
 
 ADMIN_EMAIL = "chahineisgoated@gmail.com"
 ADMIN_PASSWORD = "BurgerTimes2026!"
-TG_SECRET = "bt_tg_wh_9f4c7e2a1b8d6e3f5a9c0b7d4e2f8a1c6b3d9e5f"
 
 
 @pytest.fixture(scope="module")
@@ -40,23 +39,16 @@ class TestHealth:
         assert d["mongo"] == "ok", f"mongo not ok: {d['mongo']}"
         assert isinstance(d["menu_items_count"], int) and d["menu_items_count"] > 0
         integ = d["integrations"]
-        for k in ("resend_configured", "resend_from", "telegram_bot_configured",
-                  "telegram_kitchen_chat", "telegram_webhook_secret_configured"):
+        for k in ("resend_configured", "resend_from"):
             assert k in integ, f"Missing integration key {k}"
-        # In preview, all five should be truthy (non-null / true)
         assert integ["resend_configured"] is True
         assert integ["resend_from"]  # non-null string
-        assert integ["telegram_bot_configured"] is True
-        assert integ["telegram_kitchen_chat"] is True
-        assert integ["telegram_webhook_secret_configured"] is True
 
     def test_health_does_not_leak_secrets(self):
         r = requests.get(f"{BASE_URL}/api/health", timeout=6)
         body = r.text
-        # No Resend API key (re_...) or telegram-style bot token digits:digits
+        # No Resend API key (re_...) should ever leak in a public response
         assert not re.search(r"re_[A-Za-z0-9]{10,}", body), "Resend API key leaked"
-        assert not re.search(r"\b\d{8,}:[A-Za-z0-9_-]{30,}\b", body), "Telegram bot token leaked"
-        assert TG_SECRET not in body, "Webhook secret leaked"
 
     def test_health_no_auth_required(self):
         r = requests.get(f"{BASE_URL}/api/health", timeout=6)
@@ -139,19 +131,5 @@ class TestRegression:
     def test_force_reseed(self, admin_token):
         r = requests.post(f"{BASE_URL}/api/admin/seed/reseed",
                           headers={"Authorization": f"Bearer {admin_token}"}, timeout=30)
-        assert r.status_code == 200
-        assert r.json().get("ok") is True
-
-    def test_telegram_webhook_no_secret(self):
-        r = requests.post(f"{BASE_URL}/api/telegram/webhook", json={}, timeout=5)
-        assert r.status_code == 401
-
-    def test_telegram_webhook_with_secret(self):
-        r = requests.post(
-            f"{BASE_URL}/api/telegram/webhook",
-            json={},  # empty body, no callback_query -> {"ok": true}
-            headers={"X-Telegram-Bot-Api-Secret-Token": TG_SECRET},
-            timeout=5,
-        )
         assert r.status_code == 200
         assert r.json().get("ok") is True
