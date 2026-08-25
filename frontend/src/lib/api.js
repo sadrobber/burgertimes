@@ -49,6 +49,42 @@ adminClient.interceptors.response.use(
   }
 );
 
+const KITCHEN_TOKEN_KEY = "bt_kitchen_token";
+
+export const getKitchenToken = () => localStorage.getItem(KITCHEN_TOKEN_KEY);
+export const setKitchenToken = (t) => {
+  if (t) localStorage.setItem(KITCHEN_TOKEN_KEY, t);
+  else localStorage.removeItem(KITCHEN_TOKEN_KEY);
+};
+export const clearKitchenToken = () => localStorage.removeItem(KITCHEN_TOKEN_KEY);
+
+export const kitchenClient = axios.create({
+  baseURL: API_BASE,
+  timeout: 20000,
+});
+
+kitchenClient.interceptors.request.use((config) => {
+  const t = getKitchenToken();
+  if (t) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${t}`;
+  }
+  return config;
+});
+
+kitchenClient.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    if (err?.response?.status === 401) {
+      clearKitchenToken();
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/kitchen/login")) {
+        window.location.href = "/kitchen/login";
+      }
+    }
+    return Promise.reject(err);
+  }
+);
+
 export function menuImageUrl(itemId) {
   return `${API_BASE}/menu/${itemId}/image`;
 }

@@ -21,11 +21,14 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import Response as FAResponse
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import ReturnDocument
 from starlette.middleware.cors import CORSMiddleware
 
-from auth import create_admin_token, require_admin, verify_password
+from auth import create_admin_token, require_admin, require_kitchen, verify_password
 from email_service import send_open_notice, send_order_email
 from email_service import is_configured as _email_configured
+import kitchen_print_bridge
+from kitchen_receipt import build_kitchen_ticket
 from models import (
     AdminLoginPayload,
     BuilderImageUpdate,
@@ -34,6 +37,7 @@ from models import (
     CategoryCreate,
     CategoryUpdate,
     CheckoutPayload,
+    KitchenDeclinePayload,
     MenuItem,
     MenuItemCreate,
     MenuItemUpdate,
@@ -55,6 +59,8 @@ from order_service import build_snapshots, gen_order_number, gen_pickup_code
 from pricing import BurgerBuilderConfig
 from restaurant_status import compute_status
 from seed import force_reseed_reference_data, run_seed
+import sunmi_service
+from sunmi_receipt import build_test_ticket, to_hex
 from telegram_service import (
     answer_callback_query,
     edit_kitchen_message,
@@ -739,6 +745,14 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
             }
         ],
         "test_order": test_order,
+        "kitchen_decision": None,
+        "kitchen_decision_at": None,
+        "kitchen_decision_by": None,
+        "kitchen_decline_reason": None,
+        "kitchen_print_status": "pending",
+        "kitchen_print_attempts": 0,
+        "kitchen_printed_at": None,
+        "kitchen_print_error": None,
         "created_at": utc_now_iso(),
         "updated_at": utc_now_iso(),
     }
@@ -870,14 +884,13 @@ async def _apply_status(order_id: str, new_status: str, actor: str, note: Option
     return _strip_mongo(doc)
 
 
-@api.put("/admin/orders/{order_id}/status")
-async def admin_order_status(
-    order_id: str,
-    payload: OrderStatusUpdate,
-    admin: dict = Depends(require_admin),
-):
-    updated = await _apply_status(order_id, payload.status, admin.get("email", "admin"), payload.note)
-    # Fire email + edit telegram (best effort)
+async def _finalize_order_status(order_id: str, status: str, actor: str, note: Optional[str] = None) -> dict:
+    """Apply a status transition + fire the existing email/Telegram side effects.
+
+    Shared by the admin orders dashboard AND the /kitchen accept/decline
+    endpoints so both surfaces stay in sync with the same order lifecycle.
+    """
+    updated = await _apply_status(order_id, status, actor, note)
     try:
         template_map = {
             "accepted": "order_accepted",
@@ -888,7 +901,7 @@ async def admin_order_status(
             "cancelled": "order_cancelled",
             "expired": "order_cancelled",
         }
-        tpl = template_map.get(payload.status)
+        tpl = template_map.get(status)
         if tpl:
             await send_order_email(updated, tpl)
     except Exception:  # noqa: BLE001
@@ -899,17 +912,183 @@ async def admin_order_status(
                 updated["kitchen_chat_id"],
                 updated["kitchen_message_id"],
                 updated,
-                payload.status.upper(),
+                status.upper(),
             )
     except Exception:  # noqa: BLE001
         logger.exception("Telegram edit failed")
     return updated
 
 
+@api.put("/admin/orders/{order_id}/status")
+async def admin_order_status(
+    order_id: str,
+    payload: OrderStatusUpdate,
+    admin: dict = Depends(require_admin),
+):
+    return await _finalize_order_status(order_id, payload.status, admin.get("email", "admin"), payload.note)
+
+
 @api.delete("/admin/orders/{order_id}")
 async def admin_delete_order(order_id: str, _: dict = Depends(require_admin)):
     res = await db.orders.delete_one({"id": order_id})
     return {"deleted": res.deleted_count}
+
+
+# ----- Kitchen tablet (real-time accept/decline + local print bridge) -----
+
+
+@api.post("/kitchen/login")
+async def kitchen_login(payload: AdminLoginPayload):
+    email = payload.email.lower().strip()
+    user = await db.admin_users.find_one({"email": email})
+    if not user or not verify_password(payload.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Identifiants invalides")
+    role = user.get("role", "kitchen")
+    if role not in ("admin", "kitchen"):
+        raise HTTPException(status_code=403, detail="Accès cuisine refusé")
+    token = create_admin_token(user["id"], user["email"], role=role)
+    return {"token": token, "user": {"email": user["email"], "role": role}}
+
+
+@api.get("/kitchen/me")
+async def kitchen_me(payload: dict = Depends(require_kitchen)):
+    return {"email": payload.get("email"), "role": payload.get("role")}
+
+
+@api.get("/kitchen/orders")
+async def kitchen_orders(_: dict = Depends(require_kitchen)):
+    since = (datetime.now(timezone.utc) - timedelta(hours=20)).isoformat()
+    docs = await db.orders.find({"created_at": {"$gte": since}}).sort([("created_at", -1)]).to_list(300)
+    docs = [_strip_mongo(d) for d in docs]
+    new_orders = [d for d in docs if d.get("status") == "pending" and not d.get("kitchen_decision")]
+    accepted_orders = [d for d in docs if d.get("kitchen_decision") == "accepted"]
+    declined_orders = [d for d in docs if d.get("kitchen_decision") == "declined"]
+    return {
+        "new": new_orders,
+        "accepted": accepted_orders,
+        "declined": declined_orders,
+        "server_time": utc_now_iso(),
+    }
+
+
+async def _print_and_record(order_id: str, order_doc: dict, manual_reprint: bool = False) -> dict:
+    receipt_bytes = build_kitchen_ticket(order_doc)
+    result = await kitchen_print_bridge.print_kitchen_receipt(order_doc, receipt_bytes)
+    now = utc_now_iso()
+    if result.get("ok"):
+        await db.orders.update_one(
+            {"id": order_id},
+            {
+                "$set": {
+                    "kitchen_print_status": "printed",
+                    "kitchen_printed_at": now,
+                    "kitchen_print_error": None,
+                    "updated_at": now,
+                },
+                "$inc": {"kitchen_print_attempts": 1},
+            },
+        )
+    else:
+        await db.orders.update_one(
+            {"id": order_id},
+            {
+                "$set": {
+                    "kitchen_print_status": "print_failed",
+                    "kitchen_print_error": result.get("error") or "unknown_error",
+                    "updated_at": now,
+                },
+                "$inc": {"kitchen_print_attempts": 1},
+            },
+        )
+        logger.warning("Kitchen print failed for order %s: %s", order_id, result.get("error"))
+    doc = await db.orders.find_one({"id": order_id})
+    return {
+        "ok": bool(result.get("ok")),
+        "manual_reprint": manual_reprint,
+        "order": _strip_mongo(doc),
+    }
+
+
+@api.post("/kitchen/orders/{order_id}/accept")
+async def kitchen_accept_order(order_id: str, kitchen: dict = Depends(require_kitchen)):
+    now = utc_now_iso()
+    actor = kitchen.get("email", "kitchen")
+    # Atomic, concurrency-safe transition: only the FIRST tap (or duplicate
+    # webhook-style retry) wins the decision — a second concurrent request
+    # matches zero documents and is treated as an idempotent no-op below.
+    claimed = await db.orders.find_one_and_update(
+        {
+            "id": order_id,
+            "$or": [{"kitchen_decision": None}, {"kitchen_decision": {"$exists": False}}],
+        },
+        {"$set": {"kitchen_decision": "accepted", "kitchen_decision_at": now, "kitchen_decision_by": actor}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if claimed is None:
+        existing = await db.orders.find_one({"id": order_id})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Commande introuvable")
+        return {"already_decided": True, "order": _strip_mongo(existing)}
+
+    updated = await _finalize_order_status(order_id, "accepted", actor, note="Acceptée depuis /kitchen")
+    result = await _print_and_record(order_id, updated)
+    result["already_decided"] = False
+    return result
+
+
+@api.post("/kitchen/orders/{order_id}/decline")
+async def kitchen_decline_order(
+    order_id: str,
+    payload: KitchenDeclinePayload,
+    kitchen: dict = Depends(require_kitchen),
+):
+    now = utc_now_iso()
+    actor = kitchen.get("email", "kitchen")
+    reason = (payload.reason or "").strip() or None
+    claimed = await db.orders.find_one_and_update(
+        {
+            "id": order_id,
+            "$or": [{"kitchen_decision": None}, {"kitchen_decision": {"$exists": False}}],
+        },
+        {
+            "$set": {
+                "kitchen_decision": "declined",
+                "kitchen_decision_at": now,
+                "kitchen_decision_by": actor,
+                "kitchen_decline_reason": reason,
+            }
+        },
+        return_document=ReturnDocument.AFTER,
+    )
+    if claimed is None:
+        existing = await db.orders.find_one({"id": order_id})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Commande introuvable")
+        return {"already_decided": True, "order": _strip_mongo(existing)}
+
+    updated = await _finalize_order_status(order_id, "cancelled", actor, note=reason or "Refusée depuis /kitchen")
+    return {"already_decided": False, "order": updated}
+
+
+@api.post("/kitchen/orders/{order_id}/retry-print")
+async def kitchen_retry_print(order_id: str, _: dict = Depends(require_kitchen)):
+    doc = await db.orders.find_one({"id": order_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Commande introuvable")
+    if doc.get("kitchen_decision") != "accepted":
+        raise HTTPException(
+            status_code=400,
+            detail="La commande doit être acceptée avant de réessayer l'impression.",
+        )
+    return await _print_and_record(order_id, _strip_mongo(doc))
+
+
+@api.post("/kitchen/orders/{order_id}/reprint")
+async def kitchen_reprint(order_id: str, _: dict = Depends(require_kitchen)):
+    doc = await db.orders.find_one({"id": order_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Commande introuvable")
+    return await _print_and_record(order_id, _strip_mongo(doc), manual_reprint=True)
 
 
 @api.get("/admin/stats")
@@ -1026,6 +1205,35 @@ async def admin_delivery_fee_stats(
         "subtotals": {k: round(v, 2) for k, v in subtotals.items()},
         "daily": daily,
     }
+
+
+# ----- SUNMI kitchen printer (test phase — no automatic order printing yet) -
+
+
+@api.get("/admin/sunmi/status")
+async def admin_sunmi_status(_: dict = Depends(require_admin)):
+    if not sunmi_service.is_configured():
+        return {"configured": False, "online": None, "raw": None}
+    result = await sunmi_service.check_online()
+    return {"configured": True, "online": sunmi_service.extract_online(result), "raw": result}
+
+
+@api.post("/admin/sunmi/test-print")
+async def admin_sunmi_test_print(_: dict = Depends(require_admin)):
+    if not sunmi_service.is_configured():
+        raise HTTPException(
+            status_code=400,
+            detail="SUNMI n'est pas configuré (variables d'environnement manquantes).",
+        )
+    ticket = build_test_ticket()
+    trade_no = f"BT-TEST-{gen_id()[:8].upper()}"
+    result = await sunmi_service.push_content(to_hex(ticket), trade_no)
+    if not result.get("ok"):
+        raise HTTPException(
+            status_code=502,
+            detail={"message": "Échec d'impression du ticket de test.", "sunmi": result},
+        )
+    return {"ok": True, "trade_no": trade_no, "sunmi": result}
 
 
 # ----- Telegram webhook ----------------------------------------------------

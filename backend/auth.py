@@ -27,11 +27,11 @@ def verify_password(plain: str, hashed: str) -> bool:
         return False
 
 
-def create_admin_token(user_id: str, email: str) -> str:
+def create_admin_token(user_id: str, email: str, role: str = "admin") -> str:
     payload = {
         "sub": user_id,
         "email": email,
-        "role": "admin",
+        "role": role,
         "exp": datetime.now(timezone.utc) + timedelta(hours=24),
         "iat": datetime.now(timezone.utc),
     }
@@ -56,4 +56,27 @@ async def require_admin(request: Request) -> Dict[str, Any]:
         raise HTTPException(status_code=401, detail="Invalid token")
     if payload.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin role required")
+    return payload
+
+
+async def require_kitchen(request: Request) -> Dict[str, Any]:
+    """FastAPI dependency: verifies Bearer token, allows kitchen or admin role.
+
+    Kitchen staff accounts are role="kitchen" and can only reach /api/kitchen/*
+    routes (this dependency). Admin accounts (role="admin") can also reach the
+    kitchen dashboard, but require_admin still rejects kitchen-role tokens —
+    so a kitchen tablet token can never touch admin-only routes.
+    """
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = header[7:].strip()
+    try:
+        payload = decode_admin_token(token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("role") not in ("admin", "kitchen"):
+        raise HTTPException(status_code=403, detail="Kitchen or admin role required")
     return payload

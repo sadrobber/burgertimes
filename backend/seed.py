@@ -117,6 +117,38 @@ async def seed_admin(db) -> None:
         logger.info("Updated admin password for: %s", admin_email)
 
 
+async def seed_kitchen_user(db) -> None:
+    """Seed the dedicated kitchen-tablet account (role='kitchen').
+
+    Separate from the admin account so the shared restaurant tablet doesn't
+    need the owner's full admin credentials — but admin accounts can still
+    log into /kitchen (see auth.require_kitchen).
+    """
+    kitchen_email = os.environ.get("KITCHEN_EMAIL")
+    kitchen_password = os.environ.get("KITCHEN_PASSWORD")
+    if not kitchen_email or not kitchen_password:
+        logger.warning("KITCHEN_EMAIL / KITCHEN_PASSWORD not set; skipping kitchen user seed")
+        return
+
+    existing = await db.admin_users.find_one({"email": kitchen_email})
+    if existing is None:
+        doc = {
+            "id": _uuid(),
+            "email": kitchen_email,
+            "password_hash": hash_password(kitchen_password),
+            "role": "kitchen",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.admin_users.insert_one(doc)
+        logger.info("Seeded kitchen user: %s", kitchen_email)
+    elif not verify_password(kitchen_password, existing["password_hash"]):
+        await db.admin_users.update_one(
+            {"email": kitchen_email},
+            {"$set": {"password_hash": hash_password(kitchen_password)}},
+        )
+        logger.info("Updated kitchen password for: %s", kitchen_email)
+
+
 async def seed_settings(db) -> None:
     existing = await db.settings.find_one({"id": "singleton"})
     if existing is None:
@@ -242,5 +274,6 @@ def _uuid() -> str:
 async def run_seed(db) -> None:
     await ensure_indexes(db)
     await seed_admin(db)
+    await seed_kitchen_user(db)
     await seed_settings(db)
     await seed_menu_data(db)
