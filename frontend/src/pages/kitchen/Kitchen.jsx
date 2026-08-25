@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { kitchenClient, fmtError, formatEur } from "@/lib/api";
 import { useKitchenAuth } from "@/context/KitchenAuthContext.jsx";
-import { printKitchenReceipt } from "@/components/KitchenReceiptPrint.jsx";
+import {
+  printKitchenReceipt,
+  openTicketTab,
+  closeTicketTab,
+} from "@/components/KitchenReceiptPrint.jsx";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,15 +87,18 @@ export default function Kitchen() {
   const initialized = useRef(false);
   const soundOnRef = useRef(false);
 
-  // Native browser/Android print — the ONLY printing mechanism. Triggered
-  // from the same user click (Accepter & Imprimer / Réimprimer): builds a
-  // hidden, fully isolated <iframe> with its own ticket document (see
-  // KitchenReceiptPrint.jsx) and calls window.print() on it, so the print
-  // output can never inherit this page's dark theme.
-  const printAndMark = (order) => {
-    printKitchenReceipt(order, () => {
-      kitchenClient.post(`/kitchen/orders/${order.id}/mark-printed`).catch(() => {});
-    });
+  // Native browser/Android print — the ONLY printing mechanism. The ticket is
+  // rendered into its own dedicated tab containing nothing but the receipt, so
+  // the print output cannot pick up this page's dark theme or its buttons no
+  // matter when the OS print service gets round to rasterising it.
+  const printAndMark = (order, tab) => {
+    printKitchenReceipt(
+      order,
+      () => {
+        kitchenClient.post(`/kitchen/orders/${order.id}/mark-printed`).catch(() => {});
+      },
+      tab
+    );
   };
 
   const load = useCallback(async () => {
@@ -146,17 +153,29 @@ export default function Kitchen() {
     }
   };
 
-  const accept = (order) =>
-    withBusy(order, async () => {
-      const { data } = await kitchenClient.post(`/kitchen/orders/${order.id}/accept`);
-      if (data.already_decided) {
-        toast.info(`Commande #${order.order_number} déjà traitée`);
-      } else {
-        toast.success(`Commande #${order.order_number} acceptée`);
-        printAndMark(data.order);
+  const accept = (order) => {
+    if (busyIds[order.id]) return undefined;
+    // Open the ticket tab synchronously, still inside the click gesture:
+    // Android Chrome blocks window.open() once the call stack has gone through
+    // an await, and the accept POST below is awaited.
+    const tab = openTicketTab();
+    return withBusy(order, async () => {
+      try {
+        const { data } = await kitchenClient.post(`/kitchen/orders/${order.id}/accept`);
+        if (data.already_decided) {
+          toast.info(`Commande #${order.order_number} déjà traitée`);
+          closeTicketTab(tab);
+        } else {
+          toast.success(`Commande #${order.order_number} acceptée`);
+          printAndMark(data.order, tab);
+        }
+        load();
+      } catch (e) {
+        closeTicketTab(tab);
+        throw e; // withBusy still surfaces it via toast.error
       }
-      load();
     });
+  };
 
   const decline = (order, reason) =>
     withBusy(order, async () => {

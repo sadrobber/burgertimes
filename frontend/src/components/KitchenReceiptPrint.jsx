@@ -95,42 +95,164 @@ function buildReceiptInnerHtml(order) {
     <div class="kr-block">Paiement : ${esc(PAYMENT_LABEL[order.payment_method] || order.payment_method)}</div>`;
 }
 
+/**
+ * Styles for the dedicated print document. Deliberately self-contained and
+ * inline: the print tab must not depend on the app CSS bundle loading, and
+ * must not inherit the dashboard dark theme.
+ */
+const RECEIPT_CSS = `
+  @page { size: 80mm auto; margin: 2mm; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #fff; color: #000;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  body {
+    width: 76mm; margin: 0 auto; padding: 2mm 0;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 11pt; line-height: 1.25;
+  }
+  .kr-center { text-align: center; }
+  .kr-bold { font-weight: 700; }
+  .kr-xl { font-size: 15pt; letter-spacing: 1px; }
+  .kr-xxl { font-size: 19pt; margin: 2mm 0; }
+  .kr-lg { font-size: 13pt; }
+  .kr-row { display: flex; justify-content: space-between; font-size: 10pt; margin: 1mm 0; }
+  .kr-divider { border-top: 1px dashed #000; margin: 2mm 0; }
+  .kr-divider-thin { border-top: 1px dashed #000; margin: 1.5mm 0; }
+  .kr-item { font-size: 11pt; margin-bottom: 1mm; }
+  .kr-mods { padding-left: 3mm; font-size: 9.5pt; }
+  .kr-callout {
+    display: inline-block; font-weight: 700; border: 1px solid #000;
+    padding: 0.5mm 1.5mm; margin-top: 1mm; font-size: 10pt; text-transform: uppercase;
+  }
+  .kr-note { border: 1.5px solid #000; padding: 1.5mm; margin: 2mm 0; font-size: 10.5pt; }
+  .kr-block { font-size: 10pt; margin: 1mm 0; }
+`;
+
+function buildStandaloneDoc(order) {
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ticket ${esc(order.order_number)}</title>
+<style>${RECEIPT_CSS}</style></head>
+<body>${buildReceiptInnerHtml(order)}</body></html>`;
+}
+
+/** Reused handle to the ticket tab, so repeated prints do not pile up tabs. */
+let ticketTab = null;
+
+/**
+ * Opens (or reuses) the ticket tab. MUST be called synchronously from the
+ * click handler - Android Chrome blocks window.open() once the call stack has
+ * gone through an await. Returns null when the browser blocked it, in which
+ * case the caller falls back to the in-page path.
+ */
+export function openTicketTab() {
+  try {
+    if (ticketTab && !ticketTab.closed) return ticketTab;
+  } catch {
+    ticketTab = null;
+  }
+  let w = null;
+  try {
+    w = window.open("", "burgertimes_ticket");
+  } catch {
+    w = null;
+  }
+  if (w) {
+    try {
+      w.document.open();
+      w.document.write(
+        '<!doctype html><meta charset="utf-8"><title>Ticket</title>' +
+          '<body style="margin:0;padding:16px;font-family:sans-serif;background:#fff;color:#000">' +
+          "Preparation du ticket..."
+      );
+      w.document.close();
+    } catch {
+      /* about:blank not writable yet - printInTicketTab retries */
+    }
+  }
+  ticketTab = w;
+  return w;
+}
+
+function printInTicketTab(w, order, onDone) {
+  try {
+    w.document.open();
+    w.document.write(buildStandaloneDoc(order));
+    w.document.close();
+  } catch {
+    return printInPageFallback(order, onDone);
+  }
+
+  // Chrome ignores `@page { size: 80mm auto }` and silently falls back to the
+  // default paper (Letter/A4) - verified. An explicit height IS honoured, so
+  // measure the rendered ticket and pin the page to exactly that, which keeps
+  // a receipt of any length on a single continuous 80mm page.
+  const applyExactPageHeight = () => {
+    try {
+      const d = w.document;
+      const px = Math.ceil(d.body.getBoundingClientRect().height);
+      const mm = Math.max(40, Math.ceil((px / 96) * 25.4) + 8); // +8mm feed tail
+      const st = d.createElement("style");
+      st.textContent = "@page { size: 80mm " + mm + "mm; margin: 2mm; }";
+      d.head.appendChild(st);
+    } catch {
+      /* fall back to the stylesheet default */
+    }
+  };
+
+  const fire = () => {
+    applyExactPageHeight();
+    try {
+      w.focus();
+      w.print();
+    } catch {
+      /* the operator can still print the open tab manually */
+    }
+    onDone?.();
+  };
+
+  // document.write()+close() leaves the document already parsed; two frames is
+  // enough for layout. We never close or mutate this tab afterwards: on
+  // Android the rasterisation happens AFTER print() returns, and this tab
+  // holds nothing but the receipt, so whenever the print service reads it the
+  // output is correct.
+  try {
+    w.requestAnimationFrame(() => w.requestAnimationFrame(fire));
+  } catch {
+    setTimeout(fire, 80);
+  }
+  return true;
+}
+
 let activeContainer = null;
 
-function teardown(onDone) {
+function teardown() {
   document.documentElement.classList.remove("kt-printing");
   if (activeContainer && activeContainer.parentNode) {
     activeContainer.parentNode.removeChild(activeContainer);
   }
   activeContainer = null;
-  onDone?.();
 }
 
 /**
- * Prints an order's 80mm kitchen ticket.
+ * Swaps the page for the receipt, prints it, and LEAVES IT SWAPPED until the
+ * operator taps the screen.
  *
- * Some Android tablet browsers (confirmed on the real SUNMI device) do NOT
- * isolate an <iframe>'s content when printing and simply rasterize whatever
- * is currently visible on the page — so relying on `@media print` CSS or a
- * hidden iframe is unsafe. Instead, this literally swaps what is on screen:
- * it appends a receipt container as the last child of <body> and toggles a
- * plain (non-media-scoped) `kt-printing` class on <html> that hides the
- * React root (#root) and the dark-theme grain overlay via ordinary CSS
- * rules (see index.css) — so the receipt is the ONLY thing visible/on the
- * page when `window.print()` fires, regardless of whether the browser
- * honours print-specific stylesheets at all. Everything is restored right
- * after (on `afterprint`, or a generous fallback timeout).
- *
- * No backend bridge: the OS-level ESC/POS print service (paired over
- * Bluetooth to the SUNMI printer) picks up the job from the native print
- * dialog `window.print()` opens.
- *
- * `onDone` is best-effort telemetry only (drives the "Imprimé" badge),
- * never gates order status.
+ * That is the whole fix on this path. The previous implementation restored the
+ * dashboard on `afterprint` (or a 30s timer). On desktop that is safe, because
+ * window.print() blocks until the preview is dismissed - which is why printing
+ * from the PC always worked. On Android it is not: window.print() hands off to
+ * the system print service and returns immediately, `afterprint` fires on
+ * hand-off, and the page is only rasterised later, after the operator picks a
+ * printer. Restoring on hand-off meant the print service read the restored
+ * dashboard - which is exactly the reported "it prints the whole page with the
+ * buttons", and the blank ticket when it read the intermediate teardown state.
  */
-export function printKitchenReceipt(order, onDone) {
-  if (!order) return;
-  teardown(); // defensively clear any stuck previous run
+function printInPageFallback(order, onDone) {
+  teardown();
 
   const container = document.createElement("div");
   container.id = "kitchen-print-standalone";
@@ -139,22 +261,60 @@ export function printKitchenReceipt(order, onDone) {
   activeContainer = container;
   document.documentElement.classList.add("kt-printing");
 
-  let done = false;
-  const cleanup = () => {
-    if (done) return;
-    done = true;
-    window.removeEventListener("afterprint", cleanup);
-    teardown(onDone);
-  };
-  window.addEventListener("afterprint", cleanup);
-
-  // Give the browser two frames to actually paint the swapped DOM before
-  // triggering print — some Android WebViews rasterize immediately and
-  // would otherwise still catch the dashboard mid-transition.
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      window.print();
-      setTimeout(cleanup, 30000);
+      try {
+        window.print();
+      } catch {
+        /* ignore */
+      }
+      onDone?.();
+
+      const restore = () => {
+        document.removeEventListener("pointerdown", restore, true);
+        clearTimeout(safety);
+        teardown();
+      };
+      // 5 minute backstop so the dashboard can never stay stuck.
+      const safety = setTimeout(restore, 300000);
+      // Delay arming so the originating click cannot restore it immediately.
+      setTimeout(() => document.addEventListener("pointerdown", restore, true), 1500);
     });
   });
+  return true;
+}
+
+/**
+ * Prints an order 80mm kitchen ticket.
+ *
+ * `tab` is the window returned by openTicketTab(), which the caller must have
+ * opened synchronously inside the click handler. Omit it for flows that call
+ * this directly from a click (e.g. Reimprimer).
+ *
+ * `onDone` is best-effort telemetry only (drives the "Imprime" badge) and
+ * never gates order status.
+ */
+export function printKitchenReceipt(order, onDone, tab) {
+  if (!order) return false;
+
+  let w = tab;
+  try {
+    if (!w || w.closed) w = openTicketTab();
+  } catch {
+    w = null;
+  }
+
+  if (w) return printInTicketTab(w, order, onDone);
+  return printInPageFallback(order, onDone);
+}
+
+/** Closes the ticket tab, e.g. when an accept turned out to be a no-op. */
+export function closeTicketTab(tab) {
+  const w = tab || ticketTab;
+  try {
+    if (w && !w.closed) w.close();
+  } catch {
+    /* ignore */
+  }
+  if (w === ticketTab) ticketTab = null;
 }
