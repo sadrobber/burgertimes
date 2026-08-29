@@ -34,6 +34,69 @@ const STATUS_LABEL = {
   expired: "Expirée",
 };
 
+const FULFILLMENT_LABEL = { pickup: "A EMPORTER", delivery: "LIVRAISON" };
+const PAYMENT_LABEL = { cash: "Especes sur place", card_in_person: "Carte sur place" };
+
+// Plain-text 80mm ticket for the RawBT Android print app (no HTML/CSS —
+// RawBT just spools raw text to the paired thermal printer).
+function buildReceiptText(order) {
+  const line = "--------------------------------";
+  const created = new Date(order.created_at);
+  const dateStr = created.toLocaleDateString("fr-FR");
+  const timeStr = created.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const customerName = `${order.customer_first_name || ""} ${order.customer_last_name || ""}`.trim();
+
+  const itemLines = (order.items || []).flatMap((it) => {
+    const rows = [`${it.quantity}x ${it.name}`];
+    if (it.burger_config?.size?.label) rows.push(`  Taille : ${it.burger_config.size.label}`);
+    (it.burger_config?.meats || []).forEach((m) => rows.push(`  + ${m.name}`));
+    (it.burger_config?.cheeses || []).forEach((c) => rows.push(`  + ${c.name}`));
+    (it.burger_config?.supplements || []).forEach((s) => rows.push(`  + ${s.name}`));
+    if (it.formula === "menu" && it.included_drink) rows.push(`  Boisson : ${it.included_drink}`);
+    (it.sauces || []).forEach((s) => rows.push(`  + ${s}`));
+    if (it.notes) rows.push(`  Note : ${it.notes}`);
+    return rows;
+  });
+
+  const rows = [
+    "BURGER TIMES",
+    line,
+    `COMMANDE #${order.order_number}`,
+    FULFILLMENT_LABEL[order.fulfillment] || "SUR PLACE",
+    `${dateStr} ${timeStr}`,
+    line,
+    ...itemLines,
+    line,
+    `TOTAL : ${(order.total || 0).toFixed(2).replace(".", ",")} EUR`,
+    line,
+    customerName ? `Client : ${customerName}` : null,
+    order.customer_phone ? `Tel : ${order.customer_phone}` : null,
+    order.fulfillment === "delivery"
+      ? [order.address_line1, order.address_line2].filter(Boolean).join(", ") || null
+      : null,
+    order.fulfillment === "delivery" && (order.postal_code || order.city)
+      ? `${order.postal_code || ""} ${order.city || ""}`.trim()
+      : null,
+    order.pickup_code ? `Code retrait : ${order.pickup_code}` : null,
+    `Paiement : ${PAYMENT_LABEL[order.payment_method] || order.payment_method}`,
+    "",
+    "",
+  ].filter((r) => r !== null);
+
+  return rows.join("\n");
+}
+
+// Hands the receipt straight to the RawBT Android app via its Intent
+// scheme — no backend bridge, no SUNMI Cloud API. RawBT (once installed
+// and paired with the thermal printer) spools whatever text it receives.
+function printOrder(receiptText) {
+  const intentUrl =
+    "intent:" +
+    encodeURIComponent(receiptText) +
+    "#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;";
+  window.location.href = intentUrl;
+}
+
 export default function OrdersAdmin() {
   const [orders, setOrders] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -245,14 +308,27 @@ function OrderDrawer({ order, onClose, onStatus, onDelete }) {
         </div>
         <div className="p-4 border-t-2 border-[#262626] flex flex-wrap gap-2 justify-between bg-[#0A0A0A]">
           <div className="flex flex-wrap gap-2">
-            {nextStatus && (
+            {nextStatus === "accepted" ? (
               <button
-                data-testid={`advance-to-${nextStatus}`}
-                onClick={() => onStatus(nextStatus)}
+                data-testid="accept-print-order-btn"
+                onClick={() => {
+                  onStatus("accepted");
+                  printOrder(buildReceiptText(order));
+                }}
                 className="bt-btn-primary py-2 px-4 text-sm"
               >
-                → {STATUS_LABEL[nextStatus]}
+                Accepter &amp; Imprimer
               </button>
+            ) : (
+              nextStatus && (
+                <button
+                  data-testid={`advance-to-${nextStatus}`}
+                  onClick={() => onStatus(nextStatus)}
+                  className="bt-btn-primary py-2 px-4 text-sm"
+                >
+                  → {STATUS_LABEL[nextStatus]}
+                </button>
+              )
             )}
             {order.status !== "cancelled" && order.status !== "delivered" && (
               <button
