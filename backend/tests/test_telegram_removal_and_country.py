@@ -3,7 +3,14 @@ import os
 import requests
 import pytest
 
-BASE = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") + "/api"
+BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") if os.environ.get("REACT_APP_BACKEND_URL") else None
+if not BASE_URL:
+    # fall back to reading frontend .env
+    with open("/app/frontend/.env") as f:
+        for line in f:
+            if line.startswith("REACT_APP_BACKEND_URL="):
+                BASE_URL = line.split("=", 1)[1].strip().rstrip("/")
+BASE = BASE_URL + "/api"
 ADMIN_EMAIL = "chahineisgoated@gmail.com"
 ADMIN_PW = "BurgerTimes2026!"
 

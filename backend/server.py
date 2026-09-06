@@ -148,6 +148,17 @@ async def on_shutdown() -> None:
 # ----- Health --------------------------------------------------------------
 
 
+@app.get("/health")
+async def platform_health() -> dict:
+    """Bare, unprefixed liveness/readiness probe for the deployment
+    platform's Kubernetes health check, which hits the container directly
+    on its own port (bypassing the /api ingress prefix). Intentionally does
+    NOT touch Mongo — must return instantly even if the DB is briefly
+    unreachable, so the pod isn't killed for a transient DB blip. Use
+    GET /api/health for the deep check (Mongo ping, menu count, etc.)."""
+    return {"status": "ok"}
+
+
 @api.get("/")
 async def root() -> dict:
     return {"name": "burger-times", "status": "ok"}
