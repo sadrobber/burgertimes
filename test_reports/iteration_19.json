@@ -1,0 +1,21 @@
+{
+  "summary": "Verified full server-side printer-bridge migration for /kitchen tablet. Backend: all 20 tests in test_kitchen_flow.py PASS (accept/decline/mark-printed/reprint incl. 404 branches). Frontend: init-script spy on window.print and window.open before navigation confirms NEITHER is called anywhere in the Accept, Reprint, or Decline flows on /kitchen. Order transitions Nouvelles->Acceptées on Accept and Nouvelles->Refusées on Decline (with reason). Reprint POSTs to /api/kitchen/orders/{id}/reprint, shows 'Imprimante injoignable' toast (Pi outside test env, expected), order stays in Acceptées. Zero console errors on /kitchen throughout. Admin regression: 'Accepter & Imprimer' RawBT button on OrdersAdmin detail modal still present and untouched. /, /menu, /checkout, /admin/settings all load cleanly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_kitchen_flow.py",
+    "/app/test_reports/pytest/kitchen_flow_iter19.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "printer_bridge.send_print_job uses 8s httpx timeout inside the request path — if the Pi/ngrok is very slow this delays the Accept response for the tablet by up to 8s. Consider fire-and-forget via asyncio.create_task so the 200 returns instantly and printer failure is only surfaced via kitchen_print_status polling.",
+    "Success toast on Accept ('ticket envoyé à l'imprimante') is shown unconditionally even if send_print_job returned False (kitchen_print_status stays 'pending'). Consider reading data.order.kitchen_print_status client-side and swapping to a warning toast when not 'printed' — currently staff can only tell via the badge on the Acceptées tab."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "kitchen: cuisine@burgertimes.fr / CuisineBT2026! ; admin: chahineisgoated@gmail.com / BurgerTimes2026!",
+  "seed_data_creation": "Created 2 TEST_ orders via /api/checkout/session and deleted them via /api/admin/orders/{id} at end of UI run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The window.print/DOM-swap kitchen print pipeline from iter17/18 is fully removed. New behavior: backend POSTs order JSON to KITCHEN_PRINTER_WEBHOOK_URL (Pi Flask bridge) on Accept and Reprint. UI must NEVER call window.print or window.open on /kitchen. If retesting, use page.add_init_script BEFORE goto to spy those two globals — post-navigation script injection is too late."
+}

@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
+import asyncio
 import base64
 import hmac
 import logging
@@ -59,6 +60,7 @@ from restaurant_status import compute_status
 from seed import force_reseed_reference_data, run_seed
 import sunmi_service
 from sunmi_receipt import build_test_ticket, to_hex
+from printer_bridge import send_print_job
 
 # ----- Database ------------------------------------------------------------
 
@@ -922,7 +924,7 @@ async def admin_delete_order(order_id: str, _: dict = Depends(require_admin)):
     return {"deleted": res.deleted_count}
 
 
-# ----- Kitchen tablet (real-time accept/decline; native browser print) ----
+# ----- Kitchen tablet (real-time accept/decline; auto-push print to Pi) ---
 
 
 @api.post("/kitchen/login")
@@ -959,6 +961,31 @@ async def kitchen_orders(_: dict = Depends(require_kitchen)):
     }
 
 
+async def _mark_order_printed(order_id: str) -> bool:
+    """Best-effort telemetry only — flips the "Imprimé" badge on the kitchen
+    dashboard once the Pi print-bridge has accepted the job. Never gates
+    order status; failures here are logged and swallowed by callers.
+    Returns False if the order doesn't exist."""
+    now = utc_now_iso()
+    res = await db.orders.update_one(
+        {"id": order_id},
+        {"$set": {"kitchen_print_status": "printed", "kitchen_printed_at": now, "updated_at": now}},
+    )
+    return res.matched_count > 0
+
+
+async def _push_print_job_background(order_id: str, order: Dict[str, Any]) -> None:
+    """Runs detached from the request/response cycle so a slow or
+    unreachable Pi/tunnel never delays the Accept response for the tablet.
+    The kitchen dashboard's polling picks up the resulting print-status
+    badge a few seconds later regardless of when this finishes."""
+    try:
+        if await send_print_job(order):
+            await _mark_order_printed(order_id)
+    except Exception:  # noqa: BLE001
+        logger.exception("Printer push failed")
+
+
 @api.post("/kitchen/orders/{order_id}/accept")
 async def kitchen_accept_order(order_id: str, kitchen: dict = Depends(require_kitchen)):
     now = utc_now_iso()
@@ -981,6 +1008,11 @@ async def kitchen_accept_order(order_id: str, kitchen: dict = Depends(require_ki
         return {"already_decided": True, "order": _strip_mongo(existing)}
 
     updated = await _finalize_order_status(order_id, "accepted", actor, note="Acceptée depuis /kitchen")
+    # Fire-and-forget push to the Raspberry Pi print-bridge, detached via
+    # create_task so a slow/unreachable Pi never delays this response —
+    # replaces the old client-side window.print() entirely; the tablet no
+    # longer prints anything itself.
+    asyncio.create_task(_push_print_job_background(order_id, updated))
     return {"already_decided": False, "order": updated}
 
 
@@ -1020,26 +1052,27 @@ async def kitchen_decline_order(
 
 @api.post("/kitchen/orders/{order_id}/mark-printed")
 async def kitchen_mark_printed(order_id: str, _: dict = Depends(require_kitchen)):
-    """Best-effort telemetry only — called by the frontend right after it
-    triggers the native browser/Android print dialog (window.print()).
-
-    Printing itself is entirely client-side (see Kitchen.jsx +
-    KitchenReceiptPrint.jsx); the backend has no way to know whether the
-    employee actually pressed print or cancelled the dialog, so this just
-    records "a print was triggered" for the accepted-tab badge.
-    """
-    now = utc_now_iso()
-    res = await db.orders.update_one(
-        {"id": order_id},
-        {
-            "$set": {"kitchen_print_status": "printed", "kitchen_printed_at": now, "updated_at": now},
-            "$inc": {"kitchen_print_attempts": 1},
-        },
-    )
-    if res.matched_count == 0:
+    """Manual override — lets staff flag an order printed even if the
+    automated Pi push failed (e.g. tunnel was briefly down)."""
+    found = await _mark_order_printed(order_id)
+    if not found:
         raise HTTPException(status_code=404, detail="Commande introuvable")
-    doc = await db.orders.find_one({"id": order_id})
-    return {"ok": True, "order": _strip_mongo(doc)}
+    order = _strip_mongo(await db.orders.find_one({"id": order_id}))
+    return {"ok": True, "order": order}
+
+
+@api.post("/kitchen/orders/{order_id}/reprint")
+async def kitchen_reprint_order(order_id: str, _: dict = Depends(require_kitchen)):
+    """Manually re-push a ticket to the Pi print-bridge (e.g. after a paper
+    jam) — does not touch order status."""
+    order = await db.orders.find_one({"id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Commande introuvable")
+    order = _strip_mongo(order)
+    ok = await send_print_job(order)
+    if ok:
+        await _mark_order_printed(order_id)
+    return {"ok": ok}
 
 
 @api.get("/admin/stats")

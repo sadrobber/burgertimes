@@ -5,9 +5,13 @@ Covers:
 - Route protection (kitchen token forbidden on admin routes)
 - Order creation via customer checkout (with temporary hours-widening if closed)
 - /kitchen/orders listing tabs (new/accepted/declined)
-- Accept flow (moves to accepted; printing is now 100% client-side via
-  window.print(), so accept no longer touches kitchen_print_status at all)
-- mark-printed telemetry endpoint (called by the frontend after window.print())
+- Accept flow (moves to accepted; the backend fire-and-forget-pushes the
+  ticket to the restaurant's Raspberry Pi print-bridge — no more client-side
+  window.print(). kitchen_print_status ends up "printed" if the Pi/tunnel
+  was reachable, "pending" otherwise — either is a valid outcome in CI since
+  the Pi lives outside this environment's network)
+- mark-printed: manual override endpoint (staff can flag printed even if
+  the automated push failed) + reprint: manually re-push the ticket
 - Decline flow (with reason)
 - Idempotency of accept/decline
 - Admin PUT /admin/orders/{id}/status still works (regression via shared helper)
@@ -266,7 +270,7 @@ class TestKitchenFlow:
         order = body["order"]
         assert order["kitchen_decision"] == "accepted"
         assert order["status"] == "accepted"
-        assert order["kitchen_print_status"] == "pending"  # printing is client-side now
+        assert order["kitchen_print_status"] in ("pending", "printed")  # depends on Pi/tunnel reachability
 
         # verify it moved
         listing = requests.get(f"{BASE_URL}/api/kitchen/orders", headers=hdr_kitchen).json()
@@ -286,7 +290,8 @@ class TestKitchenFlow:
         assert r2.json()["already_decided"] is True
 
     def test_mark_printed_after_accept(self, hdr_kitchen, created_order_ids):
-        """Frontend calls this right after window.print() (best-effort telemetry)."""
+        """Manual override — staff can flag an order printed by hand even if
+        the automated Pi push failed."""
         oid = _create_test_order(created_order_ids)
         requests.post(f"{BASE_URL}/api/kitchen/orders/{oid}/accept", headers=hdr_kitchen)
         r = requests.post(
@@ -296,18 +301,38 @@ class TestKitchenFlow:
         d = r.json()
         assert d["ok"] is True
         assert d["order"]["kitchen_print_status"] == "printed"
-        assert d["order"]["kitchen_print_attempts"] >= 1
 
-        # Calling it again (reprint) just increments attempts, no error
+        # Idempotent — calling it again just re-stamps, no error
         r2 = requests.post(
             f"{BASE_URL}/api/kitchen/orders/{oid}/mark-printed", headers=hdr_kitchen, timeout=20
         )
         assert r2.status_code == 200
-        assert r2.json()["order"]["kitchen_print_attempts"] >= 2
+        assert r2.json()["order"]["kitchen_print_status"] == "printed"
 
     def test_mark_printed_unknown_order_404(self, hdr_kitchen):
         r = requests.post(
             f"{BASE_URL}/api/kitchen/orders/does-not-exist/mark-printed",
+            headers=hdr_kitchen,
+            timeout=20,
+        )
+        assert r.status_code == 404
+
+    def test_reprint_pushes_again(self, hdr_kitchen, created_order_ids):
+        """Reprint re-sends the ticket to the Pi print-bridge without
+        touching order status. Since the Pi lives outside this test
+        environment's network, we only assert the endpoint responds
+        sanely (ok True/False) and never mutates status/decision."""
+        oid = _create_test_order(created_order_ids)
+        requests.post(f"{BASE_URL}/api/kitchen/orders/{oid}/accept", headers=hdr_kitchen)
+        r = requests.post(f"{BASE_URL}/api/kitchen/orders/{oid}/reprint", headers=hdr_kitchen, timeout=20)
+        assert r.status_code == 200, r.text
+        assert "ok" in r.json()
+        listing = requests.get(f"{BASE_URL}/api/kitchen/orders", headers=hdr_kitchen).json()
+        assert any(o["id"] == oid for o in listing["accepted"]), "Reprint must not move the order out of accepted"
+
+    def test_reprint_unknown_order_404(self, hdr_kitchen):
+        r = requests.post(
+            f"{BASE_URL}/api/kitchen/orders/does-not-exist/reprint",
             headers=hdr_kitchen,
             timeout=20,
         )

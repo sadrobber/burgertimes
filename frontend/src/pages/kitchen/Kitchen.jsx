@@ -4,11 +4,6 @@ import { toast } from "sonner";
 import { kitchenClient, fmtError, formatEur } from "@/lib/api";
 import { useKitchenAuth } from "@/context/KitchenAuthContext.jsx";
 import {
-  printKitchenReceipt,
-  openTicketTab,
-  closeTicketTab,
-} from "@/components/KitchenReceiptPrint.jsx";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -87,19 +82,10 @@ export default function Kitchen() {
   const initialized = useRef(false);
   const soundOnRef = useRef(false);
 
-  // Native browser/Android print — the ONLY printing mechanism. The ticket is
-  // rendered into its own dedicated tab containing nothing but the receipt, so
-  // the print output cannot pick up this page's dark theme or its buttons no
-  // matter when the OS print service gets round to rasterising it.
-  const printAndMark = (order, tab) => {
-    printKitchenReceipt(
-      order,
-      () => {
-        kitchenClient.post(`/kitchen/orders/${order.id}/mark-printed`).catch(() => {});
-      },
-      tab
-    );
-  };
+  // Printing is fully automated server-side now: the backend pushes the
+  // ticket straight to the restaurant's Raspberry Pi print-bridge (Flask +
+  // Sunmi NT311) the instant an order is accepted — no browser print
+  // dialog, no tab juggling, nothing for the tablet to do at all.
 
   const load = useCallback(async () => {
     try {
@@ -153,29 +139,16 @@ export default function Kitchen() {
     }
   };
 
-  const accept = (order) => {
-    if (busyIds[order.id]) return undefined;
-    // Open the ticket tab synchronously, still inside the click gesture:
-    // Android Chrome blocks window.open() once the call stack has gone through
-    // an await, and the accept POST below is awaited.
-    const tab = openTicketTab();
-    return withBusy(order, async () => {
-      try {
-        const { data } = await kitchenClient.post(`/kitchen/orders/${order.id}/accept`);
-        if (data.already_decided) {
-          toast.info(`Commande #${order.order_number} déjà traitée`);
-          closeTicketTab(tab);
-        } else {
-          toast.success(`Commande #${order.order_number} acceptée`);
-          printAndMark(data.order, tab);
-        }
-        load();
-      } catch (e) {
-        closeTicketTab(tab);
-        throw e; // withBusy still surfaces it via toast.error
+  const accept = (order) =>
+    withBusy(order, async () => {
+      const { data } = await kitchenClient.post(`/kitchen/orders/${order.id}/accept`);
+      if (data.already_decided) {
+        toast.info(`Commande #${order.order_number} déjà traitée`);
+      } else {
+        toast.success(`Commande #${order.order_number} acceptée`);
       }
+      load();
     });
-  };
 
   const decline = (order, reason) =>
     withBusy(order, async () => {
@@ -184,7 +157,13 @@ export default function Kitchen() {
       load();
     });
 
-  const reprint = (order) => printAndMark(order);
+  const reprint = (order) =>
+    withBusy(order, async () => {
+      const { data } = await kitchenClient.post(`/kitchen/orders/${order.id}/reprint`);
+      if (data.ok) toast.success(`Ticket #${order.order_number} renvoyé à l'imprimante`);
+      else toast.error("Imprimante injoignable — réessaie dans un instant");
+      load();
+    });
 
   const doLogout = () => {
     logout();
@@ -426,6 +405,7 @@ function OrderCard({ order, tab, busy, onAccept, onDecline, onReprint }) {
           <button
             data-testid={`kitchen-reprint-${order.id}`}
             onClick={onReprint}
+            disabled={busy}
             className="bt-btn-ghost py-3 px-4 text-sm"
           >
             <Printer className="w-4 h-4" /> Réimprimer
