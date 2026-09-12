@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { adminClient, fmtError, formatEur, menuImageUrl } from "@/lib/api";
-import { Pencil, Plus, Save, Trash2, X, Search } from "lucide-react";
+import { Pencil, Plus, Save, Trash2, X, Search, Ban, CircleCheck } from "lucide-react";
 
 const emptyItem = {
   name: "",
@@ -73,6 +73,19 @@ export default function MenuAdmin() {
     load();
   };
 
+  const toggleAvailable = async (it) => {
+    const nextAvailable = !it.available;
+    // Optimistic update so the tap feels instant on the tablet.
+    setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, available: nextAvailable } : x)));
+    try {
+      await adminClient.put(`/admin/menu/${it.id}`, { available: nextAvailable });
+      toast.success(nextAvailable ? `${it.name} de nouveau disponible` : `${it.name} marqué en rupture`);
+    } catch (e) {
+      setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, available: it.available } : x)));
+      toast.error(fmtError(e));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
@@ -136,13 +149,24 @@ export default function MenuAdmin() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((it) => (
-          <div key={it.id} className="bt-card overflow-hidden" data-testid={`admin-menu-item-${it.id}`}>
-            <div className="aspect-[4/3] bg-[#0A0A0A] overflow-hidden">
+          <div
+            key={it.id}
+            className={`bt-card overflow-hidden transition-opacity ${!it.available ? "opacity-60" : ""}`}
+            data-testid={`admin-menu-item-${it.id}`}
+          >
+            <div className="aspect-[4/3] bg-[#0A0A0A] overflow-hidden relative">
               {it.has_image ? (
-                <img src={menuImageUrl(it.id)} alt={it.name} className="w-full h-full object-cover" />
+                <img src={menuImageUrl(it.id)} alt={it.name} className={`w-full h-full object-cover ${!it.available ? "grayscale" : ""}`} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bt-halftone">
                   <div className="font-display text-4xl text-[#EF2B2D]/40">BT</div>
+                </div>
+              )}
+              {!it.available && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <span className="font-display text-lg uppercase tracking-widest text-[#F5F1E8] border-2 border-[#F5F1E8] px-3 py-1 -rotate-6">
+                    Rupture
+                  </span>
                 </div>
               )}
             </div>
@@ -157,7 +181,23 @@ export default function MenuAdmin() {
                 </div>
                 {!it.available && <span className="bt-badge-red">Off</span>}
               </div>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex gap-2 flex-wrap">
+                <button
+                  data-testid={`admin-toggle-available-${it.id}`}
+                  onClick={() => toggleAvailable(it)}
+                  className={`bt-btn-ghost px-2 text-xs ${it.available ? "text-[#EF2B2D]" : "text-[#5CB85C]"}`}
+                  title={it.available ? "Marquer en rupture de stock" : "Remettre disponible"}
+                >
+                  {it.available ? (
+                    <>
+                      <Ban className="w-3 h-3" /> Rupture
+                    </>
+                  ) : (
+                    <>
+                      <CircleCheck className="w-3 h-3" /> Dispo
+                    </>
+                  )}
+                </button>
                 <button
                   data-testid={`admin-edit-menu-${it.id}`}
                   onClick={() => setEditing({ ...it, image_base64: null })}

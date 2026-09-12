@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only test of new 'Sold-Out Toggle' feature on /admin/menu. All 8 requested behaviors verified working end-to-end via Playwright against public preview URL: admin login, toggle button visibility/testid, optimistic UI update (Rupture->Dispo label, opacity-60 dim, Rupture stamp overlay, Off badge), correct French success toasts ('Cheese marqué en rupture' / 'Cheese de nouveau disponible'), backend persistence after page reload (PUT /api/admin/menu/{id} returned 200 and state survived reload), edit modal NOT opened by the quick toggle, pre-existing Edit modal + 'Disponible' checkbox still functional.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/menu (and likely all admin pages)", "issues": ["React hydration warning in console: '<span> cannot be a child of <option>' originating from MenuAdmin.jsx category <select> options (line 124). Caused by editor tooling injecting <span data-ve-dynamic> wrappers inside <option>. Non-blocking but pollutes console and can cause hydration mismatches."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Low priority) Investigate the '<span> inside <option>' hydration warning in MenuAdmin.jsx category dropdown (options rendered from cats array). It appears to be caused by the visual-editor x-ve-dynamic wrapper spans; safe to ignore if it only occurs in dev/preview build."
+  ],
+  "critical_code_review_comments": [
+    "toggleAvailable() in MenuAdmin.jsx correctly implements optimistic update with revert-on-error and success/error toasts - good pattern.",
+    "The grayscale class is applied to the <img> element, so if the item image fails to load the visual grayscale effect will not appear (only the opacity dim + Rupture stamp + Off badge will). This is acceptable but worth noting.",
+    "PUT payload sends only {available: nextAvailable}; backend MenuItemUpdate handles partial update correctly (verified via network trace: 200 response and reload persistence)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "Admin: chahineisgoated@gmail.com / BurgerTimes2026! at /admin/login (worked)",
+  "seed_data_creation": "None - used existing menu items (toggled 'Cheese' off then back on, final state = available).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Sold-out quick-toggle on /admin/menu is fully working (UI + persistence + toasts). Item toggled during test: 'Cheese' (id 3f2420ac-87de-4b26-b0cc-fc57ea692338) - left in AVAILABLE state after test. Backend PUT /api/admin/menu/{id} with partial {available: bool} confirmed working via network logs. Only observation is a pre-existing React hydration warning from visual-editor span wrappers inside <option> elements; unrelated to the sold-out feature.",
+  "rca of the issue": "N/A - no bugs found in the tested feature."
+}
