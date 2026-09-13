@@ -55,28 +55,31 @@ export default function TacosBuilderCard({ onOpen }) {
             <div className="font-display text-4xl text-[#EF2B2D]/40 uppercase">BT</div>
           </div>
         )}
-        <div className="absolute top-3 right-3">
-          <span className="bt-price-pill">Sur mesure</span>
+        <div className="absolute top-2 sm:top-3 right-2 sm:right-3">
+          <span className="bt-price-pill text-[10px] sm:text-base px-2 sm:px-3 py-0.5 sm:py-1">Sur mesure</span>
         </div>
-        <div className="absolute top-3 left-3">
-          <span className="bt-price-pill" style={{ background: "#EF2B2D", color: "#F5F1E8" }}>
+        <div className="absolute top-2 sm:top-3 left-2 sm:left-3">
+          <span
+            className="bt-price-pill text-[10px] sm:text-base px-2 sm:px-3 py-0.5 sm:py-1"
+            style={{ background: "#EF2B2D", color: "#F5F1E8" }}
+          >
             Nouveau
           </span>
         </div>
       </div>
-      <div className="p-4 flex-1 flex flex-col">
-        <div className="font-display text-2xl uppercase leading-none">Compose ton Tacos</div>
-        <p className="text-sm text-[#B3B3B3] mt-2 line-clamp-2">
+      <div className="p-2.5 sm:p-4 flex-1 flex flex-col">
+        <div className="font-display text-base sm:text-xl md:text-2xl uppercase leading-none">Compose ton Tacos</div>
+        <p className="text-xs sm:text-sm text-[#B3B3B3] mt-1.5 sm:mt-2 line-clamp-2">
           Style, taille, viandes, suppléments, sauces. Fait comme tu l&apos;aimes.
         </p>
-        <div className="mt-4">
+        <div className="mt-3 sm:mt-4">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onOpen();
             }}
             data-testid="open-burger-builder"
-            className="bt-btn-primary w-full"
+            className="bt-btn-primary w-full py-2 px-2.5 sm:px-4 text-xs sm:text-sm"
           >
             <Sparkles className="w-4 h-4" /> {t("menu.build_burger")}
           </button>

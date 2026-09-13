@@ -84,6 +84,11 @@
   font-family: "Permanent Marker", cursive;
 }
 
+/* All bt-* component classes live in Tailwind's "components" layer so that
+   any Tailwind utility class placed alongside one on the same element
+   (e.g. `bt-price-pill text-[10px] px-2`) always wins the cascade, instead
+   of losing to these rules just because they appear later in the file. */
+@layer components {
 .bt-halftone {
   background-image: radial-gradient(rgba(239, 43, 45, 0.35) 1.4px, transparent 1.5px);
   background-size: 12px 12px;
@@ -215,6 +220,7 @@
   letter-spacing: 0.1em;
   font-size: 0.75rem;
 }
+} /* end @layer components */
 
 /* Scrollbar */
 ::-webkit-scrollbar {

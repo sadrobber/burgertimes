@@ -77,26 +77,26 @@ export default function MenuItemCard({ item, sodaFlavours = [] }) {
             <div className="font-display text-4xl text-[#EF2B2D]/40 uppercase">BT</div>
           </div>
         )}
-        <div className="absolute top-3 left-3">
-          <span className="bt-price-pill">{formatEur(item.price_seul)}</span>
+        <div className="absolute top-2 sm:top-3 left-2 sm:left-3">
+          <span className="bt-price-pill text-[10px] sm:text-base px-2 sm:px-3 py-0.5 sm:py-1">{formatEur(item.price_seul)}</span>
         </div>
         {item.is_new && (
           <img
             src="/new-badge.png"
             alt="Nouveau"
             data-testid={`item-${item.id}-new-badge`}
-            className="absolute -top-2 -right-2 w-12 h-12 md:w-14 md:h-14 rotate-12 pointer-events-none"
+            className="absolute -top-2 -right-2 w-9 h-9 sm:w-12 sm:h-12 md:w-14 md:h-14 rotate-12 pointer-events-none"
           />
         )}
       </div>
-      <div className="p-4 flex-1 flex flex-col">
-        <div className="font-display text-2xl uppercase leading-none">{item.name}</div>
+      <div className="p-2.5 sm:p-4 flex-1 flex flex-col">
+        <div className="font-display text-base sm:text-xl md:text-2xl uppercase leading-none">{item.name}</div>
         {item.description && (
-          <p className="text-sm text-[#B3B3B3] mt-2 line-clamp-2">{item.description}</p>
+          <p className="text-xs sm:text-sm text-[#B3B3B3] mt-1.5 sm:mt-2 line-clamp-2">{item.description}</p>
         )}
 
         {openConfig && hasConfig && (
-          <div className="mt-4 space-y-3">
+          <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3">
             {item.formats && item.formats.length > 0 && (
               <div>
                 <div className="bt-label">
@@ -181,23 +181,23 @@ export default function MenuItemCard({ item, sodaFlavours = [] }) {
           </div>
         )}
 
-        <div className="mt-auto pt-4 flex items-center gap-2">
+        <div className="mt-auto pt-3 sm:pt-4 flex items-center gap-2">
           {hasConfig && !openConfig ? (
             <button
               onClick={() => setOpenConfig(true)}
               data-testid={`item-${item.id}-configure`}
-              className="bt-btn-primary py-2 px-4 text-sm flex-1"
+              className="bt-btn-primary py-2 px-2.5 sm:px-4 text-xs sm:text-sm flex-1"
             >
               {t("menu.add")}
             </button>
           ) : hasConfig && openConfig ? (
             <>
-              <div className="font-display text-xl">{formatEur(displayPrice)}</div>
+              <div className="font-display text-base sm:text-xl">{formatEur(displayPrice)}</div>
               <button
                 onClick={doAdd}
                 data-testid={`item-${item.id}-add-to-cart`}
                 disabled={!canAdd}
-                className="bt-btn-primary py-2 px-4 text-sm ml-auto disabled:opacity-40"
+                className="bt-btn-primary py-2 px-2.5 sm:px-4 text-xs sm:text-sm ml-auto disabled:opacity-40"
               >
                 <Plus className="w-4 h-4" /> {t("menu.add")}
               </button>
@@ -206,7 +206,7 @@ export default function MenuItemCard({ item, sodaFlavours = [] }) {
             <button
               onClick={doAdd}
               data-testid={`item-${item.id}-add-to-cart`}
-              className="bt-btn-primary py-2 px-4 text-sm flex-1"
+              className="bt-btn-primary py-2 px-2.5 sm:px-4 text-xs sm:text-sm flex-1"
             >
               <Plus className="w-4 h-4" /> {t("menu.add")}
             </button>

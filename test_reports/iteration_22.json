@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend-only regression testing of the 2-column mobile menu grid change on /menu. Grid layout works correctly on mobile (2 cols, 173px cards @ 390px viewport), tablet (2 cols, 348px @ 768px) and desktop (3 cols @ 1920px). No horizontal overflow. Add-to-cart works, cart badge increments. Configurer flow on kids item shows format chips that fit and remain tappable. Category chip scrollspy (Desserts) still scrolls correctly. CRITICAL BUG: the Tacos Builder card's two absolutely-positioned pill badges ('Nouveau' top-left, 'Sur mesure' top-right) OVERLAP each other at 390px width — 'Nouveau' occupies x=26→122 (w=96) and 'Sur mesure' occupies x=58→179 (w=121), overlapping by ~64px and clearly visible in screenshot ('Nouveau' visually covers half of 'Sur mesure' → renders as 'Nouveasure').",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "TacosBuilderCard",
+        "issue": "'Nouveau' (top-left) and 'Sur mesure' (top-right) pill badges overlap horizontally on 390px mobile viewport. Both pills render at font-size 1.25rem / padding 4px 12px (measured 38px tall, 96px + 121px wide = 217px combined, which is > 173px card width) — the responsive Tailwind classes `text-[10px] sm:text-base px-2 sm:px-3 py-0.5 sm:py-1` are being fully overridden by the `.bt-price-pill` component class in /app/frontend/src/index.css:157-167 which hardcodes `padding: 4px 12px; font-size: 1.25rem;`. Because that rule is NOT inside an @layer components block and is defined after Tailwind's utilities in the compiled CSS, it beats the utility classes on cascade order (same specificity, later wins). Result: mobile-shrink treatment on both this card AND MenuItemCard price pills is a no-op — pills still render at desktop size on mobile. Same issue affects MenuItemCard's top-left price pill (measured 77px wide × 38px tall on a 173px card — not overlapping anything but still not shrunk as intended by the change).",
+        "selector": "[data-testid='menu-item-tacos-builder'] .bt-price-pill",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/menu mobile (390px)",
+        "issues": [
+          "Tacos Builder pill text 'Nouveau' visually overlaps 'Sur mesure' rendering as gibberish 'Nouveasure' — see attached screenshot. Highly visible, affects the flagship builder card at the very top of the first category."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix .bt-price-pill CSS in /app/frontend/src/index.css (lines 157-167) so its padding/font-size do not override Tailwind responsive utilities. Options: (a) wrap the rule in `@layer components { .bt-price-pill { ... } }` so Tailwind utilities (in the utilities layer) take precedence, OR (b) remove padding/font-size from the .bt-price-pill class entirely and move them to the Tailwind utility classes on each usage site, OR (c) reduce the base .bt-price-pill defaults so they already fit at 390px width. Option (a) is the cleanest — matches the intent of the responsive Tailwind classes already sprinkled on the pill usages in MenuItemCard.jsx (line 81) and TacosBuilderCard.jsx (lines 59, 63).",
+    "After the CSS fix, re-verify at 390px that: (1) both Tacos pills fit inside the ~173px card without overlap, (2) MenuItemCard price pill also shrinks visually as intended."
+  ],
+  "critical_code_review_comments": [
+    "Root cause of the bug: component classes in /app/frontend/src/index.css are declared outside any @layer directive, so they inherit the default (implicit) layer which comes AFTER Tailwind's `utilities` layer in the compiled output. This means any Tailwind utility (text-*, px-*, py-*, etc.) applied on an element that also has a bt-* class will lose the cascade race whenever the component rule sets the same property. Every current and future responsive fix on these elements will silently no-op until this is corrected. Recommend moving all bt-* rules (.bt-card, .bt-chip, .bt-price-pill, .bt-btn-primary, etc.) into `@layer components { ... }`."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "80% (5/6 checks pass; Tacos pills fail)"},
+  "test_credentials": "not needed - /menu is public",
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "The 2-column mobile grid works. Only remaining issue is the .bt-price-pill CSS specificity problem overriding Tailwind responsive classes. Once main agent wraps the rule in @layer components (or otherwise fixes cascade), re-verify at viewport 390x844 that on /menu: (1) [data-testid='menu-item-tacos-builder'] shows both 'Nouveau' and 'Sur mesure' pills without overlap (check pills' bounding rects — Nouveau.right must be <= SurMesure.x), (2) the price pill on any regular MenuItemCard is visibly smaller (target height <= ~22px on mobile vs ~38px currently). Grid layout / add-to-cart / scrollspy / configurer chips do NOT need retesting — they all passed.",
+  "rca_of_the_issue": "The responsive Tailwind classes text-[10px] sm:text-base px-2 sm:px-3 py-0.5 sm:py-1 added to .bt-price-pill usages have no effect at the base breakpoint because .bt-price-pill is defined in /app/frontend/src/index.css:157 outside any @layer block. Tailwind's compiled output places `@tailwind utilities` before undeclared-layer rules, so index.css's `.bt-price-pill { padding: 4px 12px; font-size: 1.25rem; }` overrides `text-[10px]` and `px-2 py-0.5` on the cascade. The pill therefore stays 20px font-size / 4px+12px padding regardless of viewport, occupying ~96-121px wide × 38px tall — too big for the new 173px 2-col mobile cards, causing 'Nouveau' and 'Sur mesure' to overlap by ~64px on the Tacos Builder card. Fix: wrap bt-* rules in `@layer components { ... }` so Tailwind utilities win at the base breakpoint."
+}
