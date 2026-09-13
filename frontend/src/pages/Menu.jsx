@@ -174,7 +174,8 @@ export default function Menu() {
                     {ci === 0 && (
                       <motion.div
                         initial={{ opacity: 0, y: 14 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, amount: 0.2 }}
                         transition={{ duration: 0.35 }}
                       >
                         <TacosBuilderCard onOpen={() => setBuilderOpen(true)} />
@@ -184,10 +185,11 @@ export default function Menu() {
                       <motion.div
                         key={it.id}
                         initial={{ opacity: 0, y: 14 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, amount: 0.2 }}
                         transition={{
                           duration: 0.35,
-                          delay: Math.min((ci === 0 ? i + 1 : i) * 0.03, 0.4),
+                          delay: Math.min((i % 6) * 0.05, 0.3),
                         }}
                       >
                         <MenuItemCard item={it} sodaFlavours={settings?.soda_flavours || []} />

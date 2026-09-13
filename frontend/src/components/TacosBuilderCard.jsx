@@ -45,6 +45,8 @@ export default function TacosBuilderCard({ onOpen }) {
           <img
             src={src}
             alt="Compose ton Tacos"
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             onError={handleError}
           />

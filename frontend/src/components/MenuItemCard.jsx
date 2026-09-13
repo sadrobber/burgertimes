@@ -67,6 +67,8 @@ export default function MenuItemCard({ item, sodaFlavours = [] }) {
           <img
             src={menuImageUrl(item.id)}
             alt={item.name}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover"
             onError={(e) => (e.currentTarget.style.display = "none")}
           />
