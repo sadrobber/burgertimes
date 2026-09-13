@@ -2,11 +2,11 @@
 Raspberry Pi print-bridge for Burger Times' /kitchen tablet.
 
 Receives the full order JSON via POST /print (pushed by the main backend's
-printer_bridge.send_print_job() the instant a kitchen order is accepted),
-formats it into TWO separate ESC/POS 80mm tickets — one KITCHEN copy (what
-to cook) and one DELIVERY/CUSTOMER copy (who it's for + payment) — and
-sends both, one after another, over a plain TCP socket to the Sunmi NT311
-thermal printer's "raw print" port — 9100 is the de facto standard
+printer_bridge.send_print_job() the instant a kitchen order is accepted,
+or manually re-triggered via /reprint), formats it into ONE ESC/POS 80mm
+ticket, and sends it N times (per the "print_copies" field in the request
+body — 2 on accept, 1 on reprint) over a plain TCP socket to the Sunmi
+NT311 thermal printer's "raw print" port — 9100 is the de facto standard
 raw-print port on network ESC/POS printers.
 
 Run this ON the Raspberry Pi (not in the cloud):
@@ -79,7 +79,8 @@ def _line(s: str = "") -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# Shared ticket bits
+# Ticket content — one combined ticket (items, total, customer, payment)
+# printed as many times as "print_copies" asks for.
 # ---------------------------------------------------------------------------
 FULFILLMENT_LABEL = {"pickup": "A EMPORTER", "delivery": "LIVRAISON"}
 PAYMENT_LABEL = {"cash": "Especes sur place", "card_in_person": "Carte sur place"}
@@ -116,13 +117,20 @@ def _item_lines(item: dict) -> list:
     return rows
 
 
-def _header(out: bytearray, title: str, order: dict) -> None:
+def build_escpos_ticket(order: dict) -> bytes:
     date_str, time_str = _fmt_datetime(order.get("created_at", ""))
-    fulfillment_label = FULFILLMENT_LABEL.get(order.get("fulfillment", "pickup"), "SUR PLACE")
+    first = order.get("customer_first_name") or ""
+    last = order.get("customer_last_name") or ""
+    customer_name = f"{first} {last}".strip()
+    fulfillment = order.get("fulfillment", "pickup")
+    fulfillment_label = FULFILLMENT_LABEL.get(fulfillment, "SUR PLACE")
+
+    out = bytearray()
     out += INIT
     out += SELECT_CODEPAGE
+
     out += ALIGN_CENTER + BOLD_ON + SIZE_DOUBLE
-    out += _line(title)
+    out += _line("BURGER TIMES")
     out += SIZE_NORMAL
     out += _line(DIVIDER)
     out += _line(f"COMMANDE #{order.get('order_number', '')}")
@@ -130,47 +138,8 @@ def _header(out: bytearray, title: str, order: dict) -> None:
     out += _line(fulfillment_label)
     out += _line(f"{date_str} {time_str}")
     out += _line(DIVIDER)
+
     out += ALIGN_LEFT
-
-
-# ---------------------------------------------------------------------------
-# Ticket 1 — KITCHEN copy: what to cook. No payment/address clutter, just
-# the items and any prep notes, so the line cook can act on it fast.
-# ---------------------------------------------------------------------------
-def build_kitchen_ticket(order: dict) -> bytes:
-    out = bytearray()
-    _header(out, "CUISINE", order)
-
-    for item in order.get("items") or []:
-        for row in _item_lines(item):
-            out += _line(row)
-        out += _line("")
-    out += _line(DIVIDER)
-
-    first = order.get("customer_first_name") or ""
-    if first:
-        out += BOLD_ON
-        out += _line(f"Client : {first}")
-        out += BOLD_OFF
-
-    out += FEED_LINES
-    out += CUT
-    return bytes(out)
-
-
-# ---------------------------------------------------------------------------
-# Ticket 2 — DELIVERY / CUSTOMER copy: who it's for, where it goes, what
-# they paid. Goes with the bag / to the customer, kept out of the cook's way.
-# ---------------------------------------------------------------------------
-def build_delivery_ticket(order: dict) -> bytes:
-    first = order.get("customer_first_name") or ""
-    last = order.get("customer_last_name") or ""
-    customer_name = f"{first} {last}".strip()
-    fulfillment = order.get("fulfillment", "pickup")
-
-    out = bytearray()
-    _header(out, "LIVRAISON" if fulfillment == "delivery" else "RECU CLIENT", order)
-
     for item in order.get("items") or []:
         for row in _item_lines(item):
             out += _line(row)
@@ -194,9 +163,7 @@ def build_delivery_ticket(order: dict) -> bytes:
         if city_line:
             out += _line(city_line)
     if order.get("pickup_code"):
-        out += BOLD_ON
         out += _line(f"Code retrait : {order['pickup_code']}")
-        out += BOLD_OFF
     out += _line(
         f"Paiement : {PAYMENT_LABEL.get(order.get('payment_method'), order.get('payment_method', ''))}"
     )
@@ -234,22 +201,26 @@ def print_order():
         return jsonify({"ok": False, "error": "no JSON body"}), 400
 
     order_number = order.get("order_number", "?")
-    logger.info("Printing order #%s (kitchen + delivery copies)", order_number)
+    # Backend sends 2 on accept (kitchen counter + delivery bag), 1 on a
+    # manual reprint. Defaults to 1 if the field is missing for any reason.
+    copies = max(1, int(order.get("print_copies", 1) or 1))
+    logger.info("Printing order #%s (%d copies)", order_number, copies)
     try:
-        send_to_printer(build_kitchen_ticket(order))
-        # Small pause so the printer's own buffer/cutter finishes the first
-        # ticket cleanly before the second job lands — cheap ESC/POS heads
-        # can otherwise interleave/garble back-to-back raw sends.
-        time.sleep(0.5)
-        send_to_printer(build_delivery_ticket(order))
+        ticket = build_escpos_ticket(order)
+        for i in range(copies):
+            send_to_printer(ticket)
+            if i < copies - 1:
+                # Small pause between copies so the cutter finishes cleanly
+                # before the next job lands.
+                time.sleep(0.5)
     except (socket.timeout, ConnectionRefusedError, OSError) as e:
         logger.exception("Printer unreachable")
         return jsonify({"ok": False, "error": f"printer unreachable: {e}"}), 502
     except Exception as e:  # noqa: BLE001
-        logger.exception("Failed to build/send ticket(s)")
+        logger.exception("Failed to build/send ticket")
         return jsonify({"ok": False, "error": str(e)}), 500
 
-    return jsonify({"ok": True, "order_number": order_number, "tickets_printed": 2})
+    return jsonify({"ok": True, "order_number": order_number, "copies_printed": copies})
 
 
 if __name__ == "__main__":

@@ -19,16 +19,18 @@ import httpx
 logger = logging.getLogger("printer_bridge")
 
 
-async def send_print_job(order: Dict[str, Any]) -> bool:
-    """POST the order JSON to the Pi's /print endpoint. Returns True only on
-    a 200 response — callers use that to flag the order as printed."""
+async def send_print_job(order: Dict[str, Any], copies: int = 1) -> bool:
+    """POST the order JSON (plus a "print_copies" count) to the Pi's /print
+    endpoint. Returns True only on a 200 response — callers use that to
+    flag the order as printed."""
     url = os.environ.get("KITCHEN_PRINTER_WEBHOOK_URL")
     if not url:
         logger.warning("KITCHEN_PRINTER_WEBHOOK_URL not set — skipping printer push")
         return False
+    payload = {**order, "print_copies": copies}
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.post(url, json=order)
+            resp = await client.post(url, json=payload)
         if resp.status_code == 200:
             return True
         logger.warning("Printer webhook returned %s: %s", resp.status_code, resp.text[:300])
