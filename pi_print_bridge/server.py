@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import os
 import socket
+import textwrap
 import time
 from datetime import datetime
 
@@ -77,6 +78,25 @@ def _text(s: str) -> bytes:
 
 def _line(s: str = "") -> bytes:
     return _text(s) + b"\n"
+
+
+# Conservative chars-per-line for double-height (SIZE_TALL) mode on this
+# Sunmi NT311. Its firmware appears to render double-height characters
+# wider than the ESC/POS spec implies, so the printer's OWN auto-wrap was
+# cutting long lines mid-word. We pre-wrap ourselves at word boundaries
+# using this deliberately small width instead, so text always breaks
+# cleanly between words no matter how wide double-height turns out to be
+# on this hardware.
+TALL_LINE_WIDTH = 16
+
+
+def _tall(text: str = "", indent: str = "") -> bytes:
+    """Emit `text` as one or more double-height lines, wrapped at word
+    boundaries ourselves rather than left to the printer's own hard-wrap."""
+    out = b""
+    for w in (textwrap.wrap(text, width=TALL_LINE_WIDTH, subsequent_indent=indent) or [""]):
+        out += _line(w)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -149,36 +169,44 @@ def build_escpos_ticket(order: dict) -> bytes:
     out += _line(f"{date_str} {time_str}")
     out += _line(DIVIDER)
 
-    out += ALIGN_LEFT + BOLD_ON
+    # Everything below is bigger (double-height) — pre-wrapped ourselves
+    # word-by-word (see TALL_LINE_WIDTH) instead of relying on the
+    # printer's own auto-wrap, which cut long lines mid-word at this size.
+    # Dividers are switched back to normal size each time so they stay a
+    # plain single-height dashed rule, not stretched/doubled too.
+    out += ALIGN_LEFT + BOLD_ON + SIZE_TALL
     for item in order.get("items") or []:
         for row in _item_lines(item):
-            out += _line(row)
-    out += BOLD_OFF
+            out += _tall(row, indent="  ")
+    out += BOLD_OFF + SIZE_NORMAL
     out += _line(DIVIDER)
+    out += SIZE_TALL
 
     total = order.get("total") or 0
     out += BOLD_ON
-    out += _line(f"TOTAL : {total:.2f} EUR".replace(".", ","))
-    out += BOLD_OFF
+    out += _tall(f"TOTAL : {total:.2f} EUR".replace(".", ","))
+    out += BOLD_OFF + SIZE_NORMAL
     out += _line(DIVIDER)
+    out += SIZE_TALL
 
     if customer_name:
-        out += _line(f"Client : {customer_name}")
+        out += _tall(f"Client : {customer_name}")
     if order.get("customer_phone"):
-        out += _line(f"Tel : {order['customer_phone']}")
+        out += _tall(f"Tel : {order['customer_phone']}")
     if fulfillment == "delivery":
         addr = ", ".join(filter(None, [order.get("address_line1"), order.get("address_line2")]))
         if addr:
-            out += _line(addr)
+            out += _tall(addr)
         city_line = f"{order.get('postal_code', '')} {order.get('city', '')}".strip()
         if city_line:
-            out += _line(city_line)
+            out += _tall(city_line)
     if order.get("pickup_code"):
-        out += _line(f"Code retrait : {order['pickup_code']}")
-    out += _line(
+        out += _tall(f"Code retrait : {order['pickup_code']}")
+    out += _tall(
         f"Paiement : {PAYMENT_LABEL.get(order.get('payment_method'), order.get('payment_method', ''))}"
     )
 
+    out += SIZE_NORMAL
     out += FEED_LINES
     out += CUT
     return bytes(out)
