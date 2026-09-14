@@ -80,14 +80,15 @@ def _line(s: str = "") -> bytes:
     return _text(s) + b"\n"
 
 
-# Conservative chars-per-line for double-height (SIZE_TALL) mode on this
-# Sunmi NT311. Its firmware appears to render double-height characters
-# wider than the ESC/POS spec implies, so the printer's OWN auto-wrap was
-# cutting long lines mid-word. We pre-wrap ourselves at word boundaries
-# using this deliberately small width instead, so text always breaks
-# cleanly between words no matter how wide double-height turns out to be
-# on this hardware.
-TALL_LINE_WIDTH = 16
+# Chars-per-line for double-height (SIZE_TALL) body text. ESC/POS's GS !
+# command only doubles HEIGHT here (not width), so this matches the same
+# ~32-char width as the normal-size divider/header lines. We still
+# pre-wrap ourselves with textwrap instead of the printer's own hard
+# character-count auto-wrap, because that cuts mid-word for any line
+# longer than the limit (which is what caused the original bug — not
+# double-height secretly widening characters, just plain hard-wrap on a
+# long line, e.g. "...(Viande Hach" / "ee, Kebab)").
+TALL_LINE_WIDTH = 32
 
 
 def _tall(text: str = "", indent: str = "") -> bytes:
@@ -178,6 +179,8 @@ def build_escpos_ticket(order: dict) -> bytes:
     for item in order.get("items") or []:
         for row in _item_lines(item):
             out += _tall(row, indent="  ")
+    if order.get("notes"):
+        out += _tall(f"Note : {order['notes']}", indent="  ")
     out += BOLD_OFF + SIZE_NORMAL
     out += _line(DIVIDER)
     out += SIZE_TALL

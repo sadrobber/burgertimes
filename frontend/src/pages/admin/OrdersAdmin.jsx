@@ -78,6 +78,7 @@ function buildReceiptText(order) {
     `${dateStr} ${timeStr}`,
     line,
     ...itemLines,
+    order.notes ? `Note : ${order.notes}` : null,
     line,
     `TOTAL : ${(order.total || 0).toFixed(2).replace(".", ",")} EUR`,
     line,

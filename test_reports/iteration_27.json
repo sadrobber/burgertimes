@@ -1,0 +1,17 @@
+{
+  "summary": "Iteration 27 — static-only validation of TALL_LINE_WIDTH change from 16 to 32 in /app/pi_print_bridge/server.py. Followed mandatory safety constraint: NO Flask, NO HTTP calls, NO send_to_printer, NO pytest kitchen_flow. Only py_compile + direct build_escpos_ticket() call. All checks PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/pi_print_bridge/_validate_tall_width.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TALL_LINE_WIDTH=32 correctly matches the DIVIDER width (also 32) — consistent single source of truth for line width would be nice (e.g. LINE_WIDTH = 32, DIVIDER = '-' * LINE_WIDTH, TALL_LINE_WIDTH = LINE_WIDTH) to prevent future drift, but not required."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped per request)"},
+  "seed_data_creation": "None — synthetic in-memory orders only inside a validation script; no DB writes, no printer output.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 27 validated TALL_LINE_WIDTH=32. Case 1 regression (user's photo): '1x Menu Sandwich Curry', '11 Boulevard du Jardin Exotique', 'Paiement : Carte sur place' each appear on a single unwrapped line. Case 2 (original bug): '1x Menu Tacos (Viande Hachee,' + '  Kebab)' — wraps at word boundary, intact tokens 'Hachee,' and 'Kebab)' present, no mid-word splits. Header 'BURGER TIMES', 'COMMANDE #TEST1', and 32-char dashed divider all present and unaffected. SAFETY CONSTRAINT HONORED: no Flask started, no HTTP request made, no send_to_printer called, no real print fired.",
+  "rca of the issue": "Iteration 26 set TALL_LINE_WIDTH=16 to avoid mid-word wrap on double-height text; user reported real print then wrapped far too early because ESC/POS GS! doubles height only (not width) on this Sunmi NT311, so actual chars/line at double-height is ~32, same as normal size. Fix: TALL_LINE_WIDTH raised to 32, matching the existing DIVIDER width already used in the same file. textwrap.wrap word-boundary logic in _tall() unchanged, so longer lines still wrap safely."
+}
