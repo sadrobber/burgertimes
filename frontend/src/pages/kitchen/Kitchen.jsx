@@ -23,10 +23,15 @@ import {
   Printer,
   Clock,
   Volume2,
+  AlertTriangle,
 } from "lucide-react";
 
 const POLL_MS = 4000;
 const REMINDER_MS = 20000;
+// If an accepted order still shows "pending" print status this long after
+// acceptance, the Pi/tunnel/printer is very likely offline — a normal
+// print (even 2 copies) completes in well under this window.
+const PRINT_STUCK_MS = 45000;
 
 const TABS = [
   { key: "new", label: "Nouvelles" },
@@ -78,6 +83,7 @@ export default function Kitchen() {
   const [online, setOnline] = useState(true);
   const [busyIds, setBusyIds] = useState({});
   const [soundOn, setSoundOn] = useState(false);
+  const [testingPrinter, setTestingPrinter] = useState(false);
   const seenIds = useRef(new Set());
   const initialized = useRef(false);
   const soundOnRef = useRef(false);
@@ -170,6 +176,27 @@ export default function Kitchen() {
     nav("/kitchen/login", { replace: true });
   };
 
+  const testPrinter = async () => {
+    if (testingPrinter) return;
+    setTestingPrinter(true);
+    try {
+      const { data } = await kitchenClient.post("/kitchen/test-print");
+      if (data.ok) toast.success("Ticket de test envoyé — vérifie l'imprimante");
+      else toast.error("Imprimante injoignable — le ticket de test n'est pas parti");
+    } catch (e) {
+      toast.error(fmtError(e));
+    } finally {
+      setTestingPrinter(false);
+    }
+  };
+
+  const printerLikelyOffline = orders.accepted.some(
+    (o) =>
+      o.kitchen_print_status !== "printed" &&
+      o.kitchen_decision_at &&
+      Date.now() - new Date(o.kitchen_decision_at).getTime() > PRINT_STUCK_MS
+  );
+
   const list = orders[tab] || [];
 
   return (
@@ -200,6 +227,14 @@ export default function Kitchen() {
             </button>
           )}
           <button
+            onClick={testPrinter}
+            disabled={testingPrinter}
+            data-testid="kitchen-test-printer"
+            className="bt-btn-ghost text-xs px-2 py-1.5 disabled:opacity-40"
+          >
+            <Printer className="w-3.5 h-3.5" /> {testingPrinter ? "Envoi…" : "Tester l'imprimante"}
+          </button>
+          <button
             onClick={doLogout}
             data-testid="kitchen-logout"
             className="bt-btn-ghost text-xs px-2 py-1.5 text-[#EF2B2D]"
@@ -215,6 +250,24 @@ export default function Kitchen() {
           className="bg-[#EF2B2D] text-[#0A0A0A] text-center py-2 font-accent uppercase tracking-widest text-sm"
         >
           Connexion perdue — nouvelle tentative automatique…
+        </div>
+      )}
+
+      {online && printerLikelyOffline && (
+        <div
+          data-testid="kitchen-printer-offline-banner"
+          className="bg-[#FFB800] text-[#0A0A0A] text-center py-2 font-accent uppercase tracking-widest text-sm flex items-center justify-center gap-2 flex-wrap px-3"
+        >
+          <AlertTriangle className="w-4 h-4" />
+          Imprimante hors ligne — les tickets ne s&apos;impriment plus. Vérifie le Raspberry Pi / ngrok.
+          <button
+            onClick={testPrinter}
+            disabled={testingPrinter}
+            data-testid="kitchen-printer-offline-test-btn"
+            className="underline underline-offset-2 disabled:opacity-50"
+          >
+            Tester maintenant
+          </button>
         </div>
       )}
 

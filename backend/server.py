@@ -1079,6 +1079,28 @@ async def kitchen_reprint_order(order_id: str, _: dict = Depends(require_kitchen
     return {"ok": ok}
 
 
+@api.post("/kitchen/test-print")
+async def kitchen_test_print(_: dict = Depends(require_kitchen)):
+    """Fires one synthetic test ticket straight at the Pi print-bridge so
+    staff can verify the printer/tunnel is reachable on demand. Never
+    touches the `orders` collection at all — nothing is persisted, so this
+    can never show up in any order list or stats query."""
+    test_order = {
+        "order_number": "TEST",
+        "created_at": utc_now_iso(),
+        "fulfillment": "pickup",
+        "customer_first_name": "Test imprimante",
+        "customer_last_name": "",
+        "customer_phone": "",
+        "items": [{"quantity": 1, "name": "Ticket de test", "burger_config": {}}],
+        "total": 0.0,
+        "payment_method": "cash",
+        "pickup_code": "0000",
+    }
+    ok = await send_print_job(test_order, copies=1)
+    return {"ok": ok}
+
+
 @api.get("/admin/stats")
 async def admin_stats(_: dict = Depends(require_admin)):
     docs = await db.orders.find().to_list(5000)
@@ -1102,13 +1124,17 @@ async def admin_stats(_: dict = Depends(require_admin)):
 async def admin_delivery_fee_stats(
     _: dict = Depends(require_admin),
     days: int = Query(default=30, ge=1, le=365),
+    start_date: Optional[str] = Query(default=None, description="YYYY-MM-DD, use with end_date for a custom range"),
+    end_date: Optional[str] = Query(default=None, description="YYYY-MM-DD, use with start_date for a custom range"),
 ):
     """Return per-day delivery-fee totals in the restaurant's local timezone.
 
-    Counts only delivery orders (fulfillment='delivery') that were not
-    cancelled or expired. Returns:
+    Counts only real (non-test) delivery orders (fulfillment='delivery')
+    that were not cancelled or expired. Returns:
       - daily: [{date, orders, delivery_fees, subtotal, avg_fee}]
       - totals: {today, this_week, this_month, all_time, in_range}
+      - by_payment: {cash, card_in_person} breakdown for the "in_range" window
+        (either the last `days` days, or the custom start_date/end_date range)
     """
     settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or {}
     tz_name = settings.get("timezone") or "Europe/Paris"
@@ -1119,19 +1145,39 @@ async def admin_delivery_fee_stats(
 
     void = {"cancelled", "expired"}
     docs = await db.orders.find(
-        {"fulfillment": "delivery", "status": {"$nin": list(void)}}
+        {"fulfillment": "delivery", "status": {"$nin": list(void)}, "test_order": {"$ne": True}}
     ).to_list(20000)
 
     now_local = datetime.now(tz)
     today_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start_local = (today_local - timedelta(days=today_local.weekday()))
     month_start_local = today_local.replace(day=1)
-    range_start_local = today_local - timedelta(days=days - 1)
+
+    is_custom_range = bool(start_date and end_date)
+    if is_custom_range:
+        try:
+            range_start_local = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=tz)
+            range_end_local = datetime.strptime(end_date, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=tz
+            )
+        except ValueError:
+            raise HTTPException(status_code=400, detail="start_date/end_date doivent être au format AAAA-MM-JJ")
+        if range_end_local < range_start_local:
+            raise HTTPException(status_code=400, detail="end_date doit être postérieure ou égale à start_date")
+        if (range_end_local - range_start_local).days > 400:
+            raise HTTPException(status_code=400, detail="Période trop longue (400 jours max)")
+    else:
+        range_start_local = today_local - timedelta(days=days - 1)
+        range_end_local = now_local
 
     daily_map: Dict[str, Dict[str, float]] = {}
     totals = {"today": 0.0, "this_week": 0.0, "this_month": 0.0, "all_time": 0.0, "in_range": 0.0}
     counts = {"today": 0, "this_week": 0, "this_month": 0, "all_time": 0, "in_range": 0}
     subtotals = {"today": 0.0, "this_week": 0.0, "this_month": 0.0, "all_time": 0.0, "in_range": 0.0}
+    by_payment = {
+        "cash": {"delivery_fees": 0.0, "subtotal": 0.0, "orders": 0},
+        "card_in_person": {"delivery_fees": 0.0, "subtotal": 0.0, "orders": 0},
+    }
 
     for d in docs:
         fee = float(d.get("delivery_fee") or 0.0)
@@ -1166,15 +1212,21 @@ async def admin_delivery_fee_stats(
             totals["this_month"] += fee
             subtotals["this_month"] += sub
             counts["this_month"] += 1
-        if dt_local >= range_start_local:
+        if range_start_local <= dt_local <= range_end_local:
             totals["in_range"] += fee
             subtotals["in_range"] += sub
             counts["in_range"] += 1
+            pm = d.get("payment_method")
+            if pm in by_payment:
+                by_payment[pm]["delivery_fees"] = round(by_payment[pm]["delivery_fees"] + fee, 2)
+                by_payment[pm]["subtotal"] = round(by_payment[pm]["subtotal"] + sub, 2)
+                by_payment[pm]["orders"] += 1
 
     # Fill every day in the requested range so the chart has no gaps.
     daily = []
-    cursor = range_start_local
-    while cursor <= today_local:
+    cursor = range_start_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_cursor = range_end_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    while cursor <= end_cursor:
         key = cursor.strftime("%Y-%m-%d")
         e = daily_map.get(key, {"date": key, "orders": 0, "delivery_fees": 0.0, "subtotal": 0.0})
         daily.append({
@@ -1187,10 +1239,14 @@ async def admin_delivery_fee_stats(
 
     return {
         "range_days": days,
+        "range_start": range_start_local.strftime("%Y-%m-%d"),
+        "range_end": range_end_local.strftime("%Y-%m-%d"),
+        "is_custom_range": is_custom_range,
         "timezone": tz_name,
         "totals": {k: round(v, 2) for k, v in totals.items()},
         "counts": counts,
         "subtotals": {k: round(v, 2) for k, v in subtotals.items()},
+        "by_payment": by_payment,
         "daily": daily,
     }
 

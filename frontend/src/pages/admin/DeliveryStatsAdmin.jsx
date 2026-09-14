@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Truck, Wallet, CalendarDays, Receipt, TrendingUp } from "lucide-react";
+import { Truck, Wallet, CalendarDays, Receipt, TrendingUp, Banknote, CreditCard } from "lucide-react";
 
 const RANGES = [
   { key: 7, label: "7 jours" },
@@ -48,15 +48,42 @@ export default function DeliveryStatsAdmin() {
   const [stats, setStats] = useState(null);
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  // Only the applied dates trigger a fetch — typing in the inputs alone
+  // shouldn't refire the request on every keystroke.
+  const [appliedRange, setAppliedRange] = useState(null); // { start, end } | null
 
   useEffect(() => {
     setLoading(true);
+    const params = appliedRange
+      ? `start_date=${appliedRange.start}&end_date=${appliedRange.end}`
+      : `days=${days}`;
     adminClient
-      .get(`/admin/stats/delivery-fees?days=${days}`)
+      .get(`/admin/stats/delivery-fees?${params}`)
       .then((r) => setStats(r.data))
       .catch((e) => toast.error(e?.response?.data?.detail || "Erreur de chargement"))
       .finally(() => setLoading(false));
-  }, [days]);
+  }, [days, appliedRange]);
+
+  const applyCustomRange = () => {
+    if (!customStart || !customEnd) {
+      toast.error("Choisis une date de début et de fin");
+      return;
+    }
+    if (customEnd < customStart) {
+      toast.error("La date de fin doit être après la date de début");
+      return;
+    }
+    setAppliedRange({ start: customStart, end: customEnd });
+  };
+
+  const resetToPreset = (r) => {
+    setAppliedRange(null);
+    setCustomStart("");
+    setCustomEnd("");
+    setDays(r);
+  };
 
   const maxFee = useMemo(() => {
     if (!stats?.daily?.length) return 0;
@@ -107,17 +134,54 @@ export default function DeliveryStatsAdmin() {
             Combien tu as encaissé sur la livraison. Fuseau {stats?.timezone || "Europe/Paris"}.
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {RANGES.map((r) => (
+        <div className="flex flex-col gap-2 items-end">
+          <div className="flex flex-wrap gap-2 justify-end">
+            {RANGES.map((r) => (
+              <button
+                key={r.key}
+                data-testid={`delivery-stats-range-${r.key}`}
+                onClick={() => resetToPreset(r.key)}
+                className={`bt-chip ${!appliedRange && days === r.key ? "active" : ""}`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2" data-testid="delivery-stats-custom-range">
+            <input
+              type="date"
+              data-testid="delivery-stats-start-date"
+              className="bt-input py-1.5 px-2 text-sm w-auto"
+              value={customStart}
+              max={customEnd || undefined}
+              onChange={(e) => setCustomStart(e.target.value)}
+            />
+            <span className="text-[#666] text-sm">→</span>
+            <input
+              type="date"
+              data-testid="delivery-stats-end-date"
+              className="bt-input py-1.5 px-2 text-sm w-auto"
+              value={customEnd}
+              min={customStart || undefined}
+              onChange={(e) => setCustomEnd(e.target.value)}
+            />
             <button
-              key={r.key}
-              data-testid={`delivery-stats-range-${r.key}`}
-              onClick={() => setDays(r.key)}
-              className={`bt-chip ${days === r.key ? "active" : ""}`}
+              onClick={applyCustomRange}
+              data-testid="delivery-stats-apply-range"
+              className="bt-btn-primary py-1.5 px-3 text-xs"
             >
-              {r.label}
+              Appliquer
             </button>
-          ))}
+            {appliedRange && (
+              <button
+                onClick={() => resetToPreset(30)}
+                data-testid="delivery-stats-clear-range"
+                className="bt-btn-ghost py-1.5 px-2 text-xs text-[#EF2B2D]"
+              >
+                Réinitialiser
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -159,7 +223,14 @@ export default function DeliveryStatsAdmin() {
             {stats ? formatEur(stats.totals.in_range) : "…"}
           </div>
           <div className="text-xs text-[#A1A1A1] mt-1">
-            {stats?.counts?.in_range || 0} livraison{(stats?.counts?.in_range || 0) > 1 ? "s" : ""} · derniers {days}j
+            {stats?.counts?.in_range || 0} livraison{(stats?.counts?.in_range || 0) > 1 ? "s" : ""} ·{" "}
+            {stats?.is_custom_range ? (
+              <>
+                du <ShortDate iso={stats.range_start} /> au <ShortDate iso={stats.range_end} />
+              </>
+            ) : (
+              `derniers ${days}j`
+            )}
           </div>
         </div>
         <div className="bt-card p-5">
@@ -176,7 +247,37 @@ export default function DeliveryStatsAdmin() {
           <div className="font-display text-3xl">
             {stats ? formatEur(avgFeeInRange) : "…"}
           </div>
-          <div className="text-xs text-[#A1A1A1] mt-1">Sur les {days} derniers jours</div>
+          <div className="text-xs text-[#A1A1A1] mt-1">
+            {stats?.is_custom_range ? "Sur la période sélectionnée" : `Sur les ${days} derniers jours`}
+          </div>
+        </div>
+      </div>
+
+      {/* Payment method breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="delivery-stats-by-payment">
+        <div className="bt-card p-5" data-testid="delivery-stats-payment-cash">
+          <div className="flex items-center justify-between">
+            <div className="bt-label m-0">Frais encaissés en espèces</div>
+            <Banknote className="w-4 h-4 text-[#00FF66]" />
+          </div>
+          <div className="font-display text-3xl mt-2" style={{ color: "#00FF66" }}>
+            {stats ? formatEur(stats.by_payment?.cash?.delivery_fees || 0) : "…"}
+          </div>
+          <div className="text-xs text-[#A1A1A1] mt-1">
+            {stats?.by_payment?.cash?.orders || 0} livraison{(stats?.by_payment?.cash?.orders || 0) > 1 ? "s" : ""} sur la période
+          </div>
+        </div>
+        <div className="bt-card p-5" data-testid="delivery-stats-payment-card">
+          <div className="flex items-center justify-between">
+            <div className="bt-label m-0">Frais encaissés en carte</div>
+            <CreditCard className="w-4 h-4 text-[#FFB800]" />
+          </div>
+          <div className="font-display text-3xl mt-2" style={{ color: "#FFB800" }}>
+            {stats ? formatEur(stats.by_payment?.card_in_person?.delivery_fees || 0) : "…"}
+          </div>
+          <div className="text-xs text-[#A1A1A1] mt-1">
+            {stats?.by_payment?.card_in_person?.orders || 0} livraison{(stats?.by_payment?.card_in_person?.orders || 0) > 1 ? "s" : ""} sur la période
+          </div>
         </div>
       </div>
 
