@@ -980,9 +980,9 @@ async def _push_print_job_background(order_id: str, order: Dict[str, Any]) -> No
     The kitchen dashboard's polling picks up the resulting print-status
     badge a few seconds later regardless of when this finishes."""
     try:
-        # 2 physical copies on accept — same ticket content, one for the
-        # kitchen counter and one for the delivery bag/customer.
-        if await send_print_job(order, copies=2):
+        # 3 physical copies on accept — kitchen counter, delivery bag, and
+        # a spare per owner's request.
+        if await send_print_job(order, copies=3):
             await _mark_order_printed(order_id)
     except Exception:  # noqa: BLE001
         logger.exception("Printer push failed")

@@ -37,6 +37,18 @@ const STATUS_LABEL = {
 const FULFILLMENT_LABEL = { pickup: "A EMPORTER", delivery: "LIVRAISON" };
 const PAYMENT_LABEL = { cash: "Especes sur place", card_in_person: "Carte sur place" };
 
+// Item header line: qty + name (already "Menu ..." prefixed by the
+// backend when applicable) + meat names directly in parens right after —
+// no "Taille : N Viandes" label, just the meats themselves. Cheeses/
+// supplements/sauces get their own "+ ..." line below.
+function buildItemLine(it) {
+  const cfg = it.burger_config || {};
+  const meats = (cfg.meats || []).map((x) => (typeof x === "string" ? x : x.name));
+  let line = `${it.quantity}x ${it.name}`;
+  if (meats.length) line += ` (${meats.join(", ")})`;
+  return line;
+}
+
 // Plain-text 80mm ticket for the RawBT Android print app (no HTML/CSS —
 // RawBT just spools raw text to the paired thermal printer).
 function buildReceiptText(order) {
@@ -47,13 +59,13 @@ function buildReceiptText(order) {
   const customerName = `${order.customer_first_name || ""} ${order.customer_last_name || ""}`.trim();
 
   const itemLines = (order.items || []).flatMap((it) => {
-    const rows = [`${it.quantity}x ${it.name}`];
-    if (it.burger_config?.size?.label) rows.push(`  Taille : ${it.burger_config.size.label}`);
-    (it.burger_config?.meats || []).forEach((m) => rows.push(`  + ${m.name}`));
-    (it.burger_config?.cheeses || []).forEach((c) => rows.push(`  + ${c.name}`));
-    (it.burger_config?.supplements || []).forEach((s) => rows.push(`  + ${s.name}`));
-    if (it.formula === "menu" && it.included_drink) rows.push(`  Boisson : ${it.included_drink}`);
+    const cfg = it.burger_config || {};
+    const rows = [buildItemLine(it)];
+    [...(cfg.cheeses || []), ...(cfg.supplements || [])].forEach((x) =>
+      rows.push(`  + ${typeof x === "string" ? x : x.name}`)
+    );
     (it.sauces || []).forEach((s) => rows.push(`  + ${s}`));
+    if (it.formula === "menu" && it.included_drink) rows.push(`  Boisson : ${it.included_drink}`);
     if (it.notes) rows.push(`  Note : ${it.notes}`);
     return rows;
   });

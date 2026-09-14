@@ -5,7 +5,7 @@ Receives the full order JSON via POST /print (pushed by the main backend's
 printer_bridge.send_print_job() the instant a kitchen order is accepted,
 or manually re-triggered via /reprint), formats it into ONE ESC/POS 80mm
 ticket, and sends it N times (per the "print_copies" field in the request
-body — 2 on accept, 1 on reprint) over a plain TCP socket to the Sunmi
+body — 3 on accept, 1 on reprint) over a plain TCP socket to the Sunmi
 NT311 thermal printer's "raw print" port — 9100 is the de facto standard
 raw-print port on network ESC/POS printers.
 
@@ -56,6 +56,7 @@ ALIGN_CENTER = ESC + b"\x61\x01"
 BOLD_ON = ESC + b"\x45\x01"
 BOLD_OFF = ESC + b"\x45\x00"
 SIZE_NORMAL = GS + b"\x21\x00"
+SIZE_TALL = GS + b"\x21\x01"  # double height, same width — bigger text without shrinking chars-per-line
 SIZE_DOUBLE = GS + b"\x21\x11"  # double width + double height
 # Character code table — 16 selects a Latin/Western-European table (often
 # labelled "WPC1252") on most Epson-compatible ESC/POS printers, needed for
@@ -63,7 +64,7 @@ SIZE_DOUBLE = GS + b"\x21\x11"  # double width + double height
 # check the Sunmi NT311's command reference for the right table number.
 SELECT_CODEPAGE = ESC + b"\x74\x10"
 CUT = GS + b"\x56\x00"  # full cut
-FEED_LINES = b"\n" * 4
+FEED_LINES = b"\n" * 6
 
 ENCODING = "cp1252"  # matches SELECT_CODEPAGE above
 
@@ -96,22 +97,31 @@ def _fmt_datetime(iso_str: str) -> tuple[str, str]:
         return "", ""
 
 
-def _item_lines(item: dict) -> list:
-    rows = [f"{item.get('quantity', 1)}x {item.get('name', '')}"]
+def _item_line(item: dict) -> str:
+    """Item header line: qty + name (name already has a "Menu " prefix
+    baked in by the backend when it's a menu formula) + the meat names
+    directly in parens right after — no "Taille : N Viandes" label, just
+    the meats themselves. Cheeses/supplements/sauces go on their own
+    "+ ..." lines below via _item_lines()."""
     cfg = item.get("burger_config") or {}
-    size = cfg.get("size") or {}
-    if size.get("label"):
-        rows.append(f"  Taille : {size['label']}")
-    for m in cfg.get("meats") or []:
-        rows.append(f"  + {m.get('name', m) if isinstance(m, dict) else m}")
-    for c in cfg.get("cheeses") or []:
-        rows.append(f"  + {c.get('name', c) if isinstance(c, dict) else c}")
-    for s in cfg.get("supplements") or []:
-        rows.append(f"  + {s.get('name', s) if isinstance(s, dict) else s}")
-    if item.get("formula") == "menu" and item.get("included_drink"):
-        rows.append(f"  Boisson : {item['included_drink']}")
+    meats = [x.get("name", x) if isinstance(x, dict) else x for x in cfg.get("meats") or []]
+    line = f"{item.get('quantity', 1)}x {item.get('name', '')}"
+    if meats:
+        line += f" ({', '.join(meats)})"
+    return line
+
+
+def _item_lines(item: dict) -> list:
+    rows = [_item_line(item)]
+    cfg = item.get("burger_config") or {}
+    for group in ("cheeses", "supplements"):
+        for x in cfg.get(group) or []:
+            name = x.get("name", x) if isinstance(x, dict) else x
+            rows.append(f"  + {name}")
     for s in item.get("sauces") or []:
         rows.append(f"  + {s}")
+    if item.get("formula") == "menu" and item.get("included_drink"):
+        rows.append(f"  Boisson : {item['included_drink']}")
     if item.get("notes"):
         rows.append(f"  Note : {item['notes']}")
     return rows
@@ -139,10 +149,11 @@ def build_escpos_ticket(order: dict) -> bytes:
     out += _line(f"{date_str} {time_str}")
     out += _line(DIVIDER)
 
-    out += ALIGN_LEFT
+    out += ALIGN_LEFT + BOLD_ON
     for item in order.get("items") or []:
         for row in _item_lines(item):
             out += _line(row)
+    out += BOLD_OFF
     out += _line(DIVIDER)
 
     total = order.get("total") or 0
@@ -201,8 +212,8 @@ def print_order():
         return jsonify({"ok": False, "error": "no JSON body"}), 400
 
     order_number = order.get("order_number", "?")
-    # Backend sends 2 on accept (kitchen counter + delivery bag), 1 on a
-    # manual reprint. Defaults to 1 if the field is missing for any reason.
+    # Backend sends 3 on accept (kitchen counter + delivery bag + spare),
+    # 1 on a manual reprint. Defaults to 1 if the field is missing.
     copies = max(1, int(order.get("print_copies", 1) or 1))
     logger.info("Printing order #%s (%d copies)", order_number, copies)
     try:

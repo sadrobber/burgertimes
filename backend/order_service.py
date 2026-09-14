@@ -21,16 +21,14 @@ def gen_pickup_code() -> str:
 
 
 def _burger_line_name(denorm: Dict[str, Any], formula: str) -> str:
-    parts = [denorm.get("style_name") or "Burger"]
-    if denorm.get("size"):
-        parts.append(denorm["size"].get("label") or "")
-    meats = denorm.get("meats") or []
-    if meats:
-        parts.append(", ".join(m["name"] for m in meats))
-    label = " · ".join(p for p in parts if p)
+    # Just the base style name (e.g. "Tacos") — size/meats/cheeses/
+    # supplements are rendered separately from burger_config by every
+    # consumer (kitchen tablet, admin order drawer, printed tickets), so
+    # baking them into the name here just duplicated them everywhere.
+    name = denorm.get("style_name") or "Burger"
     if formula == "menu":
-        label += " (Menu)"
-    return label
+        name = f"Menu {name}"
+    return name
 
 
 async def build_snapshots(
@@ -107,7 +105,7 @@ async def build_snapshots(
             if line.get("selected_format"):
                 display_name += f" ({line['selected_format']})"
             if formula == "menu":
-                display_name += " · Menu"
+                display_name = f"Menu {display_name}"
             snapshots.append(
                 {
                     "line_id": line.get("line_id"),
