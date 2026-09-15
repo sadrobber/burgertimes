@@ -1,0 +1,25 @@
+{
+  "summary": "Tested the new 'Sauce fromagère' toggle end-to-end (frontend cart, backend order snapshot, admin drawer display). Both explicit-NO and default-YES paths work as designed. All 8 backend tests pass; frontend Tacos Builder shows the new '8. Sauce fromagère' step with Oui (default selected) / Non buttons using the required data-testids, and the admin OrdersAdmin drawer renders '- sans from' in red (#EF2B2D) when sauce_fromagere is false.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_sauce_fromagere.py",
+    "/app/test_reports/pytest/sauce_fromagere.xml"
+  ],
+  "action_items": [
+    "Optional cleanup: /api/burger/config still exposes leftover TEST_Classic and TEST_Flat styles + a TEST_Beef meat from prior iterations. Not a bug in this feature, but pollutes the live customer builder (a real customer would see extra 'style' step with test items). Consider deleting via admin API or seed-idempotency check."
+  ],
+  "critical_code_review_comments": [
+    "BurgerBuilderModal.jsx: STEP_KEYS constant on line 8 is now stale (missing 'fromagere'); harmless since the actual steps come from the useMemo array, but should be updated or removed to avoid confusion.",
+    "pricing.py denormalization correctly defaults sauce_fromagere to True when omitted, matching BurgerConfig model default — verified via API.",
+    "OrdersAdmin.jsx receipt builder and drawer both correctly gate on `=== false`, so a legacy order missing the field will show nothing extra (safe backward compatibility)."
+  ],
+  "updated_files": ["/app/backend/tests/test_sauce_fromagere.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin chahineisgoated@gmail.com / BurgerTimes2026! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created 4 [TEST ORDER]-tagged pickup orders via /api/checkout/session; all deleted via DELETE /api/admin/orders/{id} at end of the pytest class and the manual UI-drawer verification. Zero test orders remain.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The sauce_fromagere feature is fully working across cart(localStorage bt_cart_v1), backend snapshot (burger_config.sauce_fromagere), and admin drawer (red '- sans from' line). Regression suite for it lives in /app/backend/tests/test_sauce_fromagere.py (8 tests, all self-cleaning). Existing DB has leftover TEST_ burger styles/meats from prior iterations that surface in /api/burger/config; consider a one-time cleanup. The pi_print_bridge code path was NOT exercised as instructed (would trigger a real physical print).",
+  "rca of the issue": "N/A — no issues found. Implementation matches all four required touchpoints (a) cart payload, (b) backend order snapshot, (c) OrdersAdmin drawer red line, (d) RawBT receipt builder ('  - sans from' appended when false)."
+}

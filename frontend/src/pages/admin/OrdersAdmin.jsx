@@ -65,6 +65,7 @@ function buildReceiptText(order) {
       rows.push(`  + ${typeof x === "string" ? x : x.name}`)
     );
     (it.sauces || []).forEach((s) => rows.push(`  + ${s}`));
+    if (it.burger_config && cfg.sauce_fromagere === false) rows.push("  - sans from");
     if (it.formula === "menu" && it.included_drink) rows.push(`  Boisson : ${it.included_drink}`);
     if (it.notes) rows.push(`  Note : ${it.notes}`);
     return rows;
@@ -284,6 +285,9 @@ function OrderDrawer({ order, onClose, onStatus, onDelete }) {
                       )}
                       {(it.burger_config.supplements || []).length > 0 && (
                         <div>Supp. : {it.burger_config.supplements.map((s) => s.name).join(", ")}</div>
+                      )}
+                      {it.burger_config.sauce_fromagere === false && (
+                        <div className="text-[#EF2B2D]">- sans from</div>
                       )}
                     </div>
                   )}

@@ -141,6 +141,8 @@ def _item_lines(item: dict) -> list:
             rows.append(f"  + {name}")
     for s in item.get("sauces") or []:
         rows.append(f"  + {s}")
+    if cfg and cfg.get("sauce_fromagere") is False:
+        rows.append("  - sans from")
     if item.get("formula") == "menu" and item.get("included_drink"):
         rows.append(f"  Boisson : {item['included_drink']}")
     if item.get("notes"):

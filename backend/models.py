@@ -335,6 +335,7 @@ class BurgerConfig(BaseModel):
     cheese_ids: List[str] = Field(default_factory=list)
     supplement_ids: List[str] = Field(default_factory=list)
     sauces: List[str] = Field(default_factory=list)
+    sauce_fromagere: bool = True
 
 
 class CartLine(BaseModel):

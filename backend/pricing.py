@@ -109,6 +109,7 @@ def compute_burger_price(
         "cheeses": cheeses_snapshot,
         "supplements": supps_snapshot,
         "sauces": list(burger_config.get("sauces") or []),
+        "sauce_fromagere": bool(burger_config.get("sauce_fromagere", True)),
         "is_flat_style": is_flat,
     }
     return unit_price, denorm

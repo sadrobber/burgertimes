@@ -5,7 +5,7 @@ import { useCart } from "@/context/CartContext.jsx";
 import { useI18n } from "@/context/I18nContext.jsx";
 import { toast } from "sonner";
 
-const STEP_KEYS = ["format", "style", "size", "meats", "cheeses", "supplements", "sauces"];
+const STEP_KEYS = ["format", "style", "size", "meats", "cheeses", "supplements", "sauces", "fromagere"];
 
 export default function BurgerBuilderModal({ open, onClose }) {
   const { t } = useI18n();
@@ -23,6 +23,7 @@ export default function BurgerBuilderModal({ open, onClose }) {
   const [cheeses, setCheeses] = useState([]);
   const [supplements, setSupplements] = useState([]);
   const [chosenSauces, setChosenSauces] = useState([]);
+  const [sauceFromagere, setSauceFromagere] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -35,6 +36,7 @@ export default function BurgerBuilderModal({ open, onClose }) {
     setCheeses([]);
     setSupplements([]);
     setChosenSauces([]);
+    setSauceFromagere(true);
     Promise.all([
       apiClient.get("/burger/config").then((r) => r.data),
       apiClient.get("/settings").then((r) => r.data),
@@ -73,6 +75,7 @@ export default function BurgerBuilderModal({ open, onClose }) {
     if ((config?.cheeses || []).length > 0) ordered.push("cheeses");
     if ((config?.supplements || []).length > 0) ordered.push("supplements");
     if ((sauces || []).length > 0) ordered.push("sauces");
+    ordered.push("fromagere");
     return ordered;
   }, [config, sauces, isFlat]);
   const currentStep = steps[stepIdx];
@@ -118,6 +121,7 @@ export default function BurgerBuilderModal({ open, onClose }) {
     if (currentStep === "cheeses") return true;
     if (currentStep === "supplements") return true;
     if (currentStep === "sauces") return true;
+    if (currentStep === "fromagere") return true;
     return true;
   };
 
@@ -157,6 +161,7 @@ export default function BurgerBuilderModal({ open, onClose }) {
         cheese_ids: cheeses,
         supplement_ids: supplements,
         sauces: chosenSauces,
+        sauce_fromagere: sauceFromagere,
       },
     });
     toast.success("Ajouté au panier");
@@ -386,6 +391,33 @@ export default function BurgerBuilderModal({ open, onClose }) {
                   {s.name}
                 </button>
               ))}
+            </div>
+          )}
+
+          {currentStep === "fromagere" && (
+            <div className="space-y-4">
+              <div className="font-accent uppercase tracking-widest text-sm text-[#A1A1A1]">
+                {t("burger.fromagere_question")}
+              </div>
+              <div className="text-xs text-[#666]">{t("burger.fromagere_hint")}</div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { val: true, key: "burger.yes" },
+                  { val: false, key: "burger.no" },
+                ].map((opt) => (
+                  <button
+                    key={String(opt.val)}
+                    data-testid={`burger-fromagere-${opt.val ? "yes" : "no"}`}
+                    onClick={() => setSauceFromagere(opt.val)}
+                    className={`bt-option ${sauceFromagere === opt.val ? "selected" : ""} text-left`}
+                  >
+                    <div className="font-accent uppercase tracking-widest text-lg flex items-center gap-2">
+                      {sauceFromagere === opt.val && <Check className="w-4 h-4" />}
+                      {t(opt.key)}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
