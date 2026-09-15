@@ -159,6 +159,34 @@ class SauceUpdate(BaseModel):
     active: Optional[bool] = None
 
 
+class Coupon(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(default_factory=gen_id)
+    code: str
+    discount_type: str  # 'free_delivery' | 'percent_off_delivery'
+    percent_value: Optional[float] = None  # required when percent_off_delivery, 1-100
+    max_uses: int = 1
+    used_count: int = 0
+    active: bool = True
+    created_at: str = Field(default_factory=utc_now_iso)
+
+
+class CouponCreate(BaseModel):
+    code: str
+    discount_type: str
+    percent_value: Optional[float] = None
+    max_uses: int = 1
+
+
+class CouponUpdate(BaseModel):
+    code: Optional[str] = None
+    discount_type: Optional[str] = None
+    percent_value: Optional[float] = None
+    max_uses: Optional[int] = None
+    active: Optional[bool] = None
+
+
 # ----- Burger builder ------------------------------------------------------
 
 
@@ -386,6 +414,8 @@ class Order(BaseModel):
     items: List[OrderItemSnapshot]
     subtotal: float
     delivery_fee: float = 0.0
+    coupon_code: Optional[str] = None
+    coupon_discount: float = 0.0
     total: float
     fulfillment: str  # 'delivery' | 'pickup'
     customer_first_name: str
@@ -428,6 +458,7 @@ class CheckoutPayload(BaseModel):
     city: Optional[str] = None
     notes: str = ""
     payment_method: str = "cash"
+    coupon_code: Optional[str] = None
 
 
 class OrderStatusUpdate(BaseModel):

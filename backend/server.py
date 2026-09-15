@@ -36,6 +36,9 @@ from models import (
     CategoryCreate,
     CategoryUpdate,
     CheckoutPayload,
+    Coupon,
+    CouponCreate,
+    CouponUpdate,
     KitchenDeclinePayload,
     MenuItem,
     MenuItemCreate,
@@ -448,6 +451,59 @@ async def admin_delete_sauce(sid: str, _: dict = Depends(require_admin)):
     return {"deleted": res.deleted_count}
 
 
+# ----- Coupons --------------------------------------------------------------
+
+
+@api.get("/admin/coupons")
+async def admin_list_coupons(_: dict = Depends(require_admin)):
+    docs = await db.coupons.find().sort("created_at", -1).to_list(500)
+    return [_strip_mongo(d) for d in docs]
+
+
+@api.post("/admin/coupons")
+async def admin_create_coupon(payload: CouponCreate, _: dict = Depends(require_admin)):
+    code = payload.code.strip().upper()
+    if not code:
+        raise HTTPException(status_code=400, detail="Code requis.")
+    if payload.discount_type not in ("free_delivery", "percent_off_delivery"):
+        raise HTTPException(status_code=400, detail="Type de réduction invalide.")
+    if payload.discount_type == "percent_off_delivery" and not (
+        payload.percent_value and 0 < payload.percent_value <= 100
+    ):
+        raise HTTPException(status_code=400, detail="Pourcentage invalide (1-100).")
+    if payload.max_uses < 1:
+        raise HTTPException(status_code=400, detail="Nombre d'utilisations minimum : 1.")
+    if await db.coupons.find_one({"code": code}):
+        raise HTTPException(status_code=400, detail="Ce code existe déjà.")
+    doc = Coupon(
+        code=code,
+        discount_type=payload.discount_type,
+        percent_value=payload.percent_value if payload.discount_type == "percent_off_delivery" else None,
+        max_uses=payload.max_uses,
+    ).model_dump()
+    await db.coupons.insert_one(doc)
+    return _strip_mongo(doc)
+
+
+@api.put("/admin/coupons/{cid}")
+async def admin_update_coupon(cid: str, payload: CouponUpdate, _: dict = Depends(require_admin)):
+    changes = payload.model_dump(exclude_unset=True)
+    if changes.get("code"):
+        changes["code"] = changes["code"].strip().upper()
+    if changes:
+        await db.coupons.update_one({"id": cid}, {"$set": changes})
+    doc = await db.coupons.find_one({"id": cid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    return _strip_mongo(doc)
+
+
+@api.delete("/admin/coupons/{cid}")
+async def admin_delete_coupon(cid: str, _: dict = Depends(require_admin)):
+    res = await db.coupons.delete_one({"id": cid})
+    return {"deleted": res.deleted_count}
+
+
 # ----- Burger builder ------------------------------------------------------
 
 
@@ -661,6 +717,50 @@ def _compute_delivery_fee(fulfillment: str, subtotal: float, settings: dict) -> 
     return round(subtotal * percent / 100.0, 2)
 
 
+async def _apply_coupon(
+    code: Optional[str], fulfillment: str, delivery_fee: float, create: bool
+) -> tuple[float, Optional[dict]]:
+    """Validates + applies a coupon against the delivery fee only. Returns
+    (possibly-discounted delivery_fee, coupon_info|None). Raises 400 on any
+    invalid/inactive/exhausted code or when used on a non-delivery order.
+    Usage is only consumed (atomic $inc, race-safe) when create=True — a
+    /checkout/quote call never burns through a code's max_uses."""
+    if not code or not code.strip():
+        return delivery_fee, None
+    code = code.strip().upper()
+    coupon = await db.coupons.find_one({"code": code})
+    if not coupon or not coupon.get("active", True):
+        raise HTTPException(status_code=400, detail="Code promo invalide.")
+    if coupon.get("used_count", 0) >= coupon.get("max_uses", 1):
+        raise HTTPException(
+            status_code=400,
+            detail="Ce code promo a déjà été utilisé le nombre maximum de fois autorisé.",
+        )
+    if fulfillment != "delivery":
+        raise HTTPException(
+            status_code=400, detail="Ce code ne fonctionne que pour les commandes en livraison."
+        )
+
+    if coupon["discount_type"] == "free_delivery":
+        discount = delivery_fee
+    else:
+        discount = round(delivery_fee * (coupon.get("percent_value") or 0) / 100.0, 2)
+    new_fee = round(max(0.0, delivery_fee - discount), 2)
+
+    if create:
+        updated = await db.coupons.find_one_and_update(
+            {"id": coupon["id"], "used_count": {"$lt": coupon.get("max_uses", 1)}, "active": True},
+            {"$inc": {"used_count": 1}},
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=400,
+                detail="Ce code promo a déjà été utilisé le nombre maximum de fois autorisé.",
+            )
+
+    return new_fee, {"code": code, "discount_type": coupon["discount_type"], "discount_amount": discount}
+
+
 async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
     settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or Settings().model_dump()
     _strip_mongo(settings)
@@ -711,12 +811,22 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
         settings.get("soda_flavours") or [],
     )
     delivery_fee = _compute_delivery_fee(payload.fulfillment, subtotal, settings)
+    coupon_discount = 0.0
+    coupon_applied = None
+    if payload.coupon_code:
+        delivery_fee, coupon_applied = await _apply_coupon(
+            payload.coupon_code, payload.fulfillment, delivery_fee, create
+        )
+        if coupon_applied:
+            coupon_discount = coupon_applied["discount_amount"]
     total = round(subtotal + delivery_fee, 2)
 
     if not create:
         return {
             "subtotal": subtotal,
             "delivery_fee": delivery_fee,
+            "coupon_code": coupon_applied["code"] if coupon_applied else None,
+            "coupon_discount": coupon_discount,
             "total": total,
             "items": snapshots,
         }
@@ -736,6 +846,8 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
         "items": snapshots,
         "subtotal": subtotal,
         "delivery_fee": delivery_fee,
+        "coupon_code": coupon_applied["code"] if coupon_applied else None,
+        "coupon_discount": coupon_discount,
         "total": total,
         "fulfillment": payload.fulfillment,
         "customer_first_name": payload.customer_first_name.strip(),

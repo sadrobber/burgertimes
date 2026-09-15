@@ -35,6 +35,8 @@ export default function Checkout() {
   const [countryIso, setCountryIso] = useState(DEFAULT_COUNTRY_ISO);
   const [submitting, setSubmitting] = useState(false);
   const [quote, setQuote] = useState(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
 
   // "Remember me" — recognize a returning customer from a previous checkout
   // (stored in localStorage, no account/backend involved) and offer to
@@ -122,6 +124,7 @@ export default function Checkout() {
       city: form.city || null,
       customer_email: form.email || null,
       notes: form.notes,
+      coupon_code: appliedCoupon || null,
     };
     let cancelled = false;
     apiClient
@@ -131,7 +134,7 @@ export default function Checkout() {
     return () => {
       cancelled = true;
     };
-  }, [cartPayload, fulfillment, payment]);
+  }, [cartPayload, fulfillment, payment, appliedCoupon]);
 
   const allowedPostalCodes = useMemo(
     () =>
@@ -156,6 +159,15 @@ export default function Checkout() {
     ((payment === "cash" && cashEnabled) || (payment === "card_in_person" && cardEnabled)) &&
     postalIsServed;
 
+  const applyCoupon = () => {
+    if (!couponInput.trim()) return;
+    setAppliedCoupon(couponInput.trim().toUpperCase());
+  };
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+  };
+
   const submit = async () => {
     if (!canSubmit) {
       toast.error("Complète les champs requis");
@@ -176,6 +188,7 @@ export default function Checkout() {
         city: form.city.trim() || null,
         payment_method: payment,
         notes: form.notes,
+        coupon_code: appliedCoupon || null,
       };
       const { data } = await apiClient.post("/checkout/session", payload);
       // Bridge the just-submitted contact details to the success page, which
@@ -452,6 +465,12 @@ export default function Checkout() {
                       <span>{formatEur(quote.delivery_fee)}</span>
                     </div>
                   ) : null}
+                  {quote?.coupon_discount > 0 && (
+                    <div className="flex justify-between text-[#EF2B2D]" data-testid="coupon-discount-line">
+                      <span>Code {quote.coupon_code}</span>
+                      <span>-{formatEur(quote.coupon_discount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-baseline">
                     <span className="font-accent uppercase tracking-widest">{t("cart.total")}</span>
                     <span className="font-display text-2xl text-[#EF2B2D]">
@@ -459,6 +478,39 @@ export default function Checkout() {
                     </span>
                   </div>
                 </div>
+
+                <div className="mt-4">
+                  {appliedCoupon ? (
+                    <div className="flex items-center justify-between gap-2 border-2 border-[#EF2B2D] px-3 py-2">
+                      <span className="text-sm font-accent uppercase tracking-widest">{appliedCoupon}</span>
+                      <button
+                        onClick={removeCoupon}
+                        data-testid="coupon-remove-btn"
+                        className="text-xs text-[#A1A1A1] hover:text-[#F5F1E8]"
+                      >
+                        Retirer
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        data-testid="coupon-input"
+                        className="bt-input flex-1"
+                        placeholder="Code promo"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      />
+                      <button
+                        onClick={applyCoupon}
+                        data-testid="coupon-apply-btn"
+                        className="bt-btn-secondary px-4 text-sm"
+                      >
+                        Appliquer
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={submit}
                   disabled={!canSubmit || submitting}

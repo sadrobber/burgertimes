@@ -1,2 +1,1 @@
-cron=3.0pl1-162
 dnsutils=1:9.18.49-1~deb12u1

@@ -12,6 +12,7 @@ import {
   LogOut,
   Home as HomeIcon,
   Truck,
+  Ticket,
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext.jsx";
 
@@ -23,6 +24,7 @@ const links = [
   { to: "/admin/categories", label: "Catégories", icon: Tags, id: "categories" },
   { to: "/admin/burger", label: "Burger Builder", icon: Beef, id: "burger" },
   { to: "/admin/sauces", label: "Sauces", icon: Droplet, id: "sauces" },
+  { to: "/admin/coupons", label: "Codes promo", icon: Ticket, id: "coupons" },
   { to: "/admin/reviews", label: "Avis", icon: Star, id: "reviews" },
   { to: "/admin/settings", label: "Réglages", icon: SettingsIcon, id: "settings" },
 ];

@@ -22,6 +22,7 @@ import MenuAdmin from "@/pages/admin/MenuAdmin.jsx";
 import CategoriesAdmin from "@/pages/admin/CategoriesAdmin.jsx";
 import BurgerBuilderAdmin from "@/pages/admin/BurgerBuilderAdmin.jsx";
 import SaucesAdmin from "@/pages/admin/SaucesAdmin.jsx";
+import CouponsAdmin from "@/pages/admin/CouponsAdmin.jsx";
 import ReviewsAdmin from "@/pages/admin/ReviewsAdmin.jsx";
 import SettingsAdmin from "@/pages/admin/SettingsAdmin.jsx";
 import DeliveryStatsAdmin from "@/pages/admin/DeliveryStatsAdmin.jsx";
@@ -84,6 +85,7 @@ function App() {
                   <Route path="categories" element={<CategoriesAdmin />} />
                   <Route path="burger" element={<BurgerBuilderAdmin />} />
                   <Route path="sauces" element={<SaucesAdmin />} />
+                  <Route path="coupons" element={<CouponsAdmin />} />
                   <Route path="reviews" element={<ReviewsAdmin />} />
                   <Route path="stats/delivery" element={<DeliveryStatsAdmin />} />
                   <Route path="settings" element={<SettingsAdmin />} />
