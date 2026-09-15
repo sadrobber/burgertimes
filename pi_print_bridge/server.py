@@ -122,13 +122,16 @@ def _item_line(item: dict) -> str:
     """Item header line: qty + name (name already has a "Menu " prefix
     baked in by the backend when it's a menu formula) + the meat names
     directly in parens right after — no "Taille : N Viandes" label, just
-    the meats themselves. Cheeses/supplements/sauces go on their own
-    "+ ..." lines below via _item_lines()."""
+    the meats themselves — plus "sans from" appended right here when the
+    customer opted out of the cheese sauce. Cheeses/supplements/sauces go
+    on their own "+ ..." lines below via _item_lines()."""
     cfg = item.get("burger_config") or {}
     meats = [x.get("name", x) if isinstance(x, dict) else x for x in cfg.get("meats") or []]
     line = f"{item.get('quantity', 1)}x {item.get('name', '')}"
     if meats:
         line += f" ({', '.join(meats)})"
+    if cfg.get("sauce_fromagere") is False:
+        line += " sans from"
     return line
 
 
@@ -141,8 +144,6 @@ def _item_lines(item: dict) -> list:
             rows.append(f"  + {name}")
     for s in item.get("sauces") or []:
         rows.append(f"  + {s}")
-    if cfg and cfg.get("sauce_fromagere") is False:
-        rows.append("  - sans from")
     if item.get("formula") == "menu" and item.get("included_drink"):
         rows.append(f"  Boisson : {item['included_drink']}")
     if item.get("notes"):

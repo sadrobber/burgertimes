@@ -46,6 +46,7 @@ function buildItemLine(it) {
   const meats = (cfg.meats || []).map((x) => (typeof x === "string" ? x : x.name));
   let line = `${it.quantity}x ${it.name}`;
   if (meats.length) line += ` (${meats.join(", ")})`;
+  if (cfg.sauce_fromagere === false) line += " sans from";
   return line;
 }
 
@@ -65,7 +66,6 @@ function buildReceiptText(order) {
       rows.push(`  + ${typeof x === "string" ? x : x.name}`)
     );
     (it.sauces || []).forEach((s) => rows.push(`  + ${s}`));
-    if (it.burger_config && cfg.sauce_fromagere === false) rows.push("  - sans from");
     if (it.formula === "menu" && it.included_drink) rows.push(`  Boisson : ${it.included_drink}`);
     if (it.notes) rows.push(`  Note : ${it.notes}`);
     return rows;
