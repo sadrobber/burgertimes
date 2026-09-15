@@ -157,7 +157,8 @@ export default function Checkout() {
     (fulfillment === "pickup" || (form.address1.trim() && form.postal.trim() && form.city.trim())) &&
     status?.state !== "closed" &&
     ((payment === "cash" && cashEnabled) || (payment === "card_in_person" && cardEnabled)) &&
-    postalIsServed;
+    postalIsServed &&
+    !quote?.error;
 
   const applyCoupon = () => {
     if (!couponInput.trim()) return;

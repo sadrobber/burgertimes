@@ -51,8 +51,12 @@ export default function CouponsAdmin() {
 
   const del = async (id) => {
     if (!window.confirm("Supprimer ce code promo ?")) return;
-    await adminClient.delete(`/admin/coupons/${id}`);
-    load();
+    try {
+      await adminClient.delete(`/admin/coupons/${id}`);
+      load();
+    } catch (e) {
+      toast.error(fmtError(e));
+    }
   };
 
   return (

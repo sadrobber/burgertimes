@@ -490,11 +490,19 @@ async def admin_update_coupon(cid: str, payload: CouponUpdate, _: dict = Depends
     changes = payload.model_dump(exclude_unset=True)
     if changes.get("code"):
         changes["code"] = changes["code"].strip().upper()
+        existing = await db.coupons.find_one({"code": changes["code"], "id": {"$ne": cid}})
+        if existing:
+            raise HTTPException(status_code=400, detail="Ce code existe déjà.")
+    existing_doc = await db.coupons.find_one({"id": cid})
+    if not existing_doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    new_type = changes.get("discount_type", existing_doc.get("discount_type"))
+    new_percent = changes.get("percent_value", existing_doc.get("percent_value"))
+    if new_type == "percent_off_delivery" and not (new_percent and 0 < new_percent <= 100):
+        raise HTTPException(status_code=400, detail="Pourcentage invalide (1-100).")
     if changes:
         await db.coupons.update_one({"id": cid}, {"$set": changes})
     doc = await db.coupons.find_one({"id": cid})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Not found")
     return _strip_mongo(doc)
 
 
