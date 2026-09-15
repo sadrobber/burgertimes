@@ -95,6 +95,7 @@ export default function Checkout() {
             cheese_ids: it.burger_config.cheese_ids || [],
             supplement_ids: it.burger_config.supplement_ids || [],
             sauces: it.burger_config.sauces || [],
+            sauce_fromagere: it.burger_config.sauce_fromagere ?? true,
           }
         : null,
     }));
