@@ -202,6 +202,9 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Rename `BurgerBuilder*` components → `TacosBuilder*` (cosmetic).
 
 ## Notes
+- **Lezet Kebab kitchen-print handoff prepared (2026-02-14):** Provided a
+  copy-ready prompt describing Burger Times' proven Raspberry Pi + ngrok +
+  ESC/POS kitchen-print architecture for reuse in the separate Lezet Kebab app.
 - Admin owner email: `chahineisgoated@gmail.com` (password in `/app/memory/test_credentials.md`).
 - Language: user speaks English; UI labels in French.
 - Emergent Emails uses managed proxy — do NOT switch to plain Resend SDK.
