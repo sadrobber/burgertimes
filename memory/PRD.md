@@ -22,6 +22,25 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Delivery scheduling, menu removals, and staff tablet (2026-02-14):** Added
+  per-menu-item `removable_ingredients` managed in `/admin/menu`; customers
+  choose options such as "Sans oignons" while configuring that selected item,
+  and selections persist as line-item notes across cart, checkout, kitchen,
+  and receipts. Added optional same-day delivery windows at checkout, generated
+  from the configured opening hours and admin-managed lead-time/window-duration
+  settings (40 / 20 minutes by default). Scheduled orders remain out of the
+  kitchen list until `kitchen_release_at` (arrival-window start minus lead
+  time), then follow the normal staff accept → automated Pi print path. Both
+  the Pi ESC/POS ticket and RawBT admin receipt now show the delivery window.
+- **Staff order-taking tablet (2026-02-14):** Added a protected, photo-free
+  `/tablet` desk with compact menu configuration, Tacos Builder access, a live
+  cart/total panel, customer/delivery/payment capture, and scheduled-delivery
+  selection. New tablet-only accounts are created, password-reset, disabled,
+  or deleted from `/admin/tablet-staff`; the owner account may also enter the
+  tablet route. API additions: `/api/checkout/delivery-slots`,
+  `/api/tablet/login`, `/api/tablet/me`, `/api/tablet/orders`, and admin tablet
+  staff CRUD. Verified safely with iteration_30 (12/12 backend tests, tablet
+  UI desktop/mobile, no horizontal overflow, no live printer calls).
 - **French hero headline refined (2026-02-14):** The French homepage now shows
   `SMASH. TENDRE. SAVOURER.` while the English view keeps its original
   `SMASH. SIZZLE. SERVE.` line. Verified on desktop and 390 px mobile with no

@@ -1,0 +1,27 @@
+{
+  "summary": "Tested three new Burger Times features (removable ingredients per item, same-day scheduled delivery slots, /tablet order-taking with admin-managed tablet staff). Backend: 12/12 pytest tests passed in /app/backend/tests/test_new_features.py. Frontend: admin login, admin tablet-staff CRUD (list shows temp account), tablet login with temp account, mobile /tablet has NO horizontal overflow, zero menu photo <img> tags on /tablet, add-to-cart updates side total 0.00€ -> 8.00€, public /menu 'Configure' -> 'Sans oignons' chip -> Ajouter results in cart line notes='Sans oignons'. All test menu edits and temp tablet accounts reverted/deleted. Kitchen accept/reprint/test-print routes were NEVER exercised; kitchen scheduled hiding validated read-only via /api/kitchen/orders.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/new_features.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "delivery_scheduling.delivery_slots multiplies lead time when computing window start: start = ceil(max(now+lead, opening+lead)). Per spec 'valid windows must start no earlier than restaurant opening plus lead time / current time plus lead time' — this appears correct (lead is added to opening AND to now). Verified via unit test freezing now=12:00 Monday, 10:00-22:00 hours: first slot >= 12:40. No issue.",
+    "server.py kitchen_orders query uses $or with kitchen_release_at <= now OR scheduled_delivery_start missing/null OR kitchen_decision in accepted/declined. This correctly hides pending scheduled orders whose kitchen_release_at is still in the future. Verified read-only against live kitchen list (no leaks).",
+    "TabletStaffCreate response now correctly strips _id and password_hash (matches note about the earlier serialization fix).",
+    "MenuItemCard renders removable_ingredients only inside the 'Configure' expanded state (hasConfig turns on when removable_ingredients has entries). This is a discoverability nuance — item cards without formats/variants but with removable ingredients now require an extra 'Configure' click before customers see 'Sans <ingredient>' options. Confirmed working end-to-end but flag as UX consideration.",
+    "/tablet uses same MenuItemCard with compact prop — no menu photos rendered (0 <img> tags found)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py (new)"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (all critical flows)"},
+  "test_credentials": "Admin chahineisgoated@gmail.com / BurgerTimes2026! (from /app/memory/test_credentials.md). Temp tablet accounts created per-run with TEST_tab_* prefix and deleted afterwards.",
+  "seed_data_creation": "Temporary: (a) set removable_ingredients on 'Sandwich Triple' during 2 tests, reverted to original empty list; (b) created temp tablet-staff accounts (TEST_tab_ui_*, TEST_tab_ui2_*), deleted via admin DELETE endpoint. No orders created (only /checkout/quote which does not persist).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file /app/backend/tests/test_new_features.py covers all three features safely (no printer, no order creation). Kitchen accept/reprint/test-print MUST remain untouched — physical printer. Ingredient removal chips only render after clicking Configure on MenuItemCard; add-to-cart directly is only for items with zero formats/variants AND zero removable_ingredients.",
+  "rca of the issue": "N/A — no bugs found in this iteration."
+}
