@@ -1,0 +1,40 @@
+{
+  "summary": "Verified new tablet features: customer upsert/matching helpers (fake-DB unit tests), /api/tablet/customers/suggestions (auth + shape + partial match), default burger removal backfill on Signatures/Classiques/Smash-Burgers via /api/menu, tablet UI at 390px & 1920px (no overflow, French submit label, red large category headings, Rechercher next to phone, email beneath), Personnaliser compact button + Sans oignons → cart note end-to-end, and STATIC source-level check of /tablet/orders: scheduled branch short-circuits to print_queued:false and does NOT call _push_print_job_background; non-scheduled branch calls _push_print_job_background(..., copies=1) exactly once and returns print_queued:true. Backend: 15/15 in new /app/backend/tests/test_customers_and_tablet_print.py. Frontend: all UI checks pass. ZERO calls to POST /api/tablet/orders, /kitchen/accept, /kitchen/decline, /kitchen/reprint, or /kitchen/test-print. No physical print triggered.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/tablet Burgers section", "issues": ["Two residual seed rows named 'TEST_cheeseburger' with 'TEST_desc' description are still visible in the Burgers category (leftover from a prior test run, not from this iteration). They belong to no real category label and should be deleted via admin MenuAdmin. Not blocking but pollutes staff UX."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_customers_and_tablet_print.py",
+    "/app/test_reports/pytest/customers_tablet_print.xml"
+  ],
+  "action_items": [
+    "Delete leftover TEST_cheeseburger menu items from Burgers category (residual test data)."
+  ],
+  "critical_code_review_comments": [
+    "_customer_payload correctly whitelists exactly 8 fields (first,last,phone,email,address1,address2,postal,city). Zero risk of leaking _id / order_number / status / password_hash into customers collection or /suggestions response — asserted via unit tests with fake-DB and via live HTTP.",
+    "_upsert_customer correctly skips test_order=true and missing-phone rows; upserts on phone_key with $setOnInsert for id+created_at and $inc order_count. Verified single doc + count increment on repeat.",
+    "_matching_customers returns [] for <3 digits (matches Query(min_length=3) on /suggestions). Uses 'incoming in saved or saved.endswith(incoming)' — endswith is the useful branch for real-world partial matches (e.g. staff types last 3 of a 10-digit phone). Falls back to legacy orders when customers collection has no match.",
+    "tablet_create_order: scheduled branch returns print_queued:false BEFORE any print work; non-scheduled branch atomically claims kitchen_decision via find_one_and_update (identical concurrency-safe pattern to /kitchen/accept), finalizes with note 'Confirmée et imprimée depuis /tablet', then asyncio.create_task(_push_print_job_background(order_id, accepted, copies=1)). Only ONE print copy — matches spec of 'ONE physical kitchen receipt'.",
+    "_push_print_job_background default remains copies=3 (kitchen accept unchanged); tablet path explicitly overrides to 1.",
+    "seed.py DEFAULT_BURGER_REMOVALS = ['oignons','cornichons','salade','tomate','sauce'] applied idempotently to categories in {'signatures','classiques','smash-burgers'} only when removable_ingredients is missing or empty — will NOT overwrite per-item admin edits. /api/menu confirms all burger items in these three categories carry the full default set.",
+    "customers collection has unique sparse index on phone_key (seed.py L316) — prevents duplicate customer rows for the same normalised phone.",
+    "TabletOrder.jsx: category headings use text-3xl (sm:text-4xl) uppercase text-[#EF2B2D] font-display — matches spec (large + red). Phone field contains input + 'Rechercher' button in a flex row; Email field is a separate Field rendered beneath Téléphone in the same right-column div. At 390px body.scrollWidth == clientWidth (no horizontal overflow). Submit button label is exactly 'Enregistrer la commande et imprimer'.",
+    "MenuItemCard.jsx compact + removable_ingredients-only items surface the 'Personnaliser' label (not 'Ajouter'); confirmed 17 Personnaliser buttons on /tablet. Clicking one expands the card with 'Sans <ingredient>' chips; selecting Sans oignons + Ajouter adds a cart line with 'Sans oignons' as the note (screenshot verified).",
+    "Suggestions endpoint returns 422 on <3 chars (via Query min_length), and 401/403 without tablet token. Live test seeded a TEST_-prefixed customer via pymongo (bypassing /tablet/orders to avoid any print), matched on last-3 digits, verified exposed keys are EXACTLY {first,last,phone,email,address1,address2,postal,city}, and cleaned up the row on teardown."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_customers_and_tablet_print.py (new)"
+  ],
+  "success_rate": {"backend": "100% (15/15 new + prior 14/14 + 12/12 still valid)", "frontend": "100% on all critical /tablet flows"},
+  "test_credentials": "Tablet tablet@burgertimes.fr / BurgerTablet2026! (from /app/memory/test_credentials.md). No admin login required this iteration.",
+  "seed_data_creation": "Only ephemeral: one TEST_cust_<phone> row inserted via sync pymongo for the suggestions HTTP test and deleted in fixture teardown. No orders created, no /tablet/orders call, no kitchen decision endpoints touched.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Three safe backend suites now: test_new_features.py, test_schedule_and_lookup.py, test_customers_and_tablet_print.py. All avoid the printer. NEVER call /api/tablet/orders (non-scheduled) — it queues a real print via _push_print_job_background(..., copies=1). To simulate tablet order code paths, mock server.db and/or import tablet_create_order + patch _push_print_job_background. Leftover TEST_cheeseburger items exist in Burgers category and should be cleaned via MenuAdmin.",
+  "rca of the issue": "N/A — no bugs found."
+}

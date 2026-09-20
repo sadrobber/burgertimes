@@ -22,6 +22,23 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Tablet customer directory, direct confirmation print, and readability
+  improvements (2026-02-14):** Each non-test order now upserts a protected
+  customer record keyed by normalized phone number. Tablet staff see matching
+  names/numbers after typing three digits, can choose a suggestion or press
+  `Rechercher`, and may edit every filled field. Legacy order history remains
+  searchable for customers who predate the directory. The phone field and
+  search action are side-by-side, with email directly underneath. Immediate
+  tablet confirmations now atomically accept the order and queue exactly one
+  Pi receipt; the French action reads `Enregistrer la commande et imprimer`.
+  Scheduled tablet orders deliberately remain unprinted until their scheduled
+  release, preserving the delivery-timing workflow. Default removable choices
+  (oignons, cornichons, salade, tomate, sauce) are now seeded without
+  overwriting item-specific admin edits; compact tablet burger cards expose
+  `Personnaliser` and their Sans chips. Tablet category headings are larger,
+  red, and human-readable. Safe iteration_32 testing passed 15/15; no physical
+  print endpoint or tablet order submission was invoked. Removed two residual
+  `TEST_cheeseburger` menu rows left by an older test run.
 - **Configurable tablet login (2026-02-14):** Seeded the permanent
   `tablet@burgertimes.fr` tablet-role account from
   `TABLET_DEFAULT_EMAIL` / `TABLET_DEFAULT_PASSWORD`. The account is updated
