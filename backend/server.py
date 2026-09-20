@@ -1098,11 +1098,13 @@ async def _matching_customers(phone: str, limit: int = 5) -> list[Dict[str, str]
     incoming = _phone_key(phone)
     if len(incoming) < 3:
         return []
+    search_parts = {incoming, incoming.lstrip("0")}
+    search_parts.discard("")
     matches: dict[str, Dict[str, str]] = {}
     customers = await db.customers.find({}, {"_id": 0}).sort("updated_at", -1).to_list(5000)
     for customer in customers:
         saved = customer.get("phone_key") or _phone_key(customer.get("phone"))
-        if incoming in saved or saved.endswith(incoming):
+        if any(part in saved or saved.endswith(part) for part in search_parts):
             matches.setdefault(saved, _customer_payload(customer))
             if len(matches) >= limit:
                 return list(matches.values())
@@ -1113,7 +1115,7 @@ async def _matching_customers(phone: str, limit: int = 5) -> list[Dict[str, str]
     ).sort("created_at", -1).to_list(5000)
     for order in legacy_orders:
         saved = _phone_key(order.get("customer_phone"))
-        if saved and (incoming in saved or saved.endswith(incoming)):
+        if saved and any(part in saved or saved.endswith(part) for part in search_parts):
             matches.setdefault(saved, _customer_payload(order))
             if len(matches) >= limit:
                 break

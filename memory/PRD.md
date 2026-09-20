@@ -22,6 +22,16 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Pi bridge handoff (2026-02-14):** Provided the current complete
+  `pi_print_bridge/server.py` copy for the restaurant Raspberry Pi on request.
+  No Pi-side change was required for the tablet country-code selector.
+- **Tablet dial-code selector (2026-02-14):** The tablet phone field now has
+  a country selector ordered France (+33), Monaco (+377), then Italy (+39).
+  Chosen dial codes are included when saving/printing an order; customer
+  suggestions still match legacy local numbers such as `06…` as well as
+  international formats. Confirmed desktop/mobile selector order and zero
+  mobile overflow. Removed all residual `TEST_` menu entries after a final
+  tablet-data check.
 - **Tablet customer directory, direct confirmation print, and readability
   improvements (2026-02-14):** Each non-test order now upserts a protected
   customer record keyed by normalized phone number. Tablet staff see matching

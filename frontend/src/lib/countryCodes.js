@@ -1,7 +1,6 @@
 // Country calling codes for the checkout phone field.
-// Order: Monaco, Italie, États-Unis pinned first (core local audience for a
-// Beausoleil restaurant on the Monaco/Italy border + English-speaking
-// tourists), then everything else in normal French alphabetical order.
+// Order: France, Monaco and Italie pinned first for fast phone ordering,
+// followed by the rest in normal French alphabetical order.
 // Flags are derived from the ISO-3166-1 alpha-2 code so we never hand-type
 // emoji (each letter -> a Unicode regional-indicator symbol).
 function flagFromIso(iso2) {
@@ -12,6 +11,7 @@ function flagFromIso(iso2) {
 
 const RAW = [
   // --- pinned first ---
+  { name: "France", iso: "FR", dial: "+33" },
   { name: "Monaco", iso: "MC", dial: "+377" },
   { name: "Italie", iso: "IT", dial: "+39" },
   { name: "États-Unis", iso: "US", dial: "+1" },
@@ -25,7 +25,6 @@ const RAW = [
   { name: "Danemark", iso: "DK", dial: "+45" },
   { name: "Espagne", iso: "ES", dial: "+34" },
   { name: "Finlande", iso: "FI", dial: "+358" },
-  { name: "France", iso: "FR", dial: "+33" },
   { name: "Grèce", iso: "GR", dial: "+30" },
   { name: "Irlande", iso: "IE", dial: "+353" },
   { name: "Islande", iso: "IS", dial: "+354" },

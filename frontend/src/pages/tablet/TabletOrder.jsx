@@ -5,6 +5,7 @@ import BurgerBuilderModal from "@/components/BurgerBuilderModal.jsx";
 import MenuItemCard from "@/components/MenuItemCard.jsx";
 import { useCart } from "@/context/CartContext.jsx";
 import { useTabletAuth } from "@/context/TabletAuthContext.jsx";
+import { COUNTRY_CODES, DEFAULT_COUNTRY_ISO, findCountry } from "@/lib/countryCodes";
 import { apiClient, fmtError, formatEur, tabletClient } from "@/lib/api";
 
 const initialForm = {
@@ -25,6 +26,18 @@ const CATEGORY_LABELS = {
   "smash-burgers": "Smash burgers",
 };
 
+function phoneParts(phone) {
+  const digits = (phone || "").replace(/\D/g, "");
+  const country = [...COUNTRY_CODES]
+    .sort((left, right) => right.dial.length - left.dial.length)
+    .find((item) => digits.startsWith(item.dial.replace("+", "")));
+  if (!country) return { countryIso: DEFAULT_COUNTRY_ISO, number: phone || "" };
+  return {
+    countryIso: country.iso,
+    number: digits.slice(country.dial.replace("+", "").length),
+  };
+}
+
 export default function TabletOrder() {
   const { clear, items, removeLine, totalPrice, updateQuantity } = useCart();
   const { email, logout } = useTabletAuth();
@@ -32,6 +45,7 @@ export default function TabletOrder() {
   const [settings, setSettings] = useState(null);
   const [fulfillment, setFulfillment] = useState("pickup");
   const [payment, setPayment] = useState("cash");
+  const [countryIso, setCountryIso] = useState(DEFAULT_COUNTRY_ISO);
   const [form, setForm] = useState(initialForm);
   const [slots, setSlots] = useState([]);
   const [scheduledStart, setScheduledStart] = useState("");
@@ -41,6 +55,8 @@ export default function TabletOrder() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [suggesting, setSuggesting] = useState(false);
+  const dialCode = findCountry(countryIso).dial;
+  const fullPhone = form.phone.trim() ? `${dialCode} ${form.phone.trim()}` : "";
 
   useEffect(() => {
     Promise.all([apiClient.get("/menu"), apiClient.get("/settings")])
@@ -136,7 +152,7 @@ export default function TabletOrder() {
         fulfillment,
         customer_first_name: form.first || "Tablette",
         customer_last_name: form.last || "Client",
-        customer_phone: form.phone || "0000000000",
+        customer_phone: fullPhone || "0000000000",
         customer_email: form.email || null,
         address_line1: form.address1 || null,
         address_line2: form.address2 || null,
@@ -174,7 +190,7 @@ export default function TabletOrder() {
         fulfillment,
         customer_first_name: form.first.trim(),
         customer_last_name: form.last.trim(),
-        customer_phone: form.phone.trim(),
+        customer_phone: fullPhone,
         customer_email: form.email.trim() || null,
         address_line1: form.address1.trim() || null,
         address_line2: form.address2.trim() || null,
@@ -213,7 +229,9 @@ export default function TabletOrder() {
         toast.message("Aucun client trouvé pour ce numéro");
         return;
       }
-      setForm((current) => ({ ...current, ...data.customer }));
+      const parts = phoneParts(data.customer.phone);
+      setCountryIso(parts.countryIso);
+      setForm((current) => ({ ...current, ...data.customer, phone: parts.number }));
       setSuggestions([]);
       toast.success("Informations client retrouvées");
     } catch (error) {
@@ -224,7 +242,9 @@ export default function TabletOrder() {
   };
 
   const selectCustomer = (customer) => {
-    setForm((current) => ({ ...current, ...customer }));
+    const parts = phoneParts(customer.phone);
+    setCountryIso(parts.countryIso);
+    setForm((current) => ({ ...current, ...customer, phone: parts.number }));
     setSuggestions([]);
   };
 
@@ -376,6 +396,18 @@ export default function TabletOrder() {
               <Field label="Téléphone *">
                 <div className="relative">
                   <div className="flex gap-2">
+                  <select
+                    className="bt-input w-20 shrink-0 px-2"
+                    data-testid="tablet-phone-country"
+                    onChange={(event) => setCountryIso(event.target.value)}
+                    value={countryIso}
+                  >
+                    {COUNTRY_CODES.map((country) => (
+                      <option key={country.iso} value={country.iso}>
+                        {country.flag} {country.dial}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     className="bt-input min-w-0"
                     data-testid="tablet-customer-phone"
