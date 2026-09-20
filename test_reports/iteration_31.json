@@ -1,0 +1,35 @@
+{
+  "summary": "Verified schedule-CTA journey (Home/ClosedHero -> /menu?schedule=1 -> banner + intent -> checkout auto-delivery + highlighted required slot panel), backend closed-with-scheduled-slot bypass in _quote_or_create, tablet /api/tablet/customers/lookup auth+shape+found:false paths, and Rechercher UI fill+editable. Backend: 14/14 tests passed in /app/backend/tests/test_schedule_and_lookup.py plus prior 12/12 in test_new_features.py still valid. Frontend: schedule CTA present on Home (open state), routes to /menu?schedule=1, banner renders, sessionStorage bt_schedule_intent=1 set, mobile 390px shows NO horizontal overflow on the schedule menu path. Checkout with intent: fulfillment defaults to Livraison, delivery-schedule-panel is highlighted (animate-pulse border-2 border-[#FFB800]), submit disabled until slot chosen; slots endpoint returns 6 same-day windows starting 21:20. Tablet: temporary staff created, Rechercher fills first/last/phone/email (screenshot verified TESTMonaco / PrefixUser / +377 / testmonaco@...); manual edit after lookup works (fields remain editable). No orders were persisted; no kitchen accept/reprint/test-print calls. Tablet staff and any temp changes reverted.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Checkout schedule panel", "issues": ["Panel uses animate-pulse indefinitely on the whole panel; while attention-grabbing, some users may find it distracting once they interact. Consider stopping the pulse once a slot is selected."]},
+      {"screen": "Menu <option> children", "issues": ["React hydration warning: <span> inside <option> (delivery-slot-select) — comes from the source-mapping instrumentation on 'label' JSX text. Cosmetic only in dev; won't ship in prod build."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_schedule_and_lookup.py",
+    "/app/test_reports/pytest/schedule_lookup.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py _quote_or_create closed-scheduled branch: correctly bypasses _ensure_accepting_orders when scheduled_slot is truthy, then still rejects force_closed with 423. Ordinary closed+no-slot still returns 423 via _ensure_accepting_orders. Verified end-to-end.",
+    "delivery_slots() returns [] both when day is not open AND when now is past close (last_end < now+lead+window). This inherently enforces 'booking allowed only before today's upcoming opening (not after close)'.",
+    "Tablet lookup response returns only the eight editable fields {first,last,phone,email,address1,address2,postal,city}. Never leaks _id, order_number, status, password_hash. Auth enforced via require_tablet.",
+    "Checkout canSubmit correctly gates on (!scheduleIntent || !!selectedDeliveryStart) — schedule journey cannot be submitted without a slot, while ordinary delivery still permits ASAP (empty slot = 'Dès que possible').",
+    "Mobile /menu?schedule=1 verified: body.scrollWidth == clientWidth (390px = 390px), no horizontal overflow.",
+    "Minor nit: delivery-schedule-panel wraps the entire Field including label in animate-pulse. Users with vestibular sensitivity may prefer respecting prefers-reduced-motion. Consider gating animate-pulse with motion-safe:. Non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_schedule_and_lookup.py (new)"
+  ],
+  "success_rate": {"backend": "100% (14/14 new + previously 12/12)", "frontend": "100% on all critical schedule + lookup flows"},
+  "test_credentials": "Admin chahineisgoated@gmail.com / BurgerTimes2026! (from /app/memory/test_credentials.md). Temp tablet accounts prefixed TEST_tab_ui_sched_* created and deleted after each run.",
+  "seed_data_creation": "Only temporary: TEST_tab_ui_sched_<ts>@burgertimes.fr tablet staff created via /api/admin/tablet-staff and deleted at end of run. No orders created (only /checkout/quote which does not persist).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Two safe backend test files now: /app/backend/tests/test_new_features.py (prior features) and /app/backend/tests/test_schedule_and_lookup.py (this iteration's CTA + lookup + closed-schedule logic). Neither creates a real order or fires the printer. Live delivery-slots endpoint returned 6 same-day windows at test time; if the run happens outside opening/lead, TestScheduleQuoteEndpoint.test_quote_invalid_schedule_time_400 still passes (arbitrary far-future time is rejected). Tablet lookup population test skips gracefully when no non-test customer orders exist.",
+  "rca of the issue": "N/A — no bugs found."
+}

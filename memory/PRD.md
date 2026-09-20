@@ -22,6 +22,20 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Scheduled-order entry flow and tablet customer recall (2026-02-14):** Added
+  a `Programmer une commande` CTA to both the open and closed homepage views.
+  It takes customers to the menu, preserves schedule intent, defaults checkout
+  to delivery, and highlights the now-required delivery-window selector. A
+  valid same-day scheduled delivery can be submitted while the restaurant is
+  closed before its next opening; normal ASAP orders remain blocked while
+  closed, and no scheduling is offered after the day closes. The callout pulse
+  respects reduced-motion preferences and stops after a window is chosen.
+  Added the authenticated `/api/tablet/customers/lookup` route and a
+  `Rechercher` button on `/tablet`: a known phone number fills the latest
+  real customer's contact and address details, all of which remain editable.
+  Also fixed the mobile menu category strip to wrap instead of overflowing.
+  Verified in iteration_31 (14/14 new backend tests + previous 12/12), with
+  full schedule/browser flow, 390px no-overflow check, and no printer calls.
 - **Delivery scheduling, menu removals, and staff tablet (2026-02-14):** Added
   per-menu-item `removable_ingredients` managed in `/admin/menu`; customers
   choose options such as "Sans oignons" while configuring that selected item,

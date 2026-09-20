@@ -427,7 +427,13 @@ export default function Checkout() {
                   {deliverySlots.length > 0 && (
                     <div
                       data-testid="delivery-schedule-panel"
-                      className={scheduleIntent ? "animate-pulse border-2 border-[#FFB800] p-3" : ""}
+                      className={
+                        scheduleIntent && !selectedDeliveryStart
+                          ? "motion-safe:animate-pulse border-2 border-[#FFB800] p-3"
+                          : scheduleIntent
+                            ? "border-2 border-[#FFB800] p-3"
+                            : ""
+                      }
                     >
                     <Field label={scheduleIntent ? "Choisis ton créneau de livraison" : "Créneau de livraison (optionnel)"}>
                       <select
