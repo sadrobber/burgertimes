@@ -410,6 +410,76 @@ export default function TabletOrder() {
               />
             </div>
 
+            <section className="border-y-2 border-[#EF2B2D] py-4" data-testid="tablet-customer-search-section">
+              <div className="font-display text-2xl uppercase">Retrouver un client</div>
+              <p className="mt-1 text-xs text-[#A1A1A1]">
+                Recherche les anciens clients par leur numéro de téléphone.
+              </p>
+              <Field label="Téléphone">
+                <div className="mt-1 grid grid-cols-[88px_minmax(0,1fr)] gap-2">
+                  <select
+                    className="bt-input px-2"
+                    data-testid="tablet-phone-country"
+                    onChange={(event) => setCountryIso(event.target.value)}
+                    value={countryIso}
+                  >
+                    {COUNTRY_CODES.map((country) => (
+                      <option key={country.iso} value={country.iso}>
+                        {country.flag} {country.dial}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="bt-input min-w-0"
+                    data-testid="tablet-customer-phone"
+                    onChange={(event) => setForm({ ...form, phone: event.target.value })}
+                    value={form.phone}
+                  />
+                </div>
+                <button
+                  className="bt-btn-secondary mt-2 w-full py-3 text-sm disabled:opacity-40"
+                  data-testid="tablet-customer-lookup"
+                  disabled={lookupLoading}
+                  onClick={lookupCustomer}
+                  type="button"
+                >
+                  {lookupLoading ? "Recherche…" : "Rechercher ce client"}
+                </button>
+              </Field>
+              {suggesting && (
+                <div className="mt-2 text-xs text-[#A1A1A1]" data-testid="tablet-customer-suggesting">
+                  Recherche dans les anciens clients…
+                </div>
+              )}
+              {suggestions.length > 0 && (
+                <div
+                  className="mt-2 border-2 border-[#EF2B2D] bg-[#0A0A0A] p-1"
+                  data-testid="tablet-customer-suggestions"
+                >
+                  {suggestions.map((customer) => (
+                    <button
+                      className="block w-full px-3 py-3 text-left text-sm hover:bg-[#262626]"
+                      data-testid={`tablet-customer-suggestion-${customer.phone}`}
+                      key={customer.phone}
+                      onClick={() => selectCustomer(customer)}
+                      type="button"
+                    >
+                      <span className="block font-bold">{customer.first} {customer.last}</span>
+                      <span className="text-[#A1A1A1]">{customer.phone}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Field label="Email">
+                <input
+                  className="bt-input"
+                  data-testid="tablet-customer-email"
+                  onChange={(event) => setForm({ ...form, email: event.target.value })}
+                  value={form.email}
+                />
+              </Field>
+            </section>
+
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-3">
               <Field label="Prénom *">
@@ -426,73 +496,6 @@ export default function TabletOrder() {
                   data-testid="tablet-customer-last"
                   onChange={(e) => setForm({ ...form, last: e.target.value })}
                   value={form.last}
-                />
-              </Field>
-              </div>
-              <div className="space-y-3">
-              <Field label="Téléphone *">
-                <div className="relative">
-                  <div className="flex gap-2">
-                  <select
-                    className="bt-input w-20 shrink-0 px-2"
-                    data-testid="tablet-phone-country"
-                    onChange={(event) => setCountryIso(event.target.value)}
-                    value={countryIso}
-                  >
-                    {COUNTRY_CODES.map((country) => (
-                      <option key={country.iso} value={country.iso}>
-                        {country.flag} {country.dial}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    className="bt-input min-w-0"
-                    data-testid="tablet-customer-phone"
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    value={form.phone}
-                  />
-                  <button
-                    className="bt-btn-secondary shrink-0 px-3 text-xs disabled:opacity-40"
-                    data-testid="tablet-customer-lookup"
-                    disabled={lookupLoading}
-                    onClick={lookupCustomer}
-                    type="button"
-                  >
-                    {lookupLoading ? "..." : "Rechercher"}
-                  </button>
-                  </div>
-                  {suggesting && (
-                    <div className="mt-1 text-xs text-[#A1A1A1]" data-testid="tablet-customer-suggesting">
-                      Recherche…
-                    </div>
-                  )}
-                  {suggestions.length > 0 && (
-                    <div
-                      className="absolute z-20 mt-1 w-full border-2 border-[#EF2B2D] bg-[#141414] p-1 shadow-2xl"
-                      data-testid="tablet-customer-suggestions"
-                    >
-                      {suggestions.map((customer) => (
-                        <button
-                          className="block w-full px-3 py-2 text-left text-sm hover:bg-[#262626]"
-                          data-testid={`tablet-customer-suggestion-${customer.phone}`}
-                          key={customer.phone}
-                          onClick={() => selectCustomer(customer)}
-                          type="button"
-                        >
-                          <span className="font-bold">{customer.first} {customer.last}</span>
-                          <span className="ml-2 text-[#A1A1A1]">{customer.phone}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Field>
-              <Field label="Email">
-                <input
-                  className="bt-input"
-                  data-testid="tablet-customer-email"
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  value={form.email}
                 />
               </Field>
               </div>

@@ -1054,7 +1054,7 @@ async def tablet_create_order(payload: CheckoutPayload, staff: dict = Depends(re
         staff.get("email", "tablet"),
         note="Confirmée et imprimée depuis /tablet",
     )
-    asyncio.create_task(_push_print_job_background(order_id, accepted, copies=1))
+    asyncio.create_task(_push_print_job_background(order_id, accepted, copies=3))
     return {**result, "print_queued": True}
 
 
@@ -1062,11 +1062,30 @@ def _phone_key(phone: Optional[str]) -> str:
     return "".join(char for char in (phone or "") if char.isdigit())
 
 
+def _phone_search_parts(phone: Optional[str]) -> set[str]:
+    digits = _phone_key(phone)
+    if not digits:
+        return set()
+    parts = {digits}
+    if digits.startswith("00"):
+        parts.add(digits[2:])
+    if digits.startswith("0"):
+        parts.add(digits[1:])
+    if len(digits) >= 6:
+        parts.add(digits[-9:])
+    return {part for part in parts if len(part) >= 3}
+
+
+def _source_phone(source: Dict[str, Any]) -> str:
+    customer = source.get("customer") if isinstance(source.get("customer"), dict) else {}
+    return source.get("phone") or source.get("customer_phone") or customer.get("phone") or ""
+
+
 def _customer_payload(source: Dict[str, Any]) -> Dict[str, str]:
     return {
         "first": source.get("first") or source.get("customer_first_name") or "",
         "last": source.get("last") or source.get("customer_last_name") or "",
-        "phone": source.get("phone") or source.get("customer_phone") or "",
+        "phone": _source_phone(source),
         "email": source.get("email") or source.get("customer_email") or "",
         "address1": source.get("address1") or source.get("address_line1") or "",
         "address2": source.get("address2") or source.get("address_line2") or "",
@@ -1095,26 +1114,31 @@ async def _upsert_customer(order: Dict[str, Any]) -> None:
 
 
 async def _matching_customers(phone: str, limit: int = 5) -> list[Dict[str, str]]:
-    incoming = _phone_key(phone)
-    if len(incoming) < 3:
+    search_parts = _phone_search_parts(phone)
+    if not search_parts:
         return []
-    search_parts = {incoming, incoming.lstrip("0")}
-    search_parts.discard("")
     matches: dict[str, Dict[str, str]] = {}
     customers = await db.customers.find({}, {"_id": 0}).sort("updated_at", -1).to_list(5000)
     for customer in customers:
-        saved = customer.get("phone_key") or _phone_key(customer.get("phone"))
+        saved = customer.get("phone_key") or _phone_key(_source_phone(customer))
         if any(part in saved or saved.endswith(part) for part in search_parts):
             matches.setdefault(saved, _customer_payload(customer))
             if len(matches) >= limit:
                 return list(matches.values())
 
     legacy_orders = await db.orders.find(
-        {"test_order": {"$ne": True}, "customer_phone": {"$exists": True}},
+        {
+            "test_order": {"$ne": True},
+            "$or": [
+                {"customer_phone": {"$exists": True}},
+                {"phone": {"$exists": True}},
+                {"customer.phone": {"$exists": True}},
+            ],
+        },
         {"_id": 0},
     ).sort("created_at", -1).to_list(5000)
     for order in legacy_orders:
-        saved = _phone_key(order.get("customer_phone"))
+        saved = _phone_key(_source_phone(order))
         if saved and any(part in saved or saved.endswith(part) for part in search_parts):
             matches.setdefault(saved, _customer_payload(order))
             if len(matches) >= limit:
@@ -1136,12 +1160,13 @@ async def tablet_customer_lookup(
     _: dict = Depends(require_tablet),
 ):
     """Return the latest real customer record matching a restaurant phone call."""
-    incoming = _phone_key(phone)
-    if len(incoming) < 4:
+    incoming_parts = _phone_search_parts(phone)
+    if not incoming_parts or max(map(len, incoming_parts)) < 4:
         raise HTTPException(status_code=400, detail="Numéro de téléphone incomplet.")
     for customer in await _matching_customers(phone, limit=20):
         saved = _phone_key(customer["phone"])
-        if saved == incoming or (len(saved) >= 9 and saved[-9:] == incoming[-9:]):
+        saved_parts = _phone_search_parts(saved)
+        if any(part in saved_parts for part in incoming_parts):
             return {"found": True, "customer": customer}
     return {"found": False}
 
@@ -1396,7 +1421,7 @@ async def kitchen_accept_order(order_id: str, kitchen: dict = Depends(require_ki
     # create_task so a slow/unreachable Pi never delays this response —
     # replaces the old client-side window.print() entirely; the tablet no
     # longer prints anything itself.
-    asyncio.create_task(_push_print_job_background(order_id, updated))
+    asyncio.create_task(_push_print_job_background(order_id, updated, copies=3))
     return {"already_decided": False, "order": updated}
 
 
@@ -1454,7 +1479,7 @@ async def kitchen_reprint_order(order_id: str, _: dict = Depends(require_kitchen
         raise HTTPException(status_code=404, detail="Commande introuvable")
     order = _strip_mongo(order)
     # Only 1 copy on a manual reprint (e.g. paper jam) — accept already
-    # sent 2 the first time.
+    # sent three copies the first time.
     ok = await send_print_job(order, copies=1)
     if ok:
         await _mark_order_printed(order_id)
