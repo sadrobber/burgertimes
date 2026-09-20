@@ -19,6 +19,12 @@ const initialForm = {
   notes: "",
 };
 
+const CATEGORY_LABELS = {
+  signatures: "Burgers signatures",
+  classiques: "Les classiques",
+  "smash-burgers": "Smash burgers",
+};
+
 export default function TabletOrder() {
   const { clear, items, removeLine, totalPrice, updateQuantity } = useCart();
   const { email, logout } = useTabletAuth();
@@ -33,6 +39,8 @@ export default function TabletOrder() {
   const [submitting, setSubmitting] = useState(false);
   const [builderOpen, setBuilderOpen] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggesting, setSuggesting] = useState(false);
 
   useEffect(() => {
     Promise.all([apiClient.get("/menu"), apiClient.get("/settings")])
@@ -60,6 +68,32 @@ export default function TabletOrder() {
       cancelled = true;
     };
   }, [fulfillment]);
+
+  useEffect(() => {
+    const phone = form.phone.trim();
+    if (phone.replace(/\D/g, "").length < 3) {
+      setSuggestions([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const timeout = window.setTimeout(async () => {
+      setSuggesting(true);
+      try {
+        const { data } = await tabletClient.get("/tablet/customers/suggestions", {
+          params: { phone },
+        });
+        if (!cancelled) setSuggestions(data.customers || []);
+      } catch {
+        if (!cancelled) setSuggestions([]);
+      } finally {
+        if (!cancelled) setSuggesting(false);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [form.phone]);
 
   const cartPayload = useMemo(
     () =>
@@ -150,7 +184,11 @@ export default function TabletOrder() {
         payment_method: payment,
         scheduled_delivery_start: scheduledStart || null,
       });
-      toast.success(`Commande #${data.order_number} enregistrée`);
+      toast.success(
+        data.print_queued
+          ? `Commande #${data.order_number} enregistrée et envoyée à l'impression`
+          : `Commande #${data.order_number} programmée`,
+      );
       clear();
       setForm(initialForm);
       setScheduledStart("");
@@ -176,12 +214,18 @@ export default function TabletOrder() {
         return;
       }
       setForm((current) => ({ ...current, ...data.customer }));
+      setSuggestions([]);
       toast.success("Informations client retrouvées");
     } catch (error) {
       toast.error(fmtError(error));
     } finally {
       setLookupLoading(false);
     }
+  };
+
+  const selectCustomer = (customer) => {
+    setForm((current) => ({ ...current, ...customer }));
+    setSuggestions([]);
   };
 
   const categories = [...new Set(menu.map((item) => item.category))];
@@ -226,8 +270,8 @@ export default function TabletOrder() {
           </div>
           {categories.map((category) => (
             <section key={category} data-testid={`tablet-category-${category}`}>
-              <h2 className="mb-3 font-accent text-sm uppercase tracking-widest text-[#EF2B2D]">
-                {category}
+              <h2 className="mb-3 border-l-4 border-[#EF2B2D] pl-3 font-display text-3xl uppercase leading-none text-[#EF2B2D] sm:text-4xl">
+                {CATEGORY_LABELS[category] || category.replaceAll("-", " ")}
               </h2>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
                 {menu
@@ -309,7 +353,8 @@ export default function TabletOrder() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-3">
               <Field label="Prénom *">
                 <input
                   className="bt-input"
@@ -326,8 +371,11 @@ export default function TabletOrder() {
                   value={form.last}
                 />
               </Field>
+              </div>
+              <div className="space-y-3">
               <Field label="Téléphone *">
-                <div className="flex gap-2">
+                <div className="relative">
+                  <div className="flex gap-2">
                   <input
                     className="bt-input min-w-0"
                     data-testid="tablet-customer-phone"
@@ -343,6 +391,31 @@ export default function TabletOrder() {
                   >
                     {lookupLoading ? "..." : "Rechercher"}
                   </button>
+                  </div>
+                  {suggesting && (
+                    <div className="mt-1 text-xs text-[#A1A1A1]" data-testid="tablet-customer-suggesting">
+                      Recherche…
+                    </div>
+                  )}
+                  {suggestions.length > 0 && (
+                    <div
+                      className="absolute z-20 mt-1 w-full border-2 border-[#EF2B2D] bg-[#141414] p-1 shadow-2xl"
+                      data-testid="tablet-customer-suggestions"
+                    >
+                      {suggestions.map((customer) => (
+                        <button
+                          className="block w-full px-3 py-2 text-left text-sm hover:bg-[#262626]"
+                          data-testid={`tablet-customer-suggestion-${customer.phone}`}
+                          key={customer.phone}
+                          onClick={() => selectCustomer(customer)}
+                          type="button"
+                        >
+                          <span className="font-bold">{customer.first} {customer.last}</span>
+                          <span className="ml-2 text-[#A1A1A1]">{customer.phone}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </Field>
               <Field label="Email">
@@ -353,6 +426,7 @@ export default function TabletOrder() {
                   value={form.email}
                 />
               </Field>
+              </div>
             </div>
 
             {fulfillment === "delivery" && (
@@ -463,7 +537,7 @@ export default function TabletOrder() {
               disabled={!canSubmit || submitting}
               onClick={submit}
             >
-              {submitting ? "..." : "Enregistrer la commande"}
+              {submitting ? "..." : "Enregistrer la commande et imprimer"}
             </button>
           </div>
         </aside>

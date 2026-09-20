@@ -36,6 +36,9 @@ DEFAULT_SODA_FLAVOURS = [
     "Oasis Tropical",
 ]
 
+DEFAULT_BURGER_REMOVALS = ["oignons", "cornichons", "salade", "tomate", "sauce"]
+BURGER_CATEGORIES = ["signatures", "classiques", "smash-burgers"]
+
 DEFAULT_HOURS = {
     "mon": {"is_open": False, "ranges": []},
     "tue": {"is_open": True, "ranges": [{"open": "11:30", "close": "14:30"}, {"open": "18:30", "close": "22:30"}]},
@@ -237,6 +240,18 @@ async def seed_menu_data(db) -> None:
     await _seed_collection(db, "burger_meats", "burger_meats.json")
     await _seed_collection(db, "burger_cheeses", "burger_cheeses.json")
     await _seed_collection(db, "burger_supplements", "burger_supplements.json")
+    result = await db.menu_items.update_many(
+        {
+            "category": {"$in": BURGER_CATEGORIES},
+            "$or": [
+                {"removable_ingredients": {"$exists": False}},
+                {"removable_ingredients": []},
+            ],
+        },
+        {"$set": {"removable_ingredients": DEFAULT_BURGER_REMOVALS}},
+    )
+    if result.modified_count:
+        logger.info("Added default removal choices to %d burger items", result.modified_count)
 
 
 REFERENCE_COLLECTIONS = [
@@ -298,6 +313,7 @@ async def ensure_indexes(db) -> None:
     await db.menu_items.create_index("category")
     await db.orders.create_index("order_number", unique=True)
     await db.orders.create_index([("created_at", -1)])
+    await db.customers.create_index("phone_key", unique=True, sparse=True)
     logger.info("Indexes ensured")
 
 

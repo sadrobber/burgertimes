@@ -992,6 +992,7 @@ async def _quote_or_create(
         "updated_at": utc_now_iso(),
     }
     await db.orders.insert_one(dict(order))
+    await _upsert_customer(order)
 
     # Fire-and-forget notification
     try:
@@ -1020,16 +1021,111 @@ async def checkout_session(payload: CheckoutPayload):
 
 @api.post("/tablet/orders")
 async def tablet_create_order(payload: CheckoutPayload, staff: dict = Depends(require_tablet)):
-    return await _quote_or_create(
+    result = await _quote_or_create(
         payload,
         create=True,
         order_source="tablet",
         tablet_taken_by=staff.get("email"),
     )
+    if payload.scheduled_delivery_start:
+        return {**result, "print_queued": False}
+
+    order_id = result["order_id"]
+    now = utc_now_iso()
+    claimed = await db.orders.find_one_and_update(
+        {
+            "id": order_id,
+            "$or": [{"kitchen_decision": None}, {"kitchen_decision": {"$exists": False}}],
+        },
+        {
+            "$set": {
+                "kitchen_decision": "accepted",
+                "kitchen_decision_at": now,
+                "kitchen_decision_by": staff.get("email", "tablet"),
+            }
+        },
+        return_document=ReturnDocument.AFTER,
+    )
+    if claimed is None:
+        raise HTTPException(status_code=409, detail="La commande a déjà été traitée.")
+    accepted = await _finalize_order_status(
+        order_id,
+        "accepted",
+        staff.get("email", "tablet"),
+        note="Confirmée et imprimée depuis /tablet",
+    )
+    asyncio.create_task(_push_print_job_background(order_id, accepted, copies=1))
+    return {**result, "print_queued": True}
 
 
 def _phone_key(phone: Optional[str]) -> str:
     return "".join(char for char in (phone or "") if char.isdigit())
+
+
+def _customer_payload(source: Dict[str, Any]) -> Dict[str, str]:
+    return {
+        "first": source.get("first") or source.get("customer_first_name") or "",
+        "last": source.get("last") or source.get("customer_last_name") or "",
+        "phone": source.get("phone") or source.get("customer_phone") or "",
+        "email": source.get("email") or source.get("customer_email") or "",
+        "address1": source.get("address1") or source.get("address_line1") or "",
+        "address2": source.get("address2") or source.get("address_line2") or "",
+        "postal": source.get("postal") or source.get("postal_code") or "",
+        "city": source.get("city") or source.get("city") or "",
+    }
+
+
+async def _upsert_customer(order: Dict[str, Any]) -> None:
+    if order.get("test_order"):
+        return
+    phone_key = _phone_key(order.get("customer_phone"))
+    if not phone_key:
+        return
+    customer = _customer_payload(order)
+    now = utc_now_iso()
+    await db.customers.update_one(
+        {"phone_key": phone_key},
+        {
+            "$set": {**customer, "phone_key": phone_key, "updated_at": now},
+            "$setOnInsert": {"id": gen_id(), "created_at": now},
+            "$inc": {"order_count": 1},
+        },
+        upsert=True,
+    )
+
+
+async def _matching_customers(phone: str, limit: int = 5) -> list[Dict[str, str]]:
+    incoming = _phone_key(phone)
+    if len(incoming) < 3:
+        return []
+    matches: dict[str, Dict[str, str]] = {}
+    customers = await db.customers.find({}, {"_id": 0}).sort("updated_at", -1).to_list(5000)
+    for customer in customers:
+        saved = customer.get("phone_key") or _phone_key(customer.get("phone"))
+        if incoming in saved or saved.endswith(incoming):
+            matches.setdefault(saved, _customer_payload(customer))
+            if len(matches) >= limit:
+                return list(matches.values())
+
+    legacy_orders = await db.orders.find(
+        {"test_order": {"$ne": True}, "customer_phone": {"$exists": True}},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(5000)
+    for order in legacy_orders:
+        saved = _phone_key(order.get("customer_phone"))
+        if saved and (incoming in saved or saved.endswith(incoming)):
+            matches.setdefault(saved, _customer_payload(order))
+            if len(matches) >= limit:
+                break
+    return list(matches.values())
+
+
+@api.get("/tablet/customers/suggestions")
+async def tablet_customer_suggestions(
+    phone: str = Query(min_length=3),
+    _: dict = Depends(require_tablet),
+):
+    return {"customers": await _matching_customers(phone)}
 
 
 @api.get("/tablet/customers/lookup")
@@ -1041,25 +1137,10 @@ async def tablet_customer_lookup(
     incoming = _phone_key(phone)
     if len(incoming) < 4:
         raise HTTPException(status_code=400, detail="Numéro de téléphone incomplet.")
-    docs = await db.orders.find(
-        {"test_order": {"$ne": True}, "customer_phone": {"$exists": True}}
-    ).sort("created_at", -1).to_list(5000)
-    for order in docs:
-        saved = _phone_key(order.get("customer_phone"))
+    for customer in await _matching_customers(phone, limit=20):
+        saved = _phone_key(customer["phone"])
         if saved == incoming or (len(saved) >= 9 and saved[-9:] == incoming[-9:]):
-            return {
-                "found": True,
-                "customer": {
-                    "first": order.get("customer_first_name") or "",
-                    "last": order.get("customer_last_name") or "",
-                    "phone": order.get("customer_phone") or phone,
-                    "email": order.get("customer_email") or "",
-                    "address1": order.get("address_line1") or "",
-                    "address2": order.get("address_line2") or "",
-                    "postal": order.get("postal_code") or "",
-                    "city": order.get("city") or "",
-                },
-            }
+            return {"found": True, "customer": customer}
     return {"found": False}
 
 
@@ -1269,7 +1350,11 @@ async def _mark_order_printed(order_id: str) -> bool:
     return res.matched_count > 0
 
 
-async def _push_print_job_background(order_id: str, order: Dict[str, Any]) -> None:
+async def _push_print_job_background(
+    order_id: str,
+    order: Dict[str, Any],
+    copies: int = 3,
+) -> None:
     """Runs detached from the request/response cycle so a slow or
     unreachable Pi/tunnel never delays the Accept response for the tablet.
     The kitchen dashboard's polling picks up the resulting print-status
@@ -1277,7 +1362,7 @@ async def _push_print_job_background(order_id: str, order: Dict[str, Any]) -> No
     try:
         # 3 physical copies on accept — kitchen counter, delivery bag, and
         # a spare per owner's request.
-        if await send_print_job(order, copies=3):
+        if await send_print_job(order, copies=copies):
             await _mark_order_printed(order_id)
     except Exception:  # noqa: BLE001
         logger.exception("Printer push failed")

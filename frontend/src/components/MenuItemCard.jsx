@@ -61,6 +61,9 @@ export default function MenuItemCard({ compact = false, item, sodaFlavours = [] 
     hasMenu ||
     (item.formats && item.formats.length > 0) ||
     (item.removable_ingredients && item.removable_ingredients.length > 0);
+  const addLabel = compact && (item.removable_ingredients || []).length > 0
+    ? "Personnaliser"
+    : t("menu.add");
 
   return (
     <div
@@ -216,7 +219,7 @@ export default function MenuItemCard({ compact = false, item, sodaFlavours = [] 
               data-testid={`item-${item.id}-configure`}
               className="bt-btn-primary py-2 px-2.5 sm:px-4 text-xs sm:text-sm flex-1"
             >
-              {t("menu.add")}
+              {addLabel}
             </button>
           ) : hasConfig && openConfig ? (
             <>
