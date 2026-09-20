@@ -22,6 +22,12 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Pi bridge secret propagation fixed (2026-02-14):** The backend print
+  bridge now forwards `KITCHEN_PRINTER_SECRET` in the Pi's required
+  `X-Print-Secret` header. Preview bridge health succeeded and the owner
+  explicitly approved one physical `/api/kitchen/test-print`; the Pi returned
+  success. `KITCHEN_PRINTER_SECRET` is a new production secret and must be
+  added before the next production publish.
 - **Pi bridge handoff (2026-02-14):** Provided the current complete
   `pi_print_bridge/server.py` copy for the restaurant Raspberry Pi on request.
   No Pi-side change was required for the tablet country-code selector.

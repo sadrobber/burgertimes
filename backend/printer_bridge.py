@@ -28,9 +28,11 @@ async def send_print_job(order: Dict[str, Any], copies: int = 1) -> bool:
         logger.warning("KITCHEN_PRINTER_WEBHOOK_URL not set — skipping printer push")
         return False
     payload = {**order, "print_copies": copies}
+    secret = os.environ.get("KITCHEN_PRINTER_SECRET")
+    headers = {"X-Print-Secret": secret} if secret else None
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.post(url, json=payload)
+            resp = await client.post(url, json=payload, headers=headers)
         if resp.status_code == 200:
             return True
         logger.warning("Printer webhook returned %s: %s", resp.status_code, resp.text[:300])
