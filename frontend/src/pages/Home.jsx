@@ -14,7 +14,7 @@ const HERO_IMG =
   "https://images.unsplash.com/photo-1678110707289-ab14382a1625?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwyfHxzbWFzaCUyMGJ1cmdlciUyMGJsYWNrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3ODU4NzcyNDF8MA&ixlib=rb-4.1.0&q=85";
 
 export default function Home() {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
   const [reviews, setReviews] = useState([]);
   const [settings, setSettings] = useState(null);
   const { status } = useRestaurantStatus();
@@ -62,9 +62,19 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="mt-3 md:mt-4 font-display text-5xl sm:text-6xl md:text-7xl uppercase leading-[0.85]"
             >
-              <span className="block">Smash.</span>
-              <span className="block text-[#EF2B2D]">Sizzle.</span>
-              <span className="block">Serve.</span>
+              {lang === "fr" ? (
+                <>
+                  <span className="block">Smash.</span>
+                  <span className="block text-[#EF2B2D]">Tendre.</span>
+                  <span className="block">Savourer.</span>
+                </>
+              ) : (
+                <>
+                  <span className="block">Smash.</span>
+                  <span className="block text-[#EF2B2D]">Sizzle.</span>
+                  <span className="block">Serve.</span>
+                </>
+              )}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 24 }}

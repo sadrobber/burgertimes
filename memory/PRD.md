@@ -22,6 +22,10 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **French hero headline refined (2026-02-14):** The French homepage now shows
+  `SMASH. TENDRE. SAVOURER.` while the English view keeps its original
+  `SMASH. SIZZLE. SERVE.` line. Verified on desktop and 390 px mobile with no
+  horizontal overflow.
 - **Fixed NEW badge** (2026-02-XX): the user-attached PNG had NO fully-transparent pixels (every corner was `rgba(0,0,0,128)` — half-opaque black), so the badge rendered as a dark rectangle covering food photos. Post-processed the alpha channel (`alpha < 240 → 0`, rest → 255), cropped to bounding box, saved as `/app/frontend/public/new-badge.png` (481×465, 160 KB, 36 % transparent, 51 % fully opaque). Also shrank badge from 64/80 px → 48/56 px and repositioned to `-top-2 -right-2` so it sits like a stamp on the corner instead of occupying image real estate.
 - **"Mark as new" per menu item** (2026-02-XX): added `is_new` field to `MenuItem` / `MenuItemCreate` / `MenuItemUpdate` (default `false`, admin toggles via a **Nouveau** checkbox in the item edit modal at `/admin/menu`). When `is_new=true` the customer menu card shows the red starburst NEW badge stamped on the top-right corner of the image.
 - Full backend + frontend brutalist theme, tacos builder, checkout, admin dashboard (all 8 pages).
