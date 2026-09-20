@@ -22,6 +22,12 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Configurable tablet login (2026-02-14):** Seeded the permanent
+  `tablet@burgertimes.fr` tablet-role account from
+  `TABLET_DEFAULT_EMAIL` / `TABLET_DEFAULT_PASSWORD`. The account is updated
+  idempotently on backend startup if the configured password changes; it was
+  verified in preview after a backend restart. The two keys are new and still
+  need to be added to the production secrets UI before the next publish.
 - **Scheduled-order entry flow and tablet customer recall (2026-02-14):** Added
   a `Programmer une commande` CTA to both the open and closed homepage views.
   It takes customers to the menu, preserves schedule intent, defaults checkout

@@ -149,6 +149,39 @@ async def seed_kitchen_user(db) -> None:
         logger.info("Updated kitchen password for: %s", kitchen_email)
 
 
+async def seed_tablet_user(db) -> None:
+    """Seed the owner-configurable order-taking tablet account from env."""
+    tablet_email = (os.environ.get("TABLET_DEFAULT_EMAIL") or "").lower().strip()
+    tablet_password = os.environ.get("TABLET_DEFAULT_PASSWORD")
+    if not tablet_email or not tablet_password:
+        logger.warning("Tablet account secrets not set; skipping tablet user seed")
+        return
+
+    existing = await db.admin_users.find_one({"email": tablet_email})
+    if existing is None:
+        await db.admin_users.insert_one(
+            {
+                "id": _uuid(),
+                "email": tablet_email,
+                "password_hash": hash_password(tablet_password),
+                "role": "tablet",
+                "active": True,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        logger.info("Seeded tablet user: %s", tablet_email)
+        return
+    if existing.get("role") != "tablet":
+        logger.error("Tablet seed skipped: %s already has role %s", tablet_email, existing.get("role"))
+        return
+    if not verify_password(tablet_password, existing["password_hash"]):
+        await db.admin_users.update_one(
+            {"email": tablet_email},
+            {"$set": {"password_hash": hash_password(tablet_password), "active": True}},
+        )
+        logger.info("Updated tablet password for: %s", tablet_email)
+
+
 async def seed_settings(db) -> None:
     existing = await db.settings.find_one({"id": "singleton"})
     if existing is None:
@@ -278,5 +311,6 @@ async def run_seed(db) -> None:
     await ensure_indexes(db)
     await seed_admin(db)
     await seed_kitchen_user(db)
+    await seed_tablet_user(db)
     await seed_settings(db)
     await seed_menu_data(db)
