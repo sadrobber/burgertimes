@@ -1,0 +1,33 @@
+{
+  "summary": "Validated tablet delivery-fee waiver end-to-end. Backend: 8/8 pytest passed in /app/backend/tests/test_tablet_delivery_waiver.py — (a) POST /api/tablet/quote (delivery, valid tablet auth) returns delivery_fee=0, tablet_delivery_waived=true, total==subtotal, and no order fields; (b) POST /api/tablet/quote without auth is 401/403; (c) POST /api/checkout/quote for the equivalent public delivery payload uses normal delivery-fee rules with tablet_delivery_waived=false; (d) same items yield same subtotal in both quotes; (e) tablet pickup quote keeps tablet_delivery_waived=false and fee=0; (f) tablet quote with an active free_delivery coupon does NOT consume it (verified used_count=0 in /api/admin/coupons after quote) and does NOT set coupon_code/discount on the response — the waiver short-circuits _apply_coupon (server.py L910-913); (g,h) static-source assertions confirm immediate tablet orders push copies=3 via _push_print_job_background and the scheduled branch returns {print_queued:false} BEFORE any push. Frontend: /tablet at 390px — logged in as tablet@burgertimes.fr, added 'Mozza Sticks (x8)' (8.00 €) from Sides, switched to Livraison; [data-testid=tablet-delivery-fee-waived] renders 'Livraison tablette' + 'Offerte' in green (#3DDC97); regular 'Livraison' fee row hidden; [data-testid=tablet-order-total] shows 'Total 8.00 €' (== subtotal); documentElement.scrollWidth == 390 (no horizontal overflow). Submit was NOT clicked; no /api/tablet/orders POST issued; no kitchen action fired; no physical print triggered.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/tablet summary (delivery, waived)", "issues": ["Purely cosmetic: the two <span>s inside [data-testid=tablet-delivery-fee-waived] have no separator so text nodes concatenate to 'Livraison tabletteOfferte' in innerText (they are visually separated by justify-between so the on-screen appearance matches the spec 'Livraison tablette — Offerte'). Non-blocking; consider adding an em-dash for screen readers if desired."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_tablet_delivery_waiver.py",
+    "/app/test_reports/pytest/tablet_waiver.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "_quote_or_create (server.py L910-913): tablet_delivery_waived = order_source=='tablet' AND fulfillment=='delivery' — evaluated once and (a) zeros delivery_fee, (b) SKIPS the _apply_coupon branch via `elif payload.coupon_code:`. Since coupon consumption only happens inside _apply_coupon when create=True (server.py L831), and _apply_coupon is never called on the tablet-waiver path, coupons cannot be consumed by tablet quote OR by tablet order creation with a coupon_code — good, matches spec that coupon consumption stays unchanged (it happens only via public /checkout/session).",
+    "tablet_delivery_waived is always emitted in the quote response (True or False) — makes it easy for both public /checkout/quote consumers (always False) and tablet UI (True on delivery) to branch safely.",
+    "Public /api/checkout/quote correctly omits order_source, defaulting to 'web' → waiver never triggers on public path. Verified live.",
+    "TabletOrder.jsx L593-601: waived row is gated on `fulfillment==='delivery' && quote?.tablet_delivery_waived` — matches server flag; regular fee row (L587) is gated on `quote?.delivery_fee > 0` so it stays hidden when fee is 0.",
+    "Static contract: server.py contains `_push_print_job_background(order_id, accepted, copies=3)` for immediate tablet orders and the scheduled branch returns `\"print_queued\": False` before that line — confirms tablet immediate = 3 copies, scheduled tablet = 0 copies (unchanged from iteration_33 spec)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_tablet_delivery_waiver.py"
+  ],
+  "success_rate": {"backend": "100% (8/8 in tablet_waiver suite)", "frontend": "100% (waived indicator + total + no 390px overflow)"},
+  "test_credentials": "Tablet tablet@burgertimes.fr / BurgerTablet2026!; Admin chahineisgoated@gmail.com / BurgerTimes2026! (used ONLY to create+delete an ephemeral free_delivery coupon for consumption verification).",
+  "seed_data_creation": "Ephemeral coupon 'TESTWAIVE001' (discount_type=free_delivery, max_uses=1) created via POST /api/admin/coupons and deleted in the same test's finally block. No orders, no print jobs, no persistent data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "STRICT SAFETY UPHELD: never call POST /api/tablet/orders, /api/kitchen/orders/{id}/accept|decline|reprint|test-print, or run backend/tests/test_kitchen_flow.py — a live Sunmi printer is attached via ngrok/Pi bridge. Safe suites: test_tablet_delivery_waiver.py (new, 8 tests, quote+admin coupon CRUD only), test_customers_and_tablet_print.py (27 tests, prior). For the tablet waiver, use quote endpoints only and verify the flag `tablet_delivery_waived` on the response body.",
+  "rca of the issue": "N/A — new feature (tablet delivery-fee waiver) implemented correctly. Server-enforced at _quote_or_create; UI reads the flag; coupons remain intact; public checkout unchanged; print copy contract for tablet immediate=3 / scheduled=0 preserved."
+}

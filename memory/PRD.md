@@ -22,6 +22,13 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Tablet delivery is free (2026-02-14):** Added a protected
+  `/api/tablet/quote` path and server-side tablet delivery waiver. Tablet
+  delivery totals now always equal their item subtotal, display `Livraison
+  tablette — Offerte`, and cannot consume delivery coupons. Public customer
+  checkout pricing remains unchanged. Verified safely in iteration_34 (8/8),
+  including public-pricing isolation, coupon non-consumption, mobile UI, and
+  three-copy tablet-print static contract; no order or physical print occurred.
 - **Tablet recall layout and three-copy print standard (2026-02-14):** Moved
   phone lookup into its own full-width `Retrouver un client` section, with
   visible inline suggestions and email beneath. Legacy customers now match

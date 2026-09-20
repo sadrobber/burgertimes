@@ -592,11 +592,12 @@ export default function TabletOrder() {
               )}
               {fulfillment === "delivery" && quote?.tablet_delivery_waived && (
                 <div
+                  aria-label="Livraison tablette offerte"
                   className="flex justify-between text-sm text-[#3DDC97]"
                   data-testid="tablet-delivery-fee-waived"
                 >
-                  <span>Livraison tablette</span>
-                  <span>Offerte</span>
+                  <span aria-hidden="true">Livraison tablette</span>
+                  <span aria-hidden="true">Offerte</span>
                 </div>
               )}
               <div
