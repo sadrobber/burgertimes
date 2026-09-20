@@ -37,6 +37,8 @@ export default function Checkout() {
   const [quote, setQuote] = useState(null);
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [deliverySlots, setDeliverySlots] = useState([]);
+  const [selectedDeliveryStart, setSelectedDeliveryStart] = useState("");
 
   // "Remember me" — recognize a returning customer from a previous checkout
   // (stored in localStorage, no account/backend involved) and offer to
@@ -68,6 +70,24 @@ export default function Checkout() {
   useEffect(() => {
     apiClient.get("/settings").then((r) => setSettings(r.data)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (fulfillment !== "delivery") {
+      setDeliverySlots([]);
+      setSelectedDeliveryStart("");
+      return;
+    }
+    let cancelled = false;
+    apiClient
+      .get("/checkout/delivery-slots")
+      .then((r) => {
+        if (!cancelled) setDeliverySlots(r.data?.enabled ? r.data.slots || [] : []);
+      })
+      .catch(() => !cancelled && setDeliverySlots([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [fulfillment]);
 
   // Auto-switch payment if the selected one becomes disabled by admin.
   useEffect(() => {
@@ -125,6 +145,7 @@ export default function Checkout() {
       customer_email: form.email || null,
       notes: form.notes,
       coupon_code: appliedCoupon || null,
+      scheduled_delivery_start: selectedDeliveryStart || null,
     };
     let cancelled = false;
     apiClient
@@ -134,7 +155,7 @@ export default function Checkout() {
     return () => {
       cancelled = true;
     };
-  }, [cartPayload, fulfillment, payment, appliedCoupon]);
+  }, [cartPayload, fulfillment, payment, appliedCoupon, selectedDeliveryStart]);
 
   const allowedPostalCodes = useMemo(
     () =>
@@ -190,6 +211,7 @@ export default function Checkout() {
         payment_method: payment,
         notes: form.notes,
         coupon_code: appliedCoupon || null,
+        scheduled_delivery_start: selectedDeliveryStart || null,
       };
       const { data } = await apiClient.post("/checkout/session", payload);
       // Bridge the just-submitted contact details to the success page, which
@@ -339,28 +361,29 @@ export default function Checkout() {
               </div>
 
               {fulfillment === "delivery" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <Field label={t("checkout.address_line1")} required>
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <Field label={t("checkout.address_line1")} required>
                       <input
                         data-testid="input-address1"
                         className="bt-input"
                         value={form.address1}
                         onChange={(e) => setForm({ ...form, address1: e.target.value })}
                       />
-                    </Field>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Field label={t("checkout.address_line2")}>
+                      </Field>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Field label={t("checkout.address_line2")}>
                       <input
                         data-testid="input-address2"
                         className="bt-input"
                         value={form.address2}
                         onChange={(e) => setForm({ ...form, address2: e.target.value })}
                       />
-                    </Field>
-                  </div>
-                  <Field label={t("checkout.postal_code")} required>
+                      </Field>
+                    </div>
+                    <Field label={t("checkout.postal_code")} required>
                     <input
                       data-testid="input-postal"
                       className="bt-input"
@@ -384,16 +407,37 @@ export default function Checkout() {
                         )}
                       </div>
                     )}
-                  </Field>
-                  <Field label={t("checkout.city")} required>
+                    </Field>
+                    <Field label={t("checkout.city")} required>
                     <input
                       data-testid="input-city"
                       className="bt-input"
                       value={form.city}
                       onChange={(e) => setForm({ ...form, city: e.target.value })}
                     />
-                  </Field>
-                </div>
+                    </Field>
+                  </div>
+                  {deliverySlots.length > 0 && (
+                    <Field label="Créneau de livraison (optionnel)">
+                      <select
+                        data-testid="delivery-slot-select"
+                        className="bt-input"
+                        value={selectedDeliveryStart}
+                        onChange={(e) => setSelectedDeliveryStart(e.target.value)}
+                      >
+                        <option value="">Dès que possible</option>
+                        {deliverySlots.map((slot) => (
+                          <option key={slot.start} value={slot.start}>
+                            Aujourd&apos;hui · {slot.label}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="mt-1 text-xs text-[#A1A1A1]">
+                        La cuisine recevra ta commande à temps pour ce créneau.
+                      </div>
+                    </Field>
+                  )}
+                </>
               )}
 
               {/* Payment */}

@@ -75,6 +75,11 @@ function fmtTime(iso) {
   }
 }
 
+function fmtDeliverySlot(order) {
+  if (!order.scheduled_delivery_start || !order.scheduled_delivery_end) return null;
+  return `${fmtTime(order.scheduled_delivery_start)} — ${fmtTime(order.scheduled_delivery_end)}`;
+}
+
 export default function Kitchen() {
   const { logout } = useKitchenAuth();
   const nav = useNavigate();
@@ -316,6 +321,7 @@ function OrderCard({ order, tab, busy, onAccept, onDecline, onReprint }) {
   const [declineReason, setDeclineReason] = useState("");
   const isNew = tab === "new";
   const cleanNote = (order.notes || "").replace("[TEST ORDER]", "").trim();
+  const scheduledSlot = fmtDeliverySlot(order);
 
   return (
     <div
@@ -350,6 +356,11 @@ function OrderCard({ order, tab, busy, onAccept, onDecline, onReprint }) {
             {order.address_line1}
             {order.address_line2 ? `, ${order.address_line2}` : ""}, {order.postal_code} {order.city}
           </div>
+          {scheduledSlot && (
+            <div className="mt-2 border-2 border-[#FFB800] px-2 py-1 text-sm font-bold text-[#FFB800]">
+              Créneau : {scheduledSlot}
+            </div>
+          )}
         </div>
       )}
 

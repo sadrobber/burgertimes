@@ -200,6 +200,10 @@ def build_escpos_ticket(order: dict) -> bytes:
     if order.get("customer_phone"):
         out += _tall(f"Tel : {order['customer_phone']}")
     if fulfillment == "delivery":
+        _, slot_start = _fmt_datetime(order.get("scheduled_delivery_start", ""))
+        _, slot_end = _fmt_datetime(order.get("scheduled_delivery_end", ""))
+        if slot_start and slot_end:
+            out += _tall(f"Creneau livraison : {slot_start} - {slot_end}")
         addr = ", ".join(filter(None, [order.get("address_line1"), order.get("address_line2")]))
         if addr:
             out += _tall(addr)

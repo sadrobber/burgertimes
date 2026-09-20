@@ -7,6 +7,7 @@ import { I18nProvider } from "@/context/I18nContext.jsx";
 import { CartProvider } from "@/context/CartContext.jsx";
 import { AdminAuthProvider, useAdminAuth } from "@/context/AdminAuthContext.jsx";
 import { KitchenAuthProvider, useKitchenAuth } from "@/context/KitchenAuthContext.jsx";
+import { TabletAuthProvider, useTabletAuth } from "@/context/TabletAuthContext.jsx";
 
 import Home from "@/pages/Home.jsx";
 import Menu from "@/pages/Menu.jsx";
@@ -26,10 +27,13 @@ import CouponsAdmin from "@/pages/admin/CouponsAdmin.jsx";
 import ReviewsAdmin from "@/pages/admin/ReviewsAdmin.jsx";
 import SettingsAdmin from "@/pages/admin/SettingsAdmin.jsx";
 import DeliveryStatsAdmin from "@/pages/admin/DeliveryStatsAdmin.jsx";
+import TabletStaffAdmin from "@/pages/admin/TabletStaffAdmin.jsx";
 import ScrollToTop from "@/components/ScrollToTop.jsx";
 
 import KitchenLogin from "@/pages/kitchen/KitchenLogin.jsx";
 import Kitchen from "@/pages/kitchen/Kitchen.jsx";
+import TabletLogin from "@/pages/tablet/TabletLogin.jsx";
+import TabletOrder from "@/pages/tablet/TabletOrder.jsx";
 
 function AdminGuard({ children }) {
   const { status } = useAdminAuth();
@@ -43,12 +47,19 @@ function KitchenGuard({ children }) {
   return children;
 }
 
+function TabletGuard({ children }) {
+  const { status } = useTabletAuth();
+  if (status !== "authenticated") return <Navigate to="/tablet/login" replace />;
+  return children;
+}
+
 function App() {
   return (
     <I18nProvider>
       <AdminAuthProvider>
         <KitchenAuthProvider>
-          <CartProvider>
+          <TabletAuthProvider>
+            <CartProvider>
             <BrowserRouter>
               <ScrollToTop />
               <Toaster
@@ -86,6 +97,7 @@ function App() {
                   <Route path="burger" element={<BurgerBuilderAdmin />} />
                   <Route path="sauces" element={<SaucesAdmin />} />
                   <Route path="coupons" element={<CouponsAdmin />} />
+                  <Route path="tablet-staff" element={<TabletStaffAdmin />} />
                   <Route path="reviews" element={<ReviewsAdmin />} />
                   <Route path="stats/delivery" element={<DeliveryStatsAdmin />} />
                   <Route path="settings" element={<SettingsAdmin />} />
@@ -99,10 +111,20 @@ function App() {
                     </KitchenGuard>
                   }
                 />
+                <Route path="/tablet/login" element={<TabletLogin />} />
+                <Route
+                  path="/tablet"
+                  element={
+                    <TabletGuard>
+                      <TabletOrder />
+                    </TabletGuard>
+                  }
+                />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </BrowserRouter>
-          </CartProvider>
+            </CartProvider>
+          </TabletAuthProvider>
         </KitchenAuthProvider>
       </AdminAuthProvider>
     </I18nProvider>

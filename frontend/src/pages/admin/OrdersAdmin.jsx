@@ -58,6 +58,9 @@ function buildReceiptText(order) {
   const dateStr = created.toLocaleDateString("fr-FR");
   const timeStr = created.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   const customerName = `${order.customer_first_name || ""} ${order.customer_last_name || ""}`.trim();
+  const slotLabel = order.scheduled_delivery_start && order.scheduled_delivery_end
+    ? `${new Date(order.scheduled_delivery_start).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} — ${new Date(order.scheduled_delivery_end).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+    : null;
 
   const itemLines = (order.items || []).flatMap((it) => {
     const cfg = it.burger_config || {};
@@ -85,6 +88,7 @@ function buildReceiptText(order) {
     line,
     customerName ? `Client : ${customerName}` : null,
     order.customer_phone ? `Tel : ${order.customer_phone}` : null,
+    slotLabel ? `Créneau livraison : ${slotLabel}` : null,
     order.fulfillment === "delivery"
       ? [order.address_line1, order.address_line2].filter(Boolean).join(", ") || null
       : null,

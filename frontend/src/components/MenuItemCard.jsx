@@ -5,13 +5,14 @@ import { useCart } from "@/context/CartContext.jsx";
 import { useI18n } from "@/context/I18nContext.jsx";
 import { toast } from "sonner";
 
-export default function MenuItemCard({ item, sodaFlavours = [] }) {
+export default function MenuItemCard({ compact = false, item, sodaFlavours = [] }) {
   const { addPlainItem } = useCart();
   const { t } = useI18n();
   const [openConfig, setOpenConfig] = React.useState(false);
   const [formula, setFormula] = React.useState("seul");
   const [selectedFormat, setSelectedFormat] = React.useState(item.formats?.[0]?.name || null);
   const [drink, setDrink] = React.useState("");
+  const [removals, setRemovals] = React.useState([]);
 
   const hasMenu = item.price_menu != null || (item.formats || []).some((f) => f.price_menu != null);
   const needsDrink = formula === "menu" && item.uses_soda_flavours;
@@ -47,22 +48,26 @@ export default function MenuItemCard({ item, sodaFlavours = [] }) {
       included_drink: needsDrink ? drink : null,
       selected_format: selectedFormat,
       selected_variant: null,
-      notes: null,
+      notes: removals.length ? removals.map((name) => `Sans ${name}`).join(" · ") : null,
     });
     toast.success("Ajouté au panier");
     setOpenConfig(false);
     setFormula("seul");
     setDrink("");
+    setRemovals([]);
   };
 
-  const hasConfig = hasMenu || (item.formats && item.formats.length > 0);
+  const hasConfig =
+    hasMenu ||
+    (item.formats && item.formats.length > 0) ||
+    (item.removable_ingredients && item.removable_ingredients.length > 0);
 
   return (
     <div
       data-testid={`menu-item-${item.id}`}
       className="bt-card relative flex flex-col overflow-hidden"
     >
-      <div className="aspect-[4/3] w-full overflow-hidden bg-[#1A1A1A] relative">
+      {!compact && <div className="aspect-[4/3] w-full overflow-hidden bg-[#1A1A1A] relative">
         {item.has_image ? (
           <img
             src={menuImageUrl(item.id)}
@@ -88,7 +93,7 @@ export default function MenuItemCard({ item, sodaFlavours = [] }) {
             className="absolute -top-2 -right-2 w-9 h-9 sm:w-12 sm:h-12 md:w-14 md:h-14 rotate-12 pointer-events-none"
           />
         )}
-      </div>
+      </div>}
       <div className="p-2.5 sm:p-4 flex-1 flex flex-col">
         <div className="font-display text-base sm:text-xl md:text-2xl uppercase leading-none">{item.name}</div>
         {item.description && (
@@ -173,6 +178,29 @@ export default function MenuItemCard({ item, sodaFlavours = [] }) {
                       className={`bt-chip ${drink === d ? "active" : ""}`}
                     >
                       {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {(item.removable_ingredients || []).length > 0 && (
+              <div>
+                <div className="bt-label">Retirer des ingrédients</div>
+                <div className="flex flex-wrap gap-2">
+                  {item.removable_ingredients.map((ingredient) => (
+                    <button
+                      key={ingredient}
+                      data-testid={`item-${item.id}-remove-${ingredient}`}
+                      onClick={() =>
+                        setRemovals((current) =>
+                          current.includes(ingredient)
+                            ? current.filter((value) => value !== ingredient)
+                            : [...current, ingredient],
+                        )
+                      }
+                      className={`bt-chip ${removals.includes(ingredient) ? "active" : ""}`}
+                    >
+                      Sans {ingredient}
                     </button>
                   ))}
                 </div>

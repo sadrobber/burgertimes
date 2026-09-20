@@ -35,9 +35,10 @@ export function CartProvider({ children }) {
 
   const addPlainItem = useCallback((line) => {
     setItems((prev) => {
-      // merge by (item_id, formula, selected_format, selected_variant)
+      // Merge only truly identical selections. A "Sans oignons" item must
+      // stay separate from the regular version of the same menu item.
       const key = (l) =>
-        `${l.item_id}|${l.formula}|${l.selected_format || ""}|${l.selected_variant || ""}`;
+        `${l.item_id}|${l.formula}|${l.selected_format || ""}|${l.selected_variant || ""}|${l.notes || ""}`;
       const idx = prev.findIndex((l) => !l.is_burger && key(l) === key(line));
       if (idx >= 0) {
         const next = [...prev];

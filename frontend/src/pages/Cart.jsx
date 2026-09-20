@@ -53,6 +53,14 @@ export default function Cart() {
                       {(line.sauces || []).length > 0 && (
                         <div className="text-sm text-[#B3B3B3] mt-1">Sauces : {line.sauces.join(", ")}</div>
                       )}
+                      {line.notes && (
+                        <div
+                          data-testid={`cart-line-${line.line_id}-note`}
+                          className="mt-2 inline-block bg-[#EF2B2D] px-2 py-1 text-xs font-accent uppercase tracking-wide"
+                        >
+                          {line.notes}
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <div className="font-display text-xl">{formatEur(line.unit_price * line.quantity)}</div>

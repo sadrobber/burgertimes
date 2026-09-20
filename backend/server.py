@@ -25,7 +25,15 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ReturnDocument
 from starlette.middleware.cors import CORSMiddleware
 
-from auth import create_admin_token, require_admin, require_kitchen, verify_password
+from auth import (
+    create_admin_token,
+    hash_password,
+    require_admin,
+    require_kitchen,
+    require_tablet,
+    verify_password,
+)
+from delivery_scheduling import delivery_slots, validate_delivery_slot
 from email_service import send_open_notice, send_order_email
 from email_service import is_configured as _email_configured
 from models import (
@@ -52,6 +60,8 @@ from models import (
     SauceUpdate,
     Settings,
     SettingsUpdate,
+    TabletStaffCreate,
+    TabletStaffUpdate,
     WaitlistCreate,
     WaitlistEntry,
     gen_id,
@@ -217,6 +227,56 @@ async def admin_me(payload: dict = Depends(require_admin)):
     return {"email": payload.get("email"), "role": payload.get("role")}
 
 
+@api.get("/admin/tablet-staff")
+async def admin_list_tablet_staff(_: dict = Depends(require_admin)):
+    docs = await db.admin_users.find({"role": "tablet"}, {"_id": 0, "password_hash": 0}).to_list(200)
+    return docs
+
+
+@api.post("/admin/tablet-staff")
+async def admin_create_tablet_staff(payload: TabletStaffCreate, _: dict = Depends(require_admin)):
+    email = payload.email.lower().strip()
+    if await db.admin_users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
+    doc = {
+        "id": gen_id(),
+        "email": email,
+        "password_hash": hash_password(payload.password),
+        "role": "tablet",
+        "active": True,
+        "created_at": utc_now_iso(),
+    }
+    await db.admin_users.insert_one(doc)
+    return {
+        key: value
+        for key, value in doc.items()
+        if key not in {"_id", "password_hash"}
+    }
+
+
+@api.put("/admin/tablet-staff/{staff_id}")
+async def admin_update_tablet_staff(
+    staff_id: str,
+    payload: TabletStaffUpdate,
+    _: dict = Depends(require_admin),
+):
+    changes = payload.model_dump(exclude_unset=True)
+    if "password" in changes:
+        changes["password_hash"] = hash_password(changes.pop("password"))
+    if changes:
+        await db.admin_users.update_one({"id": staff_id, "role": "tablet"}, {"$set": changes})
+    doc = await db.admin_users.find_one({"id": staff_id, "role": "tablet"}, {"_id": 0, "password_hash": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Compte tablette introuvable.")
+    return doc
+
+
+@api.delete("/admin/tablet-staff/{staff_id}")
+async def admin_delete_tablet_staff(staff_id: str, _: dict = Depends(require_admin)):
+    result = await db.admin_users.delete_one({"id": staff_id, "role": "tablet"})
+    return {"deleted": result.deleted_count}
+
+
 # ----- Public: settings + status + reviews + sauces + categories -----------
 
 
@@ -300,6 +360,18 @@ async def restaurant_status():
     settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or Settings().model_dump()
     _strip_mongo(settings)
     return compute_status(settings)
+
+
+@api.get("/checkout/delivery-slots")
+async def checkout_delivery_slots():
+    settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or Settings().model_dump()
+    _strip_mongo(settings)
+    return {
+        "enabled": bool(settings.get("scheduled_delivery_enabled", True)),
+        "lead_minutes": int(settings.get("delivery_lead_minutes", 40) or 40),
+        "window_minutes": int(settings.get("delivery_window_minutes", 20) or 20),
+        "slots": delivery_slots(settings),
+    }
 
 
 @api.get("/categories")
@@ -769,7 +841,12 @@ async def _apply_coupon(
     return new_fee, {"code": code, "discount_type": coupon["discount_type"], "discount_amount": discount}
 
 
-async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
+async def _quote_or_create(
+    payload: CheckoutPayload,
+    create: bool,
+    order_source: str = "web",
+    tablet_taken_by: Optional[str] = None,
+) -> dict:
     settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or Settings().model_dump()
     _strip_mongo(settings)
 
@@ -782,6 +859,12 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
         raise HTTPException(status_code=400, detail="Invalid fulfillment")
     if payload.payment_method not in ("cash", "card_in_person"):
         raise HTTPException(status_code=400, detail="Invalid payment method")
+
+    scheduled_slot = None
+    if payload.scheduled_delivery_start:
+        if payload.fulfillment != "delivery":
+            raise HTTPException(status_code=400, detail="Un créneau est réservé aux livraisons.")
+        scheduled_slot = validate_delivery_slot(settings, payload.scheduled_delivery_start)
 
     if payload.fulfillment == "delivery" and create:
         if not (payload.address_line1 and payload.postal_code and payload.city):
@@ -837,6 +920,8 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
             "coupon_discount": coupon_discount,
             "total": total,
             "items": snapshots,
+            "scheduled_delivery_start": scheduled_slot["start"] if scheduled_slot else None,
+            "scheduled_delivery_end": scheduled_slot["end"] if scheduled_slot else None,
         }
 
     order_number = gen_order_number()
@@ -887,6 +972,19 @@ async def _quote_or_create(payload: CheckoutPayload, create: bool) -> dict:
         "kitchen_print_status": "pending",
         "kitchen_print_attempts": 0,
         "kitchen_printed_at": None,
+        "scheduled_delivery_start": scheduled_slot["start"] if scheduled_slot else None,
+        "scheduled_delivery_end": scheduled_slot["end"] if scheduled_slot else None,
+        "kitchen_release_at": (
+            (
+                datetime.fromisoformat(scheduled_slot["start"]) - timedelta(
+                    minutes=int(settings.get("delivery_lead_minutes", 40) or 40)
+                )
+            ).isoformat()
+            if scheduled_slot
+            else None
+        ),
+        "order_source": order_source,
+        "tablet_taken_by": tablet_taken_by,
         "created_at": utc_now_iso(),
         "updated_at": utc_now_iso(),
     }
@@ -915,6 +1013,16 @@ async def checkout_quote(payload: CheckoutPayload):
 @api.post("/checkout/session")
 async def checkout_session(payload: CheckoutPayload):
     return await _quote_or_create(payload, create=True)
+
+
+@api.post("/tablet/orders")
+async def tablet_create_order(payload: CheckoutPayload, staff: dict = Depends(require_tablet)):
+    return await _quote_or_create(
+        payload,
+        create=True,
+        order_source="tablet",
+        tablet_taken_by=staff.get("email"),
+    )
 
 
 PUBLIC_ORDER_FIELDS = {
@@ -1060,6 +1168,24 @@ async def kitchen_login(payload: AdminLoginPayload):
     return {"token": token, "user": {"email": user["email"], "role": role}}
 
 
+@api.post("/tablet/login")
+async def tablet_login(payload: AdminLoginPayload):
+    email = payload.email.lower().strip()
+    user = await db.admin_users.find_one({"email": email})
+    if not user or not verify_password(payload.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Identifiants invalides")
+    role = user.get("role", "")
+    if role not in ("admin", "tablet") or user.get("active", True) is False:
+        raise HTTPException(status_code=403, detail="Accès tablette refusé")
+    token = create_admin_token(user["id"], user["email"], role=role)
+    return {"token": token, "user": {"email": user["email"], "role": role}}
+
+
+@api.get("/tablet/me")
+async def tablet_me(payload: dict = Depends(require_tablet)):
+    return {"email": payload.get("email"), "role": payload.get("role")}
+
+
 @api.get("/kitchen/me")
 async def kitchen_me(payload: dict = Depends(require_kitchen)):
     return {"email": payload.get("email"), "role": payload.get("role")}
@@ -1068,7 +1194,18 @@ async def kitchen_me(payload: dict = Depends(require_kitchen)):
 @api.get("/kitchen/orders")
 async def kitchen_orders(_: dict = Depends(require_kitchen)):
     since = (datetime.now(timezone.utc) - timedelta(hours=20)).isoformat()
-    docs = await db.orders.find({"created_at": {"$gte": since}}).sort([("created_at", -1)]).to_list(300)
+    now = utc_now_iso()
+    docs = await db.orders.find(
+        {
+            "created_at": {"$gte": since},
+            "$or": [
+                {"scheduled_delivery_start": None},
+                {"scheduled_delivery_start": {"$exists": False}},
+                {"kitchen_release_at": {"$lte": now}},
+                {"kitchen_decision": {"$in": ["accepted", "declined"]}},
+            ],
+        }
+    ).sort([("created_at", -1)]).to_list(300)
     docs = [_strip_mongo(d) for d in docs]
     new_orders = [d for d in docs if d.get("status") == "pending" and not d.get("kitchen_decision")]
     accepted_orders = [d for d in docs if d.get("kitchen_decision") == "accepted"]

@@ -54,6 +54,9 @@ export default function SettingsAdmin() {
         delivery_postal_codes: Array.isArray(s.delivery_postal_codes)
           ? s.delivery_postal_codes.map((v) => String(v).trim()).filter(Boolean)
           : [],
+        scheduled_delivery_enabled: !!s.scheduled_delivery_enabled,
+        delivery_lead_minutes: parseInt(s.delivery_lead_minutes, 10) || 40,
+        delivery_window_minutes: parseInt(s.delivery_window_minutes, 10) || 20,
         contact_phone: s.contact_phone,
         contact_address: s.contact_address,
         contact_instagram: s.contact_instagram,
@@ -539,6 +542,46 @@ export default function SettingsAdmin() {
               Laisse vide pour toujours facturer la livraison.
             </div>
           </label>
+        </div>
+        <div className="border-t-2 border-[#262626] pt-4 space-y-3">
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input
+              data-testid="settings-scheduled-delivery-enabled"
+              type="checkbox"
+              checked={!!s.scheduled_delivery_enabled}
+              onChange={(e) => set("scheduled_delivery_enabled", e.target.checked)}
+            />
+            Proposer des créneaux de livraison aujourd&apos;hui
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="block">
+              <div className="bt-label">Délai cuisine avant livraison (min)</div>
+              <input
+                data-testid="settings-delivery-lead-minutes"
+                type="number"
+                min="5"
+                className="bt-input"
+                value={s.delivery_lead_minutes ?? 40}
+                onChange={(e) => set("delivery_lead_minutes", e.target.value)}
+              />
+            </label>
+            <label className="block">
+              <div className="bt-label">Durée d&apos;un créneau (min)</div>
+              <input
+                data-testid="settings-delivery-window-minutes"
+                type="number"
+                min="5"
+                step="5"
+                className="bt-input"
+                value={s.delivery_window_minutes ?? 20}
+                onChange={(e) => set("delivery_window_minutes", e.target.value)}
+              />
+            </label>
+          </div>
+          <p className="text-xs text-[#A1A1A1]">
+            Les créneaux suivent les horaires du resto. La cuisine ne voit une commande planifiée
+            qu&apos;à l&apos;avance du délai choisi.
+          </p>
         </div>
       </div>
 

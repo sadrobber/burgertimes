@@ -92,6 +92,7 @@ class MenuItem(BaseModel):
     price_menu: Optional[float] = None
     formats: List[MenuItemFormat] = Field(default_factory=list)
     variants: List[str] = Field(default_factory=list)
+    removable_ingredients: List[str] = Field(default_factory=list)
     uses_soda_flavours: bool = False
     available: bool = True
     is_new: bool = False
@@ -109,6 +110,7 @@ class MenuItemCreate(BaseModel):
     price_menu: Optional[float] = None
     formats: List[MenuItemFormat] = Field(default_factory=list)
     variants: List[str] = Field(default_factory=list)
+    removable_ingredients: List[str] = Field(default_factory=list)
     uses_soda_flavours: bool = False
     available: bool = True
     is_new: bool = False
@@ -124,6 +126,7 @@ class MenuItemUpdate(BaseModel):
     price_menu: Optional[float] = None
     formats: Optional[List[MenuItemFormat]] = None
     variants: Optional[List[str]] = None
+    removable_ingredients: Optional[List[str]] = None
     uses_soda_flavours: Optional[bool] = None
     available: Optional[bool] = None
     is_new: Optional[bool] = None
@@ -310,6 +313,9 @@ class Settings(BaseModel):
     delivery_fee_percent: float = 10.0
     free_delivery_threshold: Optional[float] = None
     delivery_postal_codes: List[str] = Field(default_factory=list)
+    scheduled_delivery_enabled: bool = True
+    delivery_lead_minutes: int = 40
+    delivery_window_minutes: int = 20
     contact_phone: str = "04.97.07.17.93"
     contact_address: str = "6 Avenue de Villaine, 06240 Beausoleil"
     contact_instagram: str = "@burgertimes_bsl"
@@ -341,6 +347,9 @@ class SettingsUpdate(BaseModel):
     delivery_fee_percent: Optional[float] = None
     free_delivery_threshold: Optional[float] = None
     delivery_postal_codes: Optional[List[str]] = None
+    scheduled_delivery_enabled: Optional[bool] = None
+    delivery_lead_minutes: Optional[int] = None
+    delivery_window_minutes: Optional[int] = None
     contact_phone: Optional[str] = None
     contact_address: Optional[str] = None
     contact_instagram: Optional[str] = None
@@ -441,6 +450,11 @@ class Order(BaseModel):
     kitchen_print_status: str = "pending"  # pending | printed
     kitchen_print_attempts: int = 0
     kitchen_printed_at: Optional[str] = None
+    scheduled_delivery_start: Optional[str] = None
+    scheduled_delivery_end: Optional[str] = None
+    kitchen_release_at: Optional[str] = None
+    order_source: str = "web"
+    tablet_taken_by: Optional[str] = None
     created_at: str = Field(default_factory=utc_now_iso)
     updated_at: str = Field(default_factory=utc_now_iso)
 
@@ -459,6 +473,17 @@ class CheckoutPayload(BaseModel):
     notes: str = ""
     payment_method: str = "cash"
     coupon_code: Optional[str] = None
+    scheduled_delivery_start: Optional[str] = None
+
+
+class TabletStaffCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
+
+
+class TabletStaffUpdate(BaseModel):
+    active: Optional[bool] = None
+    password: Optional[str] = Field(default=None, min_length=8)
 
 
 class OrderStatusUpdate(BaseModel):

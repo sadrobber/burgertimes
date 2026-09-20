@@ -50,6 +50,7 @@ adminClient.interceptors.response.use(
 );
 
 const KITCHEN_TOKEN_KEY = "bt_kitchen_token";
+const TABLET_TOKEN_KEY = "bt_tablet_token";
 
 export const getKitchenToken = () => localStorage.getItem(KITCHEN_TOKEN_KEY);
 export const setKitchenToken = (t) => {
@@ -57,6 +58,13 @@ export const setKitchenToken = (t) => {
   else localStorage.removeItem(KITCHEN_TOKEN_KEY);
 };
 export const clearKitchenToken = () => localStorage.removeItem(KITCHEN_TOKEN_KEY);
+
+export const getTabletToken = () => localStorage.getItem(TABLET_TOKEN_KEY);
+export const setTabletToken = (token) => {
+  if (token) localStorage.setItem(TABLET_TOKEN_KEY, token);
+  else localStorage.removeItem(TABLET_TOKEN_KEY);
+};
+export const clearTabletToken = () => localStorage.removeItem(TABLET_TOKEN_KEY);
 
 export const kitchenClient = axios.create({
   baseURL: API_BASE,
@@ -83,6 +91,33 @@ kitchenClient.interceptors.response.use(
     }
     return Promise.reject(err);
   }
+);
+
+export const tabletClient = axios.create({
+  baseURL: API_BASE,
+  timeout: 20000,
+});
+
+tabletClient.interceptors.request.use((config) => {
+  const token = getTabletToken();
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+tabletClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      clearTabletToken();
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/tablet/login")) {
+        window.location.href = "/tablet/login";
+      }
+    }
+    return Promise.reject(error);
+  },
 );
 
 export function menuImageUrl(itemId) {

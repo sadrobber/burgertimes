@@ -80,3 +80,19 @@ async def require_kitchen(request: Request) -> Dict[str, Any]:
     if payload.get("role") not in ("admin", "kitchen"):
         raise HTTPException(status_code=403, detail="Kitchen or admin role required")
     return payload
+
+
+async def require_tablet(request: Request) -> Dict[str, Any]:
+    """Allow the owner or dedicated tablet staff into the order-taking tool."""
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = decode_admin_token(header[7:].strip())
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("role") not in ("admin", "tablet"):
+        raise HTTPException(status_code=403, detail="Tablet role required")
+    return payload

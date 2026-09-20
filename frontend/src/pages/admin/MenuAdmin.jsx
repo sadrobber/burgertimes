@@ -11,6 +11,7 @@ const emptyItem = {
   price_menu: null,
   formats: [],
   variants: [],
+  removable_ingredients: [],
   uses_soda_flavours: false,
   available: true,
   is_new: false,
@@ -291,6 +292,27 @@ function EditItem({ item, categories, onClose, onSave }) {
           <label className="block">
             <div className="bt-label">Description</div>
             <textarea data-testid="menu-input-desc" className="bt-input min-h-[80px]" value={it.description} onChange={(e) => set("description", e.target.value)} />
+          </label>
+          <label className="block">
+            <div className="bt-label">Ingrédients retirable par le client</div>
+            <input
+              data-testid="menu-input-removable-ingredients"
+              className="bt-input"
+              placeholder="Oignons, cornichons, salade"
+              value={(it.removable_ingredients || []).join(", ")}
+              onChange={(e) =>
+                set(
+                  "removable_ingredients",
+                  e.target.value
+                    .split(",")
+                    .map((value) => value.trim())
+                    .filter(Boolean),
+                )
+              }
+            />
+            <div className="mt-1 text-xs text-[#A1A1A1]">
+              Chaque choix apparaît au client sous la forme « Sans oignons » et passe dans la note.
+            </div>
           </label>
           <div className="grid grid-cols-2 gap-4">
             <label className="block">
