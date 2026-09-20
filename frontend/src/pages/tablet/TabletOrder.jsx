@@ -147,8 +147,8 @@ export default function TabletOrder() {
       return undefined;
     }
     let cancelled = false;
-    apiClient
-      .post("/checkout/quote", {
+    tabletClient
+      .post("/tablet/quote", {
         items: cartPayload,
         fulfillment,
         customer_first_name: form.first || "Tablette",
@@ -588,6 +588,15 @@ export default function TabletOrder() {
                 <div className="flex justify-between text-sm">
                   <span>Livraison</span>
                   <span>{formatEur(quote.delivery_fee)}</span>
+                </div>
+              )}
+              {fulfillment === "delivery" && quote?.tablet_delivery_waived && (
+                <div
+                  className="flex justify-between text-sm text-[#3DDC97]"
+                  data-testid="tablet-delivery-fee-waived"
+                >
+                  <span>Livraison tablette</span>
+                  <span>Offerte</span>
                 </div>
               )}
               <div

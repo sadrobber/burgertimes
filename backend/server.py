@@ -907,7 +907,10 @@ async def _quote_or_create(
     delivery_fee = _compute_delivery_fee(payload.fulfillment, subtotal, settings)
     coupon_discount = 0.0
     coupon_applied = None
-    if payload.coupon_code:
+    tablet_delivery_waived = order_source == "tablet" and payload.fulfillment == "delivery"
+    if tablet_delivery_waived:
+        delivery_fee = 0.0
+    elif payload.coupon_code:
         delivery_fee, coupon_applied = await _apply_coupon(
             payload.coupon_code, payload.fulfillment, delivery_fee, create
         )
@@ -921,6 +924,7 @@ async def _quote_or_create(
             "delivery_fee": delivery_fee,
             "coupon_code": coupon_applied["code"] if coupon_applied else None,
             "coupon_discount": coupon_discount,
+            "tablet_delivery_waived": tablet_delivery_waived,
             "total": total,
             "items": snapshots,
             "scheduled_delivery_start": scheduled_slot["start"] if scheduled_slot else None,
@@ -1017,6 +1021,11 @@ async def checkout_quote(payload: CheckoutPayload):
 @api.post("/checkout/session")
 async def checkout_session(payload: CheckoutPayload):
     return await _quote_or_create(payload, create=True)
+
+
+@api.post("/tablet/quote")
+async def tablet_quote(payload: CheckoutPayload, _: dict = Depends(require_tablet)):
+    return await _quote_or_create(payload, create=False, order_source="tablet")
 
 
 @api.post("/tablet/orders")
