@@ -93,6 +93,13 @@ export default function Home() {
               <Link to="/menu" data-testid="hero-order-cta" className="bt-btn-primary">
                 {t("cta.order_now")} <ArrowRight className="w-5 h-5" />
               </Link>
+              <Link
+                to="/menu?schedule=1"
+                data-testid="hero-schedule-cta"
+                className="bt-btn-secondary"
+              >
+                Programmer une commande
+              </Link>
             </motion.div>
             <div className="mt-5 md:mt-6">
               <StatusBanner variant="banner" />

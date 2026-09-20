@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import Header from "@/components/layout/Header.jsx";
 import Footer from "@/components/layout/Footer.jsx";
@@ -17,6 +18,7 @@ import { useI18n } from "@/context/I18nContext.jsx";
  */
 export default function Menu() {
   const { t, lang } = useI18n();
+  const location = useLocation();
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [settings, setSettings] = useState(null);
@@ -29,6 +31,12 @@ export default function Menu() {
   // While a programmatic scroll is animating, ignore IO updates so the click
   // doesn't briefly light up a chip on the way past.
   const programmaticScroll = useRef(false);
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("schedule") === "1") {
+      sessionStorage.setItem("bt_schedule_intent", "1");
+    }
+  }, [location.search]);
 
   useEffect(() => {
     setLoading(true);
@@ -119,7 +127,7 @@ export default function Menu() {
         className="sticky top-16 md:top-20 z-30 bg-[#0A0A0A]/95 backdrop-blur border-y-2 border-[#EF2B2D]"
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto md:overflow-visible md:flex-wrap md:justify-center py-2.5 md:py-3 no-scrollbar">
+          <div className="flex flex-wrap justify-center gap-1.5 py-2.5 sm:gap-2 md:py-3">
             {visibleCategories.map((c) => (
               <button
                 key={c.id}
@@ -139,6 +147,14 @@ export default function Menu() {
           <div className="font-marker text-[#EF2B2D] text-xl -rotate-2">Chaud devant</div>
           <h1 className="font-display text-6xl md:text-7xl uppercase mt-2">{t("menu.title")}</h1>
         </div>
+        {new URLSearchParams(location.search).get("schedule") === "1" && (
+          <div
+            data-testid="menu-schedule-banner"
+            className="mb-6 border-2 border-[#FFB800] bg-[#FFB800]/10 px-4 py-3 text-sm"
+          >
+            Commande programmée : choisis tes produits, puis sélectionne ton créneau à la livraison.
+          </div>
+        )}
 
         {loading ? (
           <div className="text-[#A1A1A1] py-20 text-center">Chargement…</div>

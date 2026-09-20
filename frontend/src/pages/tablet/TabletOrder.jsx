@@ -32,6 +32,7 @@ export default function TabletOrder() {
   const [quote, setQuote] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [builderOpen, setBuilderOpen] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
 
   useEffect(() => {
     Promise.all([apiClient.get("/menu"), apiClient.get("/settings")])
@@ -157,6 +158,29 @@ export default function TabletOrder() {
       toast.error(fmtError(error));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const lookupCustomer = async () => {
+    if (form.phone.trim().length < 4) {
+      toast.error("Saisis un numéro de téléphone complet");
+      return;
+    }
+    setLookupLoading(true);
+    try {
+      const { data } = await tabletClient.get("/tablet/customers/lookup", {
+        params: { phone: form.phone.trim() },
+      });
+      if (!data.found) {
+        toast.message("Aucun client trouvé pour ce numéro");
+        return;
+      }
+      setForm((current) => ({ ...current, ...data.customer }));
+      toast.success("Informations client retrouvées");
+    } catch (error) {
+      toast.error(fmtError(error));
+    } finally {
+      setLookupLoading(false);
     }
   };
 
@@ -303,12 +327,23 @@ export default function TabletOrder() {
                 />
               </Field>
               <Field label="Téléphone *">
-                <input
-                  className="bt-input"
-                  data-testid="tablet-customer-phone"
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  value={form.phone}
-                />
+                <div className="flex gap-2">
+                  <input
+                    className="bt-input min-w-0"
+                    data-testid="tablet-customer-phone"
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    value={form.phone}
+                  />
+                  <button
+                    className="bt-btn-secondary shrink-0 px-3 text-xs disabled:opacity-40"
+                    data-testid="tablet-customer-lookup"
+                    disabled={lookupLoading}
+                    onClick={lookupCustomer}
+                    type="button"
+                  >
+                    {lookupLoading ? "..." : "Rechercher"}
+                  </button>
+                </div>
               </Field>
               <Field label="Email">
                 <input

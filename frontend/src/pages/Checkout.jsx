@@ -39,6 +39,7 @@ export default function Checkout() {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [deliverySlots, setDeliverySlots] = useState([]);
   const [selectedDeliveryStart, setSelectedDeliveryStart] = useState("");
+  const [scheduleIntent] = useState(() => sessionStorage.getItem("bt_schedule_intent") === "1");
 
   // "Remember me" — recognize a returning customer from a previous checkout
   // (stored in localStorage, no account/backend involved) and offer to
@@ -70,6 +71,10 @@ export default function Checkout() {
   useEffect(() => {
     apiClient.get("/settings").then((r) => setSettings(r.data)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (scheduleIntent) setFulfillment("delivery");
+  }, [scheduleIntent]);
 
   useEffect(() => {
     if (fulfillment !== "delivery") {
@@ -176,7 +181,8 @@ export default function Checkout() {
     form.last.trim() &&
     form.phone.trim() &&
     (fulfillment === "pickup" || (form.address1.trim() && form.postal.trim() && form.city.trim())) &&
-    status?.state !== "closed" &&
+    (status?.state !== "closed" || !!selectedDeliveryStart) &&
+    (!scheduleIntent || !!selectedDeliveryStart) &&
     ((payment === "cash" && cashEnabled) || (payment === "card_in_person" && cardEnabled)) &&
     postalIsServed &&
     !quote?.error;
@@ -214,6 +220,7 @@ export default function Checkout() {
         scheduled_delivery_start: selectedDeliveryStart || null,
       };
       const { data } = await apiClient.post("/checkout/session", payload);
+      sessionStorage.removeItem("bt_schedule_intent");
       // Bridge the just-submitted contact details to the success page, which
       // asks "save this for next time?" — kept out of this page so the
       // question never blocks/delays placing the order itself.
@@ -418,14 +425,18 @@ export default function Checkout() {
                     </Field>
                   </div>
                   {deliverySlots.length > 0 && (
-                    <Field label="Créneau de livraison (optionnel)">
+                    <div
+                      data-testid="delivery-schedule-panel"
+                      className={scheduleIntent ? "animate-pulse border-2 border-[#FFB800] p-3" : ""}
+                    >
+                    <Field label={scheduleIntent ? "Choisis ton créneau de livraison" : "Créneau de livraison (optionnel)"}>
                       <select
                         data-testid="delivery-slot-select"
                         className="bt-input"
                         value={selectedDeliveryStart}
                         onChange={(e) => setSelectedDeliveryStart(e.target.value)}
                       >
-                        <option value="">Dès que possible</option>
+                        <option value="">{scheduleIntent ? "Choisir un créneau" : "Dès que possible"}</option>
                         {deliverySlots.map((slot) => (
                           <option key={slot.start} value={slot.start}>
                             Aujourd&apos;hui · {slot.label}
@@ -436,6 +447,7 @@ export default function Checkout() {
                         La cuisine recevra ta commande à temps pour ce créneau.
                       </div>
                     </Field>
+                    </div>
                   )}
                 </>
               )}

@@ -850,11 +850,6 @@ async def _quote_or_create(
     settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or Settings().model_dump()
     _strip_mongo(settings)
 
-    if create:
-        await _ensure_accepting_orders(settings)
-        _validate_payment_method(settings, payload.payment_method)
-        await _check_order_limit(settings)
-
     if payload.fulfillment not in ("delivery", "pickup"):
         raise HTTPException(status_code=400, detail="Invalid fulfillment")
     if payload.payment_method not in ("cash", "card_in_person"):
@@ -865,6 +860,14 @@ async def _quote_or_create(
         if payload.fulfillment != "delivery":
             raise HTTPException(status_code=400, detail="Un créneau est réservé aux livraisons.")
         scheduled_slot = validate_delivery_slot(settings, payload.scheduled_delivery_start)
+
+    if create:
+        if not scheduled_slot:
+            await _ensure_accepting_orders(settings)
+        elif compute_status(settings).get("reason") == "force_closed":
+            raise HTTPException(status_code=423, detail="Le restaurant est fermé exceptionnellement.")
+        _validate_payment_method(settings, payload.payment_method)
+        await _check_order_limit(settings)
 
     if payload.fulfillment == "delivery" and create:
         if not (payload.address_line1 and payload.postal_code and payload.city):
@@ -1023,6 +1026,41 @@ async def tablet_create_order(payload: CheckoutPayload, staff: dict = Depends(re
         order_source="tablet",
         tablet_taken_by=staff.get("email"),
     )
+
+
+def _phone_key(phone: Optional[str]) -> str:
+    return "".join(char for char in (phone or "") if char.isdigit())
+
+
+@api.get("/tablet/customers/lookup")
+async def tablet_customer_lookup(
+    phone: str = Query(min_length=4),
+    _: dict = Depends(require_tablet),
+):
+    """Return the latest real customer record matching a restaurant phone call."""
+    incoming = _phone_key(phone)
+    if len(incoming) < 4:
+        raise HTTPException(status_code=400, detail="Numéro de téléphone incomplet.")
+    docs = await db.orders.find(
+        {"test_order": {"$ne": True}, "customer_phone": {"$exists": True}}
+    ).sort("created_at", -1).to_list(5000)
+    for order in docs:
+        saved = _phone_key(order.get("customer_phone"))
+        if saved == incoming or (len(saved) >= 9 and saved[-9:] == incoming[-9:]):
+            return {
+                "found": True,
+                "customer": {
+                    "first": order.get("customer_first_name") or "",
+                    "last": order.get("customer_last_name") or "",
+                    "phone": order.get("customer_phone") or phone,
+                    "email": order.get("customer_email") or "",
+                    "address1": order.get("address_line1") or "",
+                    "address2": order.get("address_line2") or "",
+                    "postal": order.get("postal_code") or "",
+                    "city": order.get("city") or "",
+                },
+            }
+    return {"found": False}
 
 
 PUBLIC_ORDER_FIELDS = {

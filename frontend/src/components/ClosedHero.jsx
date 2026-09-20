@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, CheckCircle2, Clock, Mail } from "lucide-react";
 import { apiClient, fmtError } from "@/lib/api";
@@ -251,7 +252,14 @@ export default function ClosedHero({ compact = false }) {
           </div>
         )}
 
-        <div className="mt-8">
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <Link
+            to="/menu?schedule=1"
+            data-testid="closed-schedule-cta"
+            className="bt-btn-secondary"
+          >
+            <Clock className="w-4 h-4" /> Programmer une commande
+          </Link>
           {!formOpen && !done && (
             <button
               onClick={() => setFormOpen(true)}
