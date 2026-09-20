@@ -1,0 +1,37 @@
+{
+  "summary": "Re-verified tablet customer recall + print copy counts per updated spec (tablet immediate = 3 copies, kitchen accept = 3, reprint/test-print = 1, scheduled tablet = 0). Updated /app/backend/tests/test_customers_and_tablet_print.py with new assertions plus coverage for _phone_search_parts (local 0…, +33, 00 variants) and _matching_customers legacy-shape support (customer_phone / phone / customer.phone) via fake DB + a live-Mongo seeded legacy order query. 27/27 pytest passed. Frontend /tablet verified: dedicated 'Retrouver un client' section with country selector defaulting to +33, phone input, 'Rechercher ce client' button, email beneath phone; suggestions render inline (position: static, NOT absolute overlay); no horizontal overflow at 1920px or 390px. STRICT SAFETY UPHELD: zero calls to POST /api/tablet/orders, /kitchen/accept, /decline, /reprint, /test-print. No physical print triggered.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/tablet Retrouver un client suggestions", "issues": ["Residual seeded suggestions from prior test runs are visible when typing '612' (e.g. 'TESTMonaco PrefixUser +377 612345678', 'KeyTest Two 0612345678'). Not blocking; recommend cleanup via admin. They confirm the legacy-shape lookup works."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_customers_and_tablet_print.py",
+    "/app/test_reports/pytest/customers_tablet_print.xml"
+  ],
+  "action_items": [
+    "Optional: cleanup residual TEST_/KeyTest customer rows from prior iterations via admin (not blocking)."
+  ],
+  "critical_code_review_comments": [
+    "tablet_create_order (server.py L1023-1058): scheduled branch short-circuits with print_queued:false BEFORE any print work; non-scheduled branch atomically claims kitchen_decision via find_one_and_update then asyncio.create_task(_push_print_job_background(order_id, accepted, copies=3)) — matches new spec of 3 copies for immediate tablet orders.",
+    "kitchen_accept_order (L1399-1425) also uses copies=3 — 3 physical tickets on accept (kitchen counter + delivery bag + spare) as intended.",
+    "kitchen_reprint_order (L1473-1486) and kitchen_test_print (L1489-1508) both call send_print_job directly with copies=1 (bypassing _push_print_job_background whose default is 3). Confirmed via static inspect + regex.",
+    "_phone_search_parts (L1065-1076) generates {digits, digits[1:] if starts with 0, digits[2:] if starts with 00, digits[-9:] if len>=6}. Correctly cross-matches French local 0612345678 → 612345678 and international +33612345678 → 612345678 → shared 9-digit key. All parts >=3 chars.",
+    "_matching_customers (L1116-1146) queries customers first (fast path), then falls back to legacy orders across three phone shapes {customer_phone, phone, customer.phone} via $or + $exists. Only ever returns _customer_payload output (whitelist of 8 safe fields). Live and unit tests confirm no leak of _id, order_number, status, password_hash, phone_key, or order_count.",
+    "/api/tablet/customers/suggestions (L1149-1154) requires require_tablet auth (401 without token verified live). Query(min_length=3) returns 422 for short input.",
+    "TabletOrder.jsx (L413-481): 'Retrouver un client' is a dedicated <section> with border-y-2, country <select> (data-testid=tablet-phone-country) + phone input side-by-side in grid-cols-[88px_minmax(0,1fr)], explicit 'Rechercher ce client' button (data-testid=tablet-customer-lookup), suggestions box has position:static (inline, NOT absolute overlay), email field rendered beneath. Verified 1920px and 390px: no horizontal overflow on either."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_customers_and_tablet_print.py"
+  ],
+  "success_rate": {"backend": "100% (27/27 in customers_tablet_print suite)", "frontend": "100% on /tablet customer recall UI"},
+  "test_credentials": "Tablet tablet@burgertimes.fr / BurgerTablet2026! (from /app/memory/test_credentials.md).",
+  "seed_data_creation": "Two ephemeral rows via direct pymongo, both deleted in fixture teardown: (1) TEST_ prefixed customer for /suggestions live test; (2) TEST_legacy_<ts> order with only customer_phone (no customers row) for the local-form vs intl-legacy match test. No orders created via /api/tablet/orders. Zero print jobs enqueued.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "STRICT: never call POST /api/tablet/orders, /kitchen/accept, /kitchen/decline, /kitchen/reprint, /kitchen/test-print — a real Sunmi printer is live on the owner's premises via ngrok/Pi bridge. Do NOT re-run backend/tests/test_kitchen_flow.py (fires real prints). Safe suites: test_customers_and_tablet_print.py (27 tests, DB+HTTP only), test_new_features.py, test_schedule_and_lookup.py. To validate tablet_create_order or kitchen_accept_order print paths, use inspect.getsource static checks (see TestTabletOrdersPrintCodePath / TestKitchenAcceptPrintCodePath) or monkeypatch server_module.db + patch _push_print_job_background. New coverage added: _phone_search_parts variants + legacy shape parametrized test (customer_phone/phone/customer.phone) with local ↔ intl cross-match.",
+  "rca of the issue": "N/A — spec change (tablet immediate print copies 1 → 3) implemented correctly in server.py. All new/updated assertions pass."
+}

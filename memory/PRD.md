@@ -22,6 +22,16 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Tablet recall layout and three-copy print standard (2026-02-14):** Moved
+  phone lookup into its own full-width `Retrouver un client` section, with
+  visible inline suggestions and email beneath. Legacy customers now match
+  across `customer_phone`, `phone`, and nested `customer.phone` fields, with
+  local (`06…`), international (`+33…`), and `00…` forms normalized. Immediate
+  tablet confirmation and standard kitchen acceptance now each request three
+  Pi copies; scheduled tablet orders still do not print early, while manual
+  reprint and test-print remain one copy. Safe test iteration_33 passed 27/27
+  without any physical print call; a follow-up live cleanup query found no
+  residual test customer records.
 - **Tablet category-first menu (2026-02-14):** Replaced the long all-category
   tablet scroll with a category picker. The desk starts with category buttons
   only; staff tap one to display just that category's products. `Composer un

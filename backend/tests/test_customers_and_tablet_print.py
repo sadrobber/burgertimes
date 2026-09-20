@@ -103,17 +103,36 @@ class FakeCollection:
     def find(self, filt=None, projection=None):
         filt = filt or {}
 
+        def _get_path(d, key):
+            # Supports "customer.phone" dotted access
+            cur = d
+            for part in key.split("."):
+                if isinstance(cur, dict) and part in cur:
+                    cur = cur[part]
+                else:
+                    return None, False
+            return cur, True
+
         def _match(d):
             for k, v in filt.items():
-                if isinstance(v, dict):
-                    if "$ne" in v and d.get(k) == v["$ne"]:
+                if k == "$or":
+                    if not any(
+                        all(
+                            (_get_path(d, sk)[1] if (isinstance(sv, dict) and sv.get("$exists")) else _get_path(d, sk)[0] == sv)
+                            for sk, sv in clause.items()
+                        )
+                        for clause in v
+                    ):
                         return False
-                    if "$exists" in v:
-                        exists = k in d
-                        if v["$exists"] != exists:
-                            return False
+                    continue
+                val, present = _get_path(d, k)
+                if isinstance(v, dict):
+                    if "$ne" in v and present and val == v["$ne"]:
+                        return False
+                    if "$exists" in v and v["$exists"] != present:
+                        return False
                 else:
-                    if d.get(k) != v:
+                    if val != v:
                         return False
             return True
 
@@ -430,25 +449,21 @@ class TestMenuDefaults:
 
 
 class TestTabletOrdersPrintCodePath:
-    """Read the tablet_create_order source and assert it queues exactly
-    one print copy for non-scheduled orders and skips print entirely for
-    scheduled orders. NO real HTTP call is made to /api/tablet/orders."""
+    """Static source-level assertions about tablet_create_order:
+      * scheduled branch returns print_queued:false and does NOT call
+        _push_print_job_background
+      * non-scheduled branch calls _push_print_job_background(..., copies=3)
+    STRICT SAFETY: no real HTTP call to /api/tablet/orders is made."""
 
     def test_scheduled_branch_returns_print_queued_false(self):
         src = inspect.getsource(server_module.tablet_create_order)
-        # scheduled branch must return print_queued False BEFORE the
-        # _push_print_job_background call
         assert 'print_queued": False' in src or "'print_queued': False" in src, src
-        # Must reference scheduled_delivery_start check
         assert "scheduled_delivery_start" in src
 
-    def test_non_scheduled_queues_single_print_copy(self):
+    def test_non_scheduled_queues_three_print_copies(self):
         src = inspect.getsource(server_module.tablet_create_order)
-        # Exactly one call to _push_print_job_background in this function
         assert src.count("_push_print_job_background") == 1
-        # Must pass copies=1 (not the default 3)
-        assert re.search(r"_push_print_job_background\([^)]*copies=1", src), src
-        # print_queued: True on the accepted branch
+        assert re.search(r"_push_print_job_background\([^)]*copies=3", src), src
         assert 'print_queued": True' in src or "'print_queued': True" in src
 
     def test_scheduled_branch_precedes_print_queue(self):
@@ -456,11 +471,184 @@ class TestTabletOrdersPrintCodePath:
         scheduled_idx = src.find("scheduled_delivery_start")
         print_idx = src.find("_push_print_job_background")
         assert scheduled_idx != -1 and print_idx != -1
-        assert scheduled_idx < print_idx, (
-            "scheduled check must short-circuit before print is queued"
-        )
+        assert scheduled_idx < print_idx
 
     def test_push_print_job_background_default_is_three(self):
-        # Kitchen accept still defaults to 3 copies. tablet passes copies=1.
         sig = inspect.signature(server_module._push_print_job_background)
         assert sig.parameters["copies"].default == 3
+
+
+class TestKitchenAcceptPrintCodePath:
+    def test_kitchen_accept_queues_three_copies(self):
+        src = inspect.getsource(server_module.kitchen_accept_order)
+        assert src.count("_push_print_job_background") == 1
+        assert re.search(r"_push_print_job_background\([^)]*copies=3", src), src
+
+
+class TestKitchenReprintAndTestPrintUseSingleCopy:
+    def test_reprint_uses_one_copy(self):
+        src = inspect.getsource(server_module.kitchen_reprint_order)
+        assert re.search(r"send_print_job\([^)]*copies=1", src), src
+        # never calls _push_print_job_background (that defaults to 3)
+        assert "_push_print_job_background" not in src
+
+    def test_test_print_uses_one_copy(self):
+        src = inspect.getsource(server_module.kitchen_test_print)
+        assert re.search(r"send_print_job\([^)]*copies=1", src), src
+        assert "_push_print_job_background" not in src
+
+
+# ---------- _phone_search_parts + legacy phone shapes ---------------------
+
+
+class TestPhoneSearchParts:
+    def test_french_local_variants(self):
+        parts = server_module._phone_search_parts("0612345678")
+        # local 0612345678 → also matches 612345678 (French mobile without 0)
+        assert "0612345678" in parts
+        assert "612345678" in parts
+
+    def test_international_plus33_variants(self):
+        parts = server_module._phone_search_parts("+33612345678")
+        assert "33612345678" in parts
+        # trailing 9 digits = French national mobile
+        assert "612345678" in parts
+
+    def test_double_zero_prefix(self):
+        parts = server_module._phone_search_parts("0033612345678")
+        assert "33612345678" in parts
+
+    def test_too_short_rejects(self):
+        assert server_module._phone_search_parts("12") == set()
+
+    def test_source_phone_reads_all_three_legacy_shapes(self):
+        assert server_module._source_phone({"phone": "+33111"}) == "+33111"
+        assert server_module._source_phone({"customer_phone": "+33222"}) == "+33222"
+        assert (
+            server_module._source_phone({"customer": {"phone": "+33333"}}) == "+33333"
+        )
+
+
+class TestMatchingCustomersLegacyShapes:
+    def _make_order(self, shape: str, phone: str) -> dict:
+        base = {
+            "test_order": False,
+            "customer_first_name": "Legacy",
+            "customer_last_name": shape,
+            "customer_email": f"{shape}@x.com",
+            "created_at": "2024-01-01",
+            "status": "delivered",
+            "order_number": f"BT-{shape.upper()}",
+        }
+        if shape == "customer_phone":
+            base["customer_phone"] = phone
+        elif shape == "phone":
+            base["phone"] = phone
+        elif shape == "customer.phone":
+            base["customer"] = {"phone": phone}
+        return base
+
+    @pytest.mark.parametrize("shape", ["customer_phone", "phone", "customer.phone"])
+    def test_matches_local_and_international_forms(self, fake_db, shape):
+        fake_db.orders.docs.append(self._make_order(shape, "+33612345678"))
+        # Match by local French 06 form
+        matches_local = asyncio.run(_matching_customers("0612345678"))
+        assert len(matches_local) == 1
+        assert matches_local[0]["phone"] == "+33612345678"
+        assert matches_local[0]["last"] == shape
+        # Match by international form
+        matches_intl = asyncio.run(_matching_customers("+33612345678"))
+        assert len(matches_intl) == 1
+        assert matches_intl[0]["phone"] == "+33612345678"
+        # Confirm no leaked metadata
+        for leaked in ("order_number", "status", "_id"):
+            assert leaked not in matches_intl[0]
+
+
+# ---------- Live: local-style phone against seeded international legacy -----
+
+
+@pytest.fixture
+def seeded_legacy_order():
+    """Insert a TEST_ prefixed legacy-shape order (customer_phone only, no
+    customers doc) with an international +33… phone, then verify a local
+    0… query returns it via /suggestions. Deleted in teardown. Does NOT
+    go through /tablet/orders → no print is ever queued."""
+    from pymongo import MongoClient
+
+    mongo_url = os.environ.get("MONGO_URL")
+    db_name = os.environ.get("DB_NAME")
+    if not mongo_url or not db_name:
+        try:
+            with open("/app/backend/.env") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line.startswith("MONGO_URL=") and not mongo_url:
+                        mongo_url = line.split("=", 1)[1]
+                    elif line.startswith("DB_NAME=") and not db_name:
+                        db_name = line.split("=", 1)[1]
+        except FileNotFoundError:
+            pass
+    assert mongo_url and db_name
+    sync = MongoClient(mongo_url)
+    orders = sync[db_name].orders
+    customers = sync[db_name].customers
+
+    # Unique French mobile: +336 + 8 random-ish digits from timestamp
+    tail = f"{int(time.time()) % 100_000_000:08d}"
+    intl = f"+336{tail}"
+    local = f"06{tail}"
+    order_id = f"TEST_legacy_{tail}"
+    order = {
+        "id": order_id,
+        "order_number": f"BT-TESTLEG{tail[-4:]}",
+        "status": "delivered",
+        "test_order": False,
+        "customer_phone": intl,
+        "customer_first_name": "TEST_Legacy",
+        "customer_last_name": "Local",
+        "customer_email": "TEST_leg@test.local",
+        "created_at": "2024-06-01T00:00:00Z",
+    }
+    # Ensure no customers row exists that would short-circuit the lookup
+    phone_key = "".join(c for c in intl if c.isdigit())
+    customers.delete_many({"phone_key": phone_key})
+    orders.delete_many({"id": order_id})
+    orders.insert_one(dict(order))
+    try:
+        yield {"local": local, "intl": intl, "phone_key": phone_key}
+    finally:
+        orders.delete_many({"id": order_id})
+        customers.delete_many({"phone_key": phone_key})
+        sync.close()
+
+
+class TestSuggestionsLegacyLocalQuery:
+    def test_local_query_returns_intl_legacy_no_metadata(
+        self, tablet_headers, seeded_legacy_order
+    ):
+        # Query with local 0-prefixed form
+        r = requests.get(
+            f"{API}/tablet/customers/suggestions",
+            params={"phone": seeded_legacy_order["local"]},
+            headers=tablet_headers,
+            timeout=15,
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        intl = seeded_legacy_order["intl"]
+        found = [c for c in data.get("customers", []) if c.get("phone") == intl]
+        assert found, f"local query did not match legacy intl phone: {data}"
+        cust = found[0]
+        assert set(cust.keys()) == {
+            "first",
+            "last",
+            "phone",
+            "email",
+            "address1",
+            "address2",
+            "postal",
+            "city",
+        }
+        for leaked in ("order_number", "status", "_id", "id"):
+            assert leaked not in cust
