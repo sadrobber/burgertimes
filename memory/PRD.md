@@ -22,6 +22,12 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Tablet category-first menu (2026-02-14):** Replaced the long all-category
+  tablet scroll with a category picker. The desk starts with category buttons
+  only; staff tap one to display just that category's products. `Composer un
+  Tacos` remains immediately available at the top. Verified both the empty
+  initial state and category filtering on desktop, plus the responsive 390px
+  picker with no overflow.
 - **Pi bridge secret propagation fixed (2026-02-14):** The backend print
   bridge now forwards `KITCHEN_PRINTER_SECRET` in the Pi's required
   `X-Print-Secret` header. Preview bridge health succeeded and the owner

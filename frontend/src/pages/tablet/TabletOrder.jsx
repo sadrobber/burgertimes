@@ -55,6 +55,7 @@ export default function TabletOrder() {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [suggesting, setSuggesting] = useState(false);
+  const [activeCategory, setActiveCategory] = useState(null);
   const dialCode = findCountry(countryIso).dial;
   const fullPhone = form.phone.trim() ? `${dialCode} ${form.phone.trim()}` : "";
 
@@ -249,6 +250,9 @@ export default function TabletOrder() {
   };
 
   const categories = [...new Set(menu.map((item) => item.category))];
+  const activeCategoryLabel = activeCategory
+    ? CATEGORY_LABELS[activeCategory] || activeCategory.replaceAll("-", " ")
+    : null;
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#F5F1E8]" data-testid="tablet-order-page">
@@ -288,14 +292,40 @@ export default function TabletOrder() {
               <UtensilsCrossed className="h-4 w-4" /> Composer un Tacos
             </button>
           </div>
-          {categories.map((category) => (
-            <section key={category} data-testid={`tablet-category-${category}`}>
+          <section data-testid="tablet-category-picker">
+            <div className="mb-3 font-accent text-sm uppercase tracking-widest text-[#A1A1A1]">
+              Choisir une catégorie
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+              {categories.map((category) => {
+                const label = CATEGORY_LABELS[category] || category.replaceAll("-", " ");
+                const active = activeCategory === category;
+                return (
+                  <button
+                    className={`border-2 px-4 py-5 text-left font-display text-2xl uppercase leading-none transition-colors ${
+                      active
+                        ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
+                        : "border-[#262626] bg-[#141414] text-[#F5F1E8] hover:border-[#EF2B2D]"
+                    }`}
+                    data-testid={`tablet-category-select-${category}`}
+                    key={category}
+                    onClick={() => setActiveCategory(category)}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {activeCategory ? (
+            <section data-testid={`tablet-category-${activeCategory}`}>
               <h2 className="mb-3 border-l-4 border-[#EF2B2D] pl-3 font-display text-3xl uppercase leading-none text-[#EF2B2D] sm:text-4xl">
-                {CATEGORY_LABELS[category] || category.replaceAll("-", " ")}
+                {activeCategoryLabel}
               </h2>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
                 {menu
-                  .filter((item) => item.category === category)
+                  .filter((item) => item.category === activeCategory)
                   .map((item) => (
                     <MenuItemCard
                       compact
@@ -306,7 +336,14 @@ export default function TabletOrder() {
                   ))}
               </div>
             </section>
-          ))}
+          ) : (
+            <div
+              className="border-l-4 border-[#EF2B2D] bg-[#141414] px-4 py-5 text-sm text-[#A1A1A1]"
+              data-testid="tablet-category-empty-state"
+            >
+              Choisis une catégorie pour afficher ses produits.
+            </div>
+          )}
         </section>
 
         <aside className="xl:sticky xl:top-20 xl:h-[calc(100vh-6rem)] xl:overflow-y-auto">
