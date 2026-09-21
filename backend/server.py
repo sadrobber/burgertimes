@@ -860,7 +860,12 @@ async def _quote_or_create(
 
     if create:
         if not scheduled_slot:
-            await _ensure_accepting_orders(settings)
+            tablet_closed_override = order_source == "tablet" and settings.get(
+                "tablet_orders_when_closed",
+                False,
+            )
+            if not tablet_closed_override:
+                await _ensure_accepting_orders(settings)
         elif compute_status(settings).get("reason") == "force_closed":
             raise HTTPException(status_code=423, detail="Le restaurant est fermé exceptionnellement.")
         _validate_payment_method(settings, payload.payment_method)

@@ -319,6 +319,7 @@ class Settings(BaseModel):
     scheduled_delivery_enabled: bool = True
     delivery_lead_minutes: int = 40
     delivery_window_minutes: int = 20
+    tablet_orders_when_closed: bool = False
     contact_phone: str = "04.97.07.17.93"
     contact_address: str = "6 Avenue de Villaine, 06240 Beausoleil"
     contact_instagram: str = "@burgertimes_bsl"
@@ -353,6 +354,7 @@ class SettingsUpdate(BaseModel):
     scheduled_delivery_enabled: Optional[bool] = None
     delivery_lead_minutes: Optional[int] = None
     delivery_window_minutes: Optional[int] = None
+    tablet_orders_when_closed: Optional[bool] = None
     contact_phone: Optional[str] = None
     contact_address: Optional[str] = None
     contact_instagram: Optional[str] = None

@@ -95,9 +95,9 @@ export default function AdminLayout() {
         </button>
       </div>
 
-      <main className="flex-1 md:ml-0 pt-16 md:pt-0">
+      <main className="flex-1 min-w-0 md:ml-0 pt-16 md:pt-0">
         <div className="md:hidden border-b-2 border-[#262626] bg-[#141414]">
-          <div className="flex flex-wrap gap-1 px-2 py-2">
+          <div className="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-1 px-2 py-2">
             {links.map((l) => (
               <NavLink
                 key={l.to}
@@ -105,7 +105,7 @@ export default function AdminLayout() {
                 end={l.end}
                 data-testid={`admin-nav-mobile-${l.id}`}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 px-3 py-2 border-2 text-xs font-accent uppercase tracking-widest ${
+                  `flex min-w-0 overflow-hidden items-center justify-center gap-1 px-2 py-2 text-center text-[10px] font-accent uppercase leading-tight tracking-widest ${
                     isActive ? "border-[#EF2B2D] text-[#EF2B2D]" : "border-[#262626] text-[#B3B3B3]"
                   }`
                 }

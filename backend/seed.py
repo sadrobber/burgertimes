@@ -203,6 +203,7 @@ async def seed_settings(db) -> None:
             "scheduled_delivery_enabled": True,
             "delivery_lead_minutes": 40,
             "delivery_window_minutes": 20,
+            "tablet_orders_when_closed": False,
             "eta_default_min": 20,
             "eta_default_max": 30,
             "last_order_buffer_minutes": 15,

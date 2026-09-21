@@ -21,6 +21,7 @@ export default function SettingsAdmin() {
   const [builderImgPreview, setBuilderImgPreview] = useState(null);
   const [uploadingBuilderImg, setUploadingBuilderImg] = useState(false);
   const [builderImgVersion, setBuilderImgVersion] = useState(0);
+  const [savingTabletOverride, setSavingTabletOverride] = useState(false);
 
   useEffect(() => {
     adminClient.get("/settings").then((r) => setS(r.data));
@@ -57,6 +58,7 @@ export default function SettingsAdmin() {
         scheduled_delivery_enabled: !!s.scheduled_delivery_enabled,
         delivery_lead_minutes: parseInt(s.delivery_lead_minutes, 10) || 40,
         delivery_window_minutes: parseInt(s.delivery_window_minutes, 10) || 20,
+        tablet_orders_when_closed: !!s.tablet_orders_when_closed,
         contact_phone: s.contact_phone,
         contact_address: s.contact_address,
         contact_instagram: s.contact_instagram,
@@ -186,14 +188,37 @@ export default function SettingsAdmin() {
     }
   };
 
+  const toggleTabletClosedOrders = async () => {
+    setSavingTabletOverride(true);
+    try {
+      const { data } = await adminClient.put("/settings", {
+        tablet_orders_when_closed: !s.tablet_orders_when_closed,
+      });
+      setS(data);
+      toast.success(
+        data.tablet_orders_when_closed
+          ? "Tablette autorisée hors horaires"
+          : "Tablette limitée aux horaires d'ouverture",
+      );
+    } catch (error) {
+      toast.error(fmtError(error));
+    } finally {
+      setSavingTabletOverride(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="font-marker text-[#EF2B2D] -rotate-1">Config</div>
           <h1 className="font-display text-5xl uppercase leading-none">Réglages</h1>
         </div>
-        <button onClick={save} data-testid="settings-save" className="bt-btn-primary">
+        <button
+          onClick={save}
+          data-testid="settings-save"
+          className="bt-btn-primary w-full sm:w-auto"
+        >
           <Save className="w-4 h-4" /> Enregistrer
         </button>
       </div>
@@ -228,6 +253,33 @@ export default function SettingsAdmin() {
         </label>
       </div>
 
+      <div className="bt-card p-5" data-testid="tablet-closed-orders-card">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="font-display text-2xl uppercase">Tablette hors horaires</div>
+            <p className="mt-1 text-sm text-[#A1A1A1]">
+              Autorise uniquement les commandes prises sur /tablet quand le restaurant est fermé.
+            </p>
+          </div>
+          <button
+            className={
+              s.tablet_orders_when_closed
+                ? "bt-btn-primary"
+                : "bt-btn-secondary"
+            }
+            data-testid="settings-tablet-closed-orders-toggle"
+            disabled={savingTabletOverride}
+            onClick={toggleTabletClosedOrders}
+          >
+            {savingTabletOverride
+              ? "..."
+              : s.tablet_orders_when_closed
+                ? "Tablette autorisée"
+                : "Autoriser la tablette"}
+          </button>
+        </div>
+      </div>
+
       {/* Tacos builder image */}
       <div className="bt-card p-5 space-y-4">
         <div className="font-display text-2xl uppercase inline-flex items-center gap-2">
@@ -252,10 +304,11 @@ export default function SettingsAdmin() {
               </div>
             )}
           </div>
-          <div className="space-y-2">
+          <div className="w-full space-y-2 sm:w-auto">
             <input
               data-testid="settings-builder-image-input"
               type="file"
+              className="max-w-full text-xs"
               accept="image/*"
               disabled={uploadingBuilderImg}
               onChange={(e) => e.target.files?.[0] && uploadBuilderImage(e.target.files[0])}
