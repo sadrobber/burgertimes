@@ -1219,11 +1219,24 @@ async def admin_orders(
     status: Optional[str] = Query(default=None),
     limit: int = Query(default=100, le=500),
 ):
-    q: Dict[str, Any] = {}
+    q: Dict[str, Any] = {"order_source": {"$ne": "tablet"}}
     if status:
         q["status"] = status
     docs = await db.orders.find(q).sort([("created_at", -1)]).to_list(limit)
     return [_strip_mongo(d) for d in docs]
+
+
+@api.get("/admin/tablet/orders")
+async def admin_tablet_orders(
+    _: dict = Depends(require_admin),
+    status: Optional[str] = Query(default=None),
+    limit: int = Query(default=100, le=500),
+):
+    query: Dict[str, Any] = {"order_source": "tablet"}
+    if status:
+        query["status"] = status
+    docs = await db.orders.find(query).sort([("created_at", -1)]).to_list(limit)
+    return [_strip_mongo(doc) for doc in docs]
 
 
 @api.get("/admin/orders/{order_id}")
@@ -1521,7 +1534,7 @@ async def kitchen_test_print(_: dict = Depends(require_kitchen)):
 
 @api.get("/admin/stats")
 async def admin_stats(_: dict = Depends(require_admin)):
-    docs = await db.orders.find().to_list(5000)
+    docs = await db.orders.find({"order_source": {"$ne": "tablet"}}).to_list(5000)
     void = {"cancelled", "expired"}
     in_flight = {"pending", "accepted", "preparing", "ready", "delivering"}
     total_orders = len(docs)
@@ -1535,6 +1548,27 @@ async def admin_stats(_: dict = Depends(require_admin)):
         "pending_orders": pending,
         "revenue": revenue,
         "avg_basket": avg,
+    }
+
+
+@api.get("/admin/stats/tablet")
+async def admin_tablet_stats(_: dict = Depends(require_admin)):
+    docs = await db.orders.find({"order_source": "tablet", "test_order": {"$ne": True}}).to_list(5000)
+    void = {"cancelled", "expired"}
+    paid = [doc for doc in docs if doc.get("status") not in void]
+    revenue = round(sum(float(doc.get("total") or 0.0) for doc in paid), 2)
+    today = datetime.now(timezone.utc).date().isoformat()
+    today_docs = [doc for doc in paid if (doc.get("created_at") or "")[:10] == today]
+    pickup = sum(1 for doc in paid if doc.get("fulfillment") == "pickup")
+    delivery = sum(1 for doc in paid if doc.get("fulfillment") == "delivery")
+    return {
+        "total_orders": len(docs),
+        "valid_orders": len(paid),
+        "today_orders": len(today_docs),
+        "revenue": revenue,
+        "avg_basket": round(revenue / len(paid), 2) if paid else 0.0,
+        "pickup_orders": pickup,
+        "delivery_orders": delivery,
     }
 
 
@@ -1563,7 +1597,12 @@ async def admin_delivery_fee_stats(
 
     void = {"cancelled", "expired"}
     docs = await db.orders.find(
-        {"fulfillment": "delivery", "status": {"$nin": list(void)}, "test_order": {"$ne": True}}
+        {
+            "fulfillment": "delivery",
+            "status": {"$nin": list(void)},
+            "test_order": {"$ne": True},
+            "order_source": {"$ne": "tablet"},
+        }
     ).to_list(20000)
 
     now_local = datetime.now(tz)

@@ -14,6 +14,7 @@ import {
   Truck,
   Ticket,
   TabletSmartphone,
+  MonitorSmartphone,
 } from "lucide-react";
 import { useAdminAuth } from "@/context/AdminAuthContext.jsx";
 
@@ -27,6 +28,7 @@ const links = [
   { to: "/admin/sauces", label: "Sauces", icon: Droplet, id: "sauces" },
   { to: "/admin/coupons", label: "Codes promo", icon: Ticket, id: "coupons" },
   { to: "/admin/tablet-staff", label: "Tablette", icon: TabletSmartphone, id: "tablet-staff" },
+  { to: "/admin/tablet-orders", label: "Ventes tablette", icon: MonitorSmartphone, id: "tablet-orders" },
   { to: "/admin/reviews", label: "Avis", icon: Star, id: "reviews" },
   { to: "/admin/settings", label: "Réglages", icon: SettingsIcon, id: "settings" },
 ];

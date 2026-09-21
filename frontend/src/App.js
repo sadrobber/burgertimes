@@ -28,6 +28,7 @@ import ReviewsAdmin from "@/pages/admin/ReviewsAdmin.jsx";
 import SettingsAdmin from "@/pages/admin/SettingsAdmin.jsx";
 import DeliveryStatsAdmin from "@/pages/admin/DeliveryStatsAdmin.jsx";
 import TabletStaffAdmin from "@/pages/admin/TabletStaffAdmin.jsx";
+import TabletOrdersAdmin from "@/pages/admin/TabletOrdersAdmin.jsx";
 import ScrollToTop from "@/components/ScrollToTop.jsx";
 
 import KitchenLogin from "@/pages/kitchen/KitchenLogin.jsx";
@@ -98,6 +99,7 @@ function App() {
                   <Route path="sauces" element={<SaucesAdmin />} />
                   <Route path="coupons" element={<CouponsAdmin />} />
                   <Route path="tablet-staff" element={<TabletStaffAdmin />} />
+                  <Route path="tablet-orders" element={<TabletOrdersAdmin />} />
                   <Route path="reviews" element={<ReviewsAdmin />} />
                   <Route path="stats/delivery" element={<DeliveryStatsAdmin />} />
                   <Route path="settings" element={<SettingsAdmin />} />
