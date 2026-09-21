@@ -59,6 +59,7 @@ BOLD_OFF = ESC + b"\x45\x00"
 SIZE_NORMAL = GS + b"\x21\x00"
 SIZE_TALL = GS + b"\x21\x01"  # double height, same width — bigger text without shrinking chars-per-line
 SIZE_DOUBLE = GS + b"\x21\x11"  # double width + double height
+SIZE_KITCHEN = GS + b"\x21\x11"  # biggest readable size for kitchen instructions
 # Character code table — 16 selects a Latin/Western-European table (often
 # labelled "WPC1252") on most Epson-compatible ESC/POS printers, needed for
 # proper é/è/à/ç rendering. If accents print as garbage, try 0 (CP437) or
@@ -89,6 +90,7 @@ def _line(s: str = "") -> bytes:
 # double-height secretly widening characters, just plain hard-wrap on a
 # long line, e.g. "...(Viande Hach" / "ee, Kebab)").
 TALL_LINE_WIDTH = 32
+KITCHEN_LINE_WIDTH = 16
 
 
 def _tall(text: str = "", indent: str = "") -> bytes:
@@ -97,6 +99,16 @@ def _tall(text: str = "", indent: str = "") -> bytes:
     out = b""
     for w in (textwrap.wrap(text, width=TALL_LINE_WIDTH, subsequent_indent=indent) or [""]):
         out += _line(w)
+    return out
+
+
+def _kitchen(text: str = "", indent: str = "") -> bytes:
+    """Emit double-width kitchen text while wrapping at word boundaries."""
+    out = b""
+    for word_line in (
+        textwrap.wrap(text, width=KITCHEN_LINE_WIDTH, subsequent_indent=indent) or [""]
+    ):
+        out += _line(word_line)
     return out
 
 
@@ -173,17 +185,14 @@ def build_escpos_ticket(order: dict) -> bytes:
     out += _line(f"{date_str} {time_str}")
     out += _line(DIVIDER)
 
-    # Everything below is bigger (double-height) — pre-wrapped ourselves
-    # word-by-word (see TALL_LINE_WIDTH) instead of relying on the
-    # printer's own auto-wrap, which cut long lines mid-word at this size.
-    # Dividers are switched back to normal size each time so they stay a
-    # plain single-height dashed rule, not stretched/doubled too.
-    out += ALIGN_LEFT + BOLD_ON + SIZE_TALL
+    # Kitchen content is double-width and double-height. It is wrapped to
+    # sixteen characters ourselves so the printer never cuts a word in half.
+    out += ALIGN_LEFT + BOLD_ON + SIZE_KITCHEN
     for item in order.get("items") or []:
         for row in _item_lines(item):
-            out += _tall(row, indent="  ")
+            out += _kitchen(row, indent="  ")
     if order.get("notes"):
-        out += _tall(f"Note : {order['notes']}", indent="  ")
+        out += _kitchen(f"Note : {order['notes']}", indent="  ")
     out += BOLD_OFF + SIZE_NORMAL
     out += _line(DIVIDER)
     out += SIZE_TALL
@@ -193,26 +202,26 @@ def build_escpos_ticket(order: dict) -> bytes:
     out += _tall(f"TOTAL : {total:.2f} EUR".replace(".", ","))
     out += BOLD_OFF + SIZE_NORMAL
     out += _line(DIVIDER)
-    out += SIZE_TALL
+    out += SIZE_NORMAL
 
     if customer_name:
-        out += _tall(f"Client : {customer_name}")
+        out += _line(f"Client : {customer_name}")
     if order.get("customer_phone"):
-        out += _tall(f"Tel : {order['customer_phone']}")
+        out += _line(f"Tel : {order['customer_phone']}")
     if fulfillment == "delivery":
         _, slot_start = _fmt_datetime(order.get("scheduled_delivery_start", ""))
         _, slot_end = _fmt_datetime(order.get("scheduled_delivery_end", ""))
         if slot_start and slot_end:
-            out += _tall(f"Creneau livraison : {slot_start} - {slot_end}")
+            out += _line(f"Creneau livraison : {slot_start} - {slot_end}")
         addr = ", ".join(filter(None, [order.get("address_line1"), order.get("address_line2")]))
         if addr:
-            out += _tall(addr)
+            out += _line(addr)
         city_line = f"{order.get('postal_code', '')} {order.get('city', '')}".strip()
         if city_line:
-            out += _tall(city_line)
+            out += _line(city_line)
     if order.get("pickup_code"):
-        out += _tall(f"Code retrait : {order['pickup_code']}")
-    out += _tall(
+        out += _line(f"Code retrait : {order['pickup_code']}")
+    out += _line(
         f"Paiement : {PAYMENT_LABEL.get(order.get('payment_method'), order.get('payment_method', ''))}"
     )
 
@@ -250,8 +259,8 @@ def print_order():
         return jsonify({"ok": False, "error": "no JSON body"}), 400
 
     order_number = order.get("order_number", "?")
-    # Backend sends 3 on accept (kitchen counter + delivery bag + spare),
-    # 1 on a manual reprint. Defaults to 1 if the field is missing.
+    # Backend sends 3 on normal kitchen accept, 2 on tablet confirmation,
+    # and 1 on manual reprint. Defaults to 1 if the field is missing.
     copies = max(1, int(order.get("print_copies", 1) or 1))
     logger.info("Printing order #%s (%d copies)", order_number, copies)
     try:

@@ -22,6 +22,13 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Larger kitchen ticket text (2026-02-14):** Updated the Raspberry Pi
+  bridge so food item lines, sauces, removals, and kitchen notes print in
+  double-width/double-height ESC/POS text, safely wrapped to 16 characters.
+  Customer, address, payment, and delivery details remain compact; totals
+  remain large. The complete Pi script was provided for copy/paste. Static
+  ticket-byte build passed with no network or physical printer call, per the
+  owner's request.
 - **Tablet last name optional (2026-02-14):** Corrected the tablet customer
   form: first name remains required, while last name is explicitly optional
   and is stored as an empty string when omitted. Quote and final payloads now
