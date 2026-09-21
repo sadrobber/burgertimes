@@ -1,0 +1,25 @@
+{
+  "summary": "Verified corrected product popup rule: removable ingredients work for both 'Menu' and 'Sans menu' formulas. Backend /api/checkout/quote enforces 2-sauce cap, 2-removal cap, per-item allowed-removal validation, and now explicitly permits removals when formula='seul' with snapshot notes formatted as 'Sans X · Sans Y'. Frontend ItemConfigurationModal renders remove chips independent of formula and hides the drink selector when Sans menu is selected. Verified on desktop (1920) and mobile (390). No orders/sessions/tablet/kitchen/printer calls were made.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_config_modal_limits.py",
+    "/app/test_reports/pytest/config_modal_limits.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "order_service.py validation is centralized and correct — removable_ingredients checks apply uniformly to all formulas, and per-item allowed_removals is enforced (line 113-118). Good.",
+    "ItemConfigurationModal.jsx renders `Retirer jusqu'à N ingrédients` group outside the `formula === 'menu'` branch — correctly independent of formula. The `Frites incluses` label is descriptive text on the Menu formula button and is always in DOM (only that button, not for Sans menu), which is correct.",
+    "Consider adding a data-testid on the modal container (e.g. `item-config-modal`) to disambiguate Escape/close in E2E tests."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_config_modal_limits.py"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100%"},
+  "test_credentials": "chahineisgoated@gmail.com / BurgerTimes2026! (admin login used only to create/delete a TEST menu item; item is deleted in the fixture teardown).",
+  "seed_data_creation": "One TEST_CFGMODAL_* menu item created via /api/admin/menu with uses_sauces=True and 5 removable_ingredients; deleted unconditionally in module-scoped fixture teardown. No orders were placed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: `python -m pytest backend/tests/test_config_modal_limits.py -v -o addopts=''`. Six cases now exercised: (1) >2 sauces rejected, (2) >2 removals rejected, (3) formula=seul with 2 valid removals succeeds and snapshot notes contain 'Sans X · Sans Y', (4) at-limit menu (2 sauces + 2 removals + drink) succeeds and snapshot preserves sauces, drink, notes, (5) NEW: formula=seul with a removal not configured on the item returns 400 with 'retrait'/'indisponible', (6) uses_sauces=False rejects sauces. UI E2E used /menu page → click any `[data-testid$='-configure']` button to open ItemConfigurationModal, then test formula-seul (drink hidden, remove chips selectable up to 2, third disabled) and formula-menu (drink visible, 'Frites incluses' shown). STRICTLY do not exercise POST /api/orders, tablet-order endpoints, kitchen or print endpoints — Pi printer is live.",
+  "rca of the issue": "Not a bug run — this is a rule correction verification. Rule: removable_ingredients are allowed for both formulas ('seul' and 'menu'), with a hard cap of 2 removals per line and a per-item allowed-list constraint. Backend enforces at order_service.build_snapshot_from_lines (lines 51-56 caps, 113-118 allowed-removal check). Frontend enforces MAX_REMOVALS=2 via disabling chips beyond limit. Drink required only for formula='menu' (server line 60-64, UI line 131)."
+}

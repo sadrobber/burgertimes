@@ -22,6 +22,14 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Removals available with either formula (2026-02-14):** Corrected the
+  product popup so configured `Sans …` choices remain available for both Menu
+  and Sans-menu orders. Menu still requires a drink and advertises fries;
+  Sans-menu hides drinks but supports up to two valid removals and two sauces.
+  Backend quote validation now permits and receipt-notes valid sans-menu
+  removals while retaining the two-removal cap and per-item allowed-list
+  protection. Iteration_42 passed 6/6 backend checks and responsive popup UI
+  verification, with no orders or physical prints. Deployment was queued.
 - **Separate tablet reporting (2026-02-14):** Tablet-source orders now stay
   out of the main Admin → Commandes list, dashboard stats, and delivery-fee
   stats. Added Admin → `Ventes tablette` with its own order list, status

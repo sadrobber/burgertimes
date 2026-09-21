@@ -154,6 +154,14 @@ def test_at_limit_menu_selection_snapshots_notes(test_item):
     assert snap.get("included_drink") == drink
 
 
+def test_removals_not_configured_rejected_for_seul(test_item):
+    """formula=seul with a removal not in the item's removable_ingredients must 400."""
+    r = _quote(test_item["id"], formula="seul", removals=["oignons", "bacon"])
+    assert r.status_code == 400, r.text
+    body = r.text.lower()
+    assert "retrait" in body or "indispon" in body
+
+
 def test_sauces_rejected_when_item_does_not_use_sauces(admin_token, test_item):
     """Toggle uses_sauces=False and confirm sauces are rejected."""
     tok = admin_token
