@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="7" failures="0" skipped="0" tests="15" time="4.550" timestamp="2026-09-21T08:58:34.929840+00:00" hostname="agent-env-2e27b95e-59e6-47ea-8de8-d6b10f149601"><testcase classname="tests.test_tablet_closed_override_and_settings.TestSourceLevelBypassLogic" name="test_bypass_when_tablet_and_override_true" time="0.678"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Not Found&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code&quot;">backend/tests/test_tablet_closed_override_and_settings.py:53: in original_settings
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Not Found"}
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</error></testcase><testcase classname="tests.test_tablet_closed_override_and_settings.TestSourceLevelBypassLogic" name="test_web_source_is_default_and_not_bypassed" time="0.000"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Not Found&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code&quot;">backend/tests/test_tablet_closed_override_and_settings.py:53: in original_settings
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Not Found"}
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</error></testcase><testcase classname="tests.test_tablet_closed_override_and_settings.TestSourceLevelBypassLogic" name="test_tablet_immediate_uses_three_print_copies" time="0.000"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Not Found&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code&quot;">backend/tests/test_tablet_closed_override_and_settings.py:53: in original_settings
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Not Found"}
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</error></testcase><testcase classname="tests.test_menu_image_and_sauces.TestMenuImagePreserve" name="test_create_sets_has_image_true" time="1.162" /><testcase classname="tests.test_menu_image_and_sauces.TestUsesSaucesValidation" name="test_uses_sauces_false_rejects_sauce_payload" time="0.914" /><testcase classname="tests.test_menu_image_and_sauces.TestMenuImagePreserve" name="test_image_endpoint_returns_bytes" time="0.364" /><testcase classname="tests.test_menu_image_and_sauces.TestUsesSaucesValidation" name="test_uses_sauces_true_accepts_sauce_payload" time="0.640" /><testcase classname="tests.test_menu_image_and_sauces.TestMenuImagePreserve" name="test_update_without_image_preserves_image" time="0.756" /><testcase classname="tests.test_menu_image_and_sauces.TestMenuImagePreserve" name="test_update_with_null_image_base64_preserves_image" time="0.915" /><testcase classname="tests.test_tablet_closed_override_and_settings.TestSettingsToggle" name="test_toggle_true_persists" time="0.456"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Not Found&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code&quot;">backend/tests/test_tablet_closed_override_and_settings.py:53: in original_settings
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Not Found"}
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</error></testcase><testcase classname="tests.test_tablet_closed_override_and_settings.TestSettingsToggle" name="test_toggle_false_persists" time="0.000"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Not Found&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code&quot;">backend/tests/test_tablet_closed_override_and_settings.py:53: in original_settings
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Not Found"}
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</error></testcase><testcase classname="tests.test_menu_image_and_sauces.TestPublicMenuExposesSauceFlag" name="test_menu_lists_uses_sauces" time="0.138" /><testcase classname="tests.test_tablet_closed_override_and_settings.TestSettingsUIExposesField" name="test_admin_settings_exposes_field" time="0.440"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Not Found&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code&quot;">backend/tests/test_tablet_closed_override_and_settings.py:53: in original_settings
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Not Found"}
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</error></testcase><testcase classname="tests.test_menu_image_and_sauces.TestMenuImagePreserve" name="test_removable_ingredients_only_update_persists_and_preserves_image" time="0.524" /><testcase classname="tests.test_tablet_closed_override_and_settings.TestWebBlockedWhenClosed" name="test_web_checkout_blocked_when_force_closed" time="0.474"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Not Found&quot;}&#10;assert 404 == 200&#10; +  where 404 = &lt;Response [404]&gt;.status_code&quot;">backend/tests/test_tablet_closed_override_and_settings.py:53: in original_settings
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Not Found"}
+E   assert 404 == 200
+E    +  where 404 = &lt;Response [404]&gt;.status_code</error></testcase></testsuite></testsuites>

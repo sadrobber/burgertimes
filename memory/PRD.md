@@ -22,6 +22,21 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Admin menu reliability, sauces, and tablet-hours override (2026-02-14):**
+  Fixed the reported menu-photo loss: item updates without a new upload (even
+  a legacy `image_base64: null` request) now preserve the stored image.
+  Replaced the comma list with an auto-saving `Options « Sans »` table with
+  five quick presets, editable rows, deletion, and custom additions. Added
+  the per-item `Proposer des sauces pour ce plat` control; enabled items show
+  active sauce choices on web and tablet, preserve sauce choices through cart
+  and quote, and are server-validated. Added the immediate Settings toggle
+  `Autoriser la tablette`: when enabled, immediate `/tablet` orders bypass
+  normal/force-closed hours while public checkout stays closed; scheduled
+  tablet orders still follow their release rules. Responsive Admin Settings
+  and navigation were tightened for 390px. Iteration_36 passed 15/15 across
+  image preservation, auto-save, sauces, settings persistence, public-order
+  isolation, mobile overflow, and three-copy static print contract; no live
+  order or printer call was made. The settings were restored to disabled.
 - **Tablet delivery is free (2026-02-14):** Added a protected
   `/api/tablet/quote` path and server-side tablet delivery waiver. Tablet
   delivery totals now always equal their item subtotal, display `Livraison
