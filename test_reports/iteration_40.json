@@ -1,0 +1,23 @@
+{
+  "summary": "Iteration 40 — Verified uses_sauces auto-enabled for every menu item (backend + UI, printer-safe). Backend pytest backend/tests/test_uses_sauces_default.py 5/5 PASS: (1) GET /api/menu returns all items with uses_sauces=true (41 items, 0 offenders); (2) POST /api/admin/menu without uses_sauces field creates item with uses_sauces=true and public /api/menu reflects it; (3) POST /api/admin/menu with uses_sauces=false honored and public reflects it; ephemeral TEST_SAUCEDEF_* / TEST_SAUCEOFF_* items deleted (HTTP 200); (4) Existing normal item exposes /api/sauces list; (5) /api/checkout/quote enforces 2-sauce cap: 2 sauces => 200, 3 sauces => 400 with 'sauces' in French error. UI Playwright: public /menu — clicking [data-testid=item-<id>-configure] opens ItemConfigurationModal with label 'Choisis jusqu'à 2 sauces' and 12 sauce chips ([data-testid*=-sauce-]) visible on CLASSIQUE. Tablet /tablet — logged in as tablet@burgertimes.fr, opened LES CLASSIQUES → clicked CHEESE personnaliser → same modal rendered with 12 sauce chips (Algérienne, Harissa, Andalouse, Ketchup, Barbecue, Moutarde, Big Mac, Mayonnaise, Bigoy, Poivre, Blanche, Samouraï). NO /checkout/session, NO /tablet/orders, NO kitchen/printer endpoints touched.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_uses_sauces_default.py",
+    "/app/test_reports/pytest/iter40_uses_sauces.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/models.py L97 & L116: MenuItem.uses_sauces default True and MenuItemCreate.uses_sauces default True — consistent for new admin items.",
+    "backend/seed.py L257-262: idempotent backfill update_many({uses_sauces:{$ne:True}}, {$set:{uses_sauces:True}}) correctly promotes any legacy items on every startup — safe and future-proof.",
+    "backend/order_service.py 2-sauce cap remains enforced through /checkout/quote — printer-safe validation confirmed."
+  ],
+  "updated_files": ["/app/backend/tests/test_uses_sauces_default.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100%"},
+  "test_credentials": "Admin chahineisgoated@gmail.com used only to create/delete ephemeral TEST_SAUCEDEF_* and TEST_SAUCEOFF_* items (both deleted). Tablet tablet@burgertimes.fr used for read-only tablet UI verification.",
+  "seed_data_creation": "Ephemeral only: TEST_SAUCEDEF_<uuid> and TEST_SAUCEOFF_<uuid> menu items — both deleted via DELETE /api/admin/menu/{id} in test teardown. No orders inserted. No printer calls.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "uses_sauces defaults to True in models + seed backfill covers all existing items. Test file backend/tests/test_uses_sauces_default.py is printer-safe (uses /checkout/quote only) and can be re-run as regression. NEVER run test_kitchen_flow.py.",
+  "rca of the issue": "No bug. Feature verified working end-to-end: MenuItem/MenuItemCreate default uses_sauces=True, seed_menu_data idempotently backfills legacy items, public /api/menu + admin /api/admin/menu correctly return the flag, ItemConfigurationModal renders sauce chips on both public and tablet views, 2-sauce cap enforced by /checkout/quote."
+}

@@ -22,6 +22,12 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Sauces enabled everywhere by default (2026-02-14):** Enabled sauce choice
+  for all existing menu items (41 current items), and made it the default for
+  every new item created in Admin. The public menu and `/tablet` both show the
+  same two-sauce popup choices. Admin can still turn sauces off on an
+  individual exception. Iteration_40 passed 5/5 backend checks and public /
+  tablet UI verification, with no orders or printer calls.
 - **Focused menu configuration popup and order limits (2026-02-14):** Product
   choice controls now open in a full page-level popup rather than expanding
   cramped cards. Customers choose `Sans menu` or `Menu`; the menu path shows
