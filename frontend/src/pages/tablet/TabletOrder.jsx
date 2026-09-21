@@ -175,7 +175,6 @@ export default function TabletOrder() {
 
   const canSubmit =
     items.length > 0 &&
-    form.first.trim() &&
     form.last.trim() &&
     form.phone.trim() &&
     (fulfillment === "pickup" ||
@@ -192,7 +191,7 @@ export default function TabletOrder() {
       const { data } = await tabletClient.post("/tablet/orders", {
         items: cartPayload,
         fulfillment,
-        customer_first_name: form.first.trim(),
+        customer_first_name: form.first.trim() || "Client",
         customer_last_name: form.last.trim(),
         customer_phone: fullPhone,
         customer_email: form.email.trim() || null,
@@ -510,7 +509,7 @@ export default function TabletOrder() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-3">
-              <Field label="Prénom *">
+              <Field label="Prénom (optionnel)">
                 <input
                   className="bt-input"
                   data-testid="tablet-customer-first"
