@@ -254,6 +254,12 @@ async def seed_menu_data(db) -> None:
     )
     if result.modified_count:
         logger.info("Added default removal choices to %d burger items", result.modified_count)
+    sauce_result = await db.menu_items.update_many(
+        {"uses_sauces": {"$ne": True}},
+        {"$set": {"uses_sauces": True}},
+    )
+    if sauce_result.modified_count:
+        logger.info("Enabled sauce choices on %d menu items", sauce_result.modified_count)
 
 
 REFERENCE_COLLECTIONS = [

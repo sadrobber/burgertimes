@@ -13,7 +13,7 @@ const emptyItem = {
   variants: [],
   removable_ingredients: [],
   uses_soda_flavours: false,
-  uses_sauces: false,
+  uses_sauces: true,
   available: true,
   is_new: false,
   sort_order: 0,
