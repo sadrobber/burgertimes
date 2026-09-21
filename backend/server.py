@@ -74,6 +74,7 @@ from seed import force_reseed_reference_data, run_seed
 import sunmi_service
 from sunmi_receipt import build_test_ticket, to_hex
 from printer_bridge import send_print_job
+from telegram_notifier import send_commission_alert
 
 # ----- Database ------------------------------------------------------------
 
@@ -999,6 +1000,8 @@ async def _quote_or_create(
     }
     await db.orders.insert_one(dict(order))
     await _upsert_customer(order)
+    if not order.get("test_order"):
+        asyncio.create_task(send_commission_alert(order))
 
     # Fire-and-forget notification
     try:
