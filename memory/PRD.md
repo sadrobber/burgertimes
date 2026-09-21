@@ -22,6 +22,12 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Tablet last name optional (2026-02-14):** Corrected the tablet customer
+  form: first name remains required, while last name is explicitly optional
+  and is stored as an empty string when omitted. Quote and final payloads now
+  handle the same empty-last-name value. Iteration_44 frontend validation
+  passed 100% on desktop/mobile required-state, payload trimming, and printer
+  safety; deployment was queued.
 - **Tablet copies and complete menu access (2026-02-14):** Immediate tablet
   confirmations now queue **two** Pi receipts. Standard kitchen acceptance
   remains three copies; reprint and test-print remain one. Added an explicit

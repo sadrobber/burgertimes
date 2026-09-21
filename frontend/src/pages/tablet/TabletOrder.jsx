@@ -154,7 +154,7 @@ export default function TabletOrder() {
       .post("/tablet/quote", {
         items: cartPayload,
         fulfillment,
-        customer_first_name: form.first || "Client",
+        customer_first_name: form.first || "",
         customer_last_name: form.last || "",
         customer_phone: fullPhone || "0000000000",
         customer_email: form.email || null,

@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only, no-submit verification of tablet customer-name validation on /tablet (TabletOrder.jsx). Confirmed labels, canSubmit name-portion behavior, payload trimming, and absence of any tablet order / checkout / kitchen / printer network calls. NO order was submitted (real Pi printer attached).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "verification_results": {
+    "labels_desktop": {"first": "Prénom *", "last": "Nom (optionnel)"},
+    "labels_mobile_390px": {"first": "Prénom *", "last": "Nom (optionnel)"},
+    "canSubmit_code": "items.length>0 && form.first.trim() && form.phone.trim() && (pickup || address_fields) && !quote?.error — does NOT require form.last",
+    "submit_disabled_when_first_blank": true,
+    "submit_disabled_when_first_spaces_only": true,
+    "submit_disabled_when_only_last_filled": true,
+    "payload_submit_line_194_195": "customer_first_name: form.first.trim(), customer_last_name: form.last.trim() — trimmed value passed, empty string allowed (no placeholder like 'Client')",
+    "quote_payload_line_157_158": "customer_first_name: form.first || 'Client', customer_last_name: form.last || '' — quote-only placeholder for empty first (does NOT affect the submit/order payload)",
+    "disallowed_calls_observed": [],
+    "endpoints_watched": ["/api/tablet/orders", "/api/checkout*", "/api/kitchen*", "/print*", "/printer*"]
+  },
+  "action_items": [],
+  "critical_code_review_comments": [
+    "In the quote-fetch useEffect (lines 157-158) customer_first_name falls back to 'Client' when form.first is empty. This is only used for the price quote (not final order) so it does not violate the requirement, but confirm with product that a 'Client' quote placeholder is intentional; the submit payload correctly uses .trim() with no placeholder."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped by request)", "frontend": "100%"},
+  "test_credentials": "tablet@burgertimes.fr / BurgerTablet2026! (read-only UI check, no order submitted)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Real Pi printer is live. Never click [data-testid=tablet-submit-order] on this environment. Cart requires opening a category then a product 'Personnaliser' modal then clicking 'Ajouter' to populate cart. Quote endpoint /api/tablet/quote is called on cart change but is safe (no print).",
+  "rca of the issue": "N/A — validation is implemented correctly. Labels (lines 512, 520), canSubmit (lines 176-182) only gates on form.first.trim(), and submit payload (lines 194-195) uses trimmed values allowing empty last name."
+}
