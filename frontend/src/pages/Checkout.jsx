@@ -112,6 +112,7 @@ export default function Checkout() {
       included_drink: it.included_drink || null,
       included_drink_variant: it.included_drink_variant || null,
       sauces: it.sauces || [],
+      removable_ingredients: it.removable_ingredients || [],
       notes: it.notes || null,
       is_burger: !!it.is_burger,
       burger_config: it.burger_config

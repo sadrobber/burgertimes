@@ -48,6 +48,17 @@ async def build_snapshots(
         formula = line.get("formula") or "seul"
         if formula not in ("seul", "menu"):
             raise HTTPException(status_code=400, detail=f"Invalid formula: {formula!r}")
+        sauces = list(line.get("sauces") or [])
+        removals = list(line.get("removable_ingredients") or [])
+        if len(sauces) > 3:
+            raise HTTPException(status_code=400, detail="Maximum 3 sauces par article.")
+        if len(removals) > 2:
+            raise HTTPException(status_code=400, detail="Maximum 2 ingrédients retirés par article.")
+        if removals and formula != "menu":
+            raise HTTPException(
+                status_code=400,
+                detail="Les retraits d'ingrédients sont réservés aux formules menu.",
+            )
 
         # Validate included drink for menu formula
         included_drink = line.get("included_drink")
@@ -105,6 +116,12 @@ async def build_snapshots(
                     status_code=400,
                     detail=f"Les sauces ne sont pas disponibles pour : {item.get('name')}",
                 )
+            allowed_removals = item.get("removable_ingredients") or []
+            if any(removal not in allowed_removals for removal in removals):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Retrait indisponible pour : {item.get('name')}",
+                )
             unit_price = compute_menu_item_price(item, formula, line.get("selected_format"))
             display_name = item["name"]
             if line.get("selected_format"):
@@ -122,12 +139,14 @@ async def build_snapshots(
                     "quantity": qty,
                     "unit_price": unit_price,
                     "line_total": round(unit_price * qty, 2),
-                    "sauces": list(line.get("sauces") or []),
+                    "sauces": sauces,
                     "included_drink": included_drink,
                     "included_drink_variant": included_drink_variant,
                     "selected_format": line.get("selected_format"),
                     "selected_variant": line.get("selected_variant"),
-                    "notes": line.get("notes"),
+                    "notes": " · ".join(
+                        [f"Sans {removal}" for removal in removals] + ([line["notes"]] if line.get("notes") else [])
+                    ) or None,
                 }
             )
         subtotal += snapshots[-1]["line_total"]

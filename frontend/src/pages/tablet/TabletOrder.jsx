@@ -126,6 +126,7 @@ export default function TabletOrder() {
         included_drink: item.included_drink || null,
         included_drink_variant: item.included_drink_variant || null,
         sauces: item.sauces || [],
+        removable_ingredients: item.removable_ingredients || [],
         notes: item.notes || null,
         is_burger: !!item.is_burger,
         burger_config: item.burger_config

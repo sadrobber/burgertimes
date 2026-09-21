@@ -1,5 +1,6 @@
 import React from "react";
 import { Plus } from "lucide-react";
+import ItemConfigurationModal from "@/components/ItemConfigurationModal.jsx";
 import { formatEur, menuImageUrl } from "@/lib/api";
 import { useCart } from "@/context/CartContext.jsx";
 import { useI18n } from "@/context/I18nContext.jsx";
@@ -16,7 +17,7 @@ export default function MenuItemCard({ compact = false, item, sauceOptions = [],
   const [selectedSauces, setSelectedSauces] = React.useState([]);
 
   const hasMenu = item.price_menu != null || (item.formats || []).some((f) => f.price_menu != null);
-  const needsDrink = formula === "menu" && item.uses_soda_flavours;
+  const needsDrink = formula === "menu";
 
   const displayPrice = React.useMemo(() => {
     const fmt = (item.formats || []).find((f) => f.name === selectedFormat);
@@ -28,7 +29,7 @@ export default function MenuItemCard({ compact = false, item, sauceOptions = [],
     return item.price_seul;
   }, [item, formula, selectedFormat]);
 
-  const canAdd = formula === "seul" || (formula === "menu" && (!item.uses_soda_flavours || drink));
+  const canAdd = formula === "seul" || (formula === "menu" && drink);
 
   const doAdd = () => {
     if (!canAdd) {
@@ -49,7 +50,8 @@ export default function MenuItemCard({ compact = false, item, sauceOptions = [],
       included_drink: needsDrink ? drink : null,
       selected_format: selectedFormat,
       selected_variant: null,
-      notes: removals.length ? removals.map((name) => `Sans ${name}`).join(" · ") : null,
+      removable_ingredients: removals,
+      notes: null,
     });
     toast.success("Ajouté au panier");
     setOpenConfig(false);
@@ -59,14 +61,8 @@ export default function MenuItemCard({ compact = false, item, sauceOptions = [],
     setSelectedSauces([]);
   };
 
-  const hasConfig =
-    hasMenu ||
-    (item.formats && item.formats.length > 0) ||
-    item.uses_sauces ||
-    (item.removable_ingredients && item.removable_ingredients.length > 0);
-  const addLabel = compact && (item.removable_ingredients || []).length > 0
-    ? "Personnaliser"
-    : t("menu.add");
+  const addLabel = compact ? "Personnaliser" : t("menu.add");
+  const hasConfig = false;
 
   return (
     <div
@@ -239,37 +235,37 @@ export default function MenuItemCard({ compact = false, item, sauceOptions = [],
         )}
 
         <div className="mt-auto pt-3 sm:pt-4 flex items-center gap-2">
-          {hasConfig && !openConfig ? (
-            <button
-              onClick={() => setOpenConfig(true)}
-              data-testid={`item-${item.id}-configure`}
-              className="bt-btn-primary py-2 px-2.5 sm:px-4 text-xs sm:text-sm flex-1"
-            >
-              {addLabel}
-            </button>
-          ) : hasConfig && openConfig ? (
-            <>
-              <div className="font-display text-base sm:text-xl">{formatEur(displayPrice)}</div>
-              <button
-                onClick={doAdd}
-                data-testid={`item-${item.id}-add-to-cart`}
-                disabled={!canAdd}
-                className="bt-btn-primary py-2 px-2.5 sm:px-4 text-xs sm:text-sm ml-auto disabled:opacity-40"
-              >
-                <Plus className="w-4 h-4" /> {t("menu.add")}
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={doAdd}
-              data-testid={`item-${item.id}-add-to-cart`}
-              className="bt-btn-primary py-2 px-2.5 sm:px-4 text-xs sm:text-sm flex-1"
-            >
-              <Plus className="w-4 h-4" /> {t("menu.add")}
-            </button>
-          )}
+          <button
+            onClick={() => setOpenConfig(true)}
+            data-testid={`item-${item.id}-configure`}
+            className="bt-btn-primary py-2 px-2.5 sm:px-4 text-xs sm:text-sm flex-1"
+          >
+            <Plus className="w-4 h-4" /> {addLabel}
+          </button>
         </div>
       </div>
+      {openConfig && (
+        <ItemConfigurationModal
+          canAdd={canAdd}
+          drink={drink}
+          formula={formula}
+          hasMenu={hasMenu}
+          item={item}
+          onAdd={doAdd}
+          onClose={() => setOpenConfig(false)}
+          removals={removals}
+          sauceOptions={sauceOptions}
+          selectedFormat={selectedFormat}
+          selectedSauces={selectedSauces}
+          setDrink={setDrink}
+          setFormula={setFormula}
+          setRemovals={setRemovals}
+          setSelectedFormat={setSelectedFormat}
+          setSelectedSauces={setSelectedSauces}
+          sodaFlavours={sodaFlavours}
+          total={displayPrice}
+        />
+      )}
     </div>
   );
 }

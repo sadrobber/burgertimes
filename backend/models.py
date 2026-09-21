@@ -392,6 +392,7 @@ class CartLine(BaseModel):
     included_drink: Optional[str] = None
     included_drink_variant: Optional[str] = None
     sauces: List[str] = Field(default_factory=list)
+    removable_ingredients: List[str] = Field(default_factory=list)
     notes: Optional[str] = None
     is_burger: bool = False
     burger_config: Optional[BurgerConfig] = None
