@@ -100,6 +100,11 @@ async def build_snapshots(
                     status_code=400,
                     detail=f"Item indisponible : {item.get('name')}",
                 )
+            if line.get("sauces") and not item.get("uses_sauces", False):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Les sauces ne sont pas disponibles pour : {item.get('name')}",
+                )
             unit_price = compute_menu_item_price(item, formula, line.get("selected_format"))
             display_name = item["name"]
             if line.get("selected_format"):

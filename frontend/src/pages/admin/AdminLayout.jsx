@@ -96,9 +96,8 @@ export default function AdminLayout() {
       </div>
 
       <main className="flex-1 md:ml-0 pt-16 md:pt-0">
-        {/* mobile scrollable nav */}
-        <div className="md:hidden overflow-x-auto border-b-2 border-[#262626] bg-[#141414]">
-          <div className="flex gap-1 px-2 py-2 min-w-max">
+        <div className="md:hidden border-b-2 border-[#262626] bg-[#141414]">
+          <div className="flex flex-wrap gap-1 px-2 py-2">
             {links.map((l) => (
               <NavLink
                 key={l.to}
@@ -106,7 +105,7 @@ export default function AdminLayout() {
                 end={l.end}
                 data-testid={`admin-nav-mobile-${l.id}`}
                 className={({ isActive }) =>
-                  `shrink-0 flex items-center gap-2 px-3 py-2 border-2 text-xs font-accent uppercase tracking-widest ${
+                  `flex items-center gap-2 px-3 py-2 border-2 text-xs font-accent uppercase tracking-widest ${
                     isActive ? "border-[#EF2B2D] text-[#EF2B2D]" : "border-[#262626] text-[#B3B3B3]"
                   }`
                 }

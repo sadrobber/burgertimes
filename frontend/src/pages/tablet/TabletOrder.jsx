@@ -43,6 +43,7 @@ export default function TabletOrder() {
   const { email, logout } = useTabletAuth();
   const [menu, setMenu] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [sauces, setSauces] = useState([]);
   const [fulfillment, setFulfillment] = useState("pickup");
   const [payment, setPayment] = useState("cash");
   const [countryIso, setCountryIso] = useState(DEFAULT_COUNTRY_ISO);
@@ -60,10 +61,11 @@ export default function TabletOrder() {
   const fullPhone = form.phone.trim() ? `${dialCode} ${form.phone.trim()}` : "";
 
   useEffect(() => {
-    Promise.all([apiClient.get("/menu"), apiClient.get("/settings")])
-      .then(([menuResponse, settingsResponse]) => {
+    Promise.all([apiClient.get("/menu"), apiClient.get("/settings"), apiClient.get("/sauces")])
+      .then(([menuResponse, settingsResponse, saucesResponse]) => {
         setMenu(menuResponse.data || []);
         setSettings(settingsResponse.data || null);
+        setSauces((saucesResponse.data || []).map((sauce) => sauce.name));
       })
       .catch(() => toast.error("Impossible de charger le menu"));
   }, []);
@@ -331,6 +333,7 @@ export default function TabletOrder() {
                       compact
                       item={item}
                       key={item.id}
+                      sauceOptions={sauces}
                       sodaFlavours={settings?.soda_flavours || []}
                     />
                   ))}

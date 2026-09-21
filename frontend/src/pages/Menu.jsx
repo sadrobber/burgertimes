@@ -22,6 +22,7 @@ export default function Menu() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [sauces, setSauces] = useState([]);
   const [activeCat, setActiveCat] = useState(null);
   const [loading, setLoading] = useState(true);
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -44,11 +45,13 @@ export default function Menu() {
       apiClient.get("/menu").then((r) => r.data),
       apiClient.get("/categories").then((r) => r.data),
       apiClient.get("/settings").then((r) => r.data),
+      apiClient.get("/sauces").then((r) => r.data),
     ])
-      .then(([m, c, s]) => {
+      .then(([m, c, s, saucesResponse]) => {
         setItems(m || []);
         setCategories(c || []);
         setSettings(s);
+        setSauces((saucesResponse || []).map((sauce) => sauce.name));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -208,7 +211,11 @@ export default function Menu() {
                           delay: Math.min((i % 6) * 0.05, 0.3),
                         }}
                       >
-                        <MenuItemCard item={it} sodaFlavours={settings?.soda_flavours || []} />
+                        <MenuItemCard
+                          item={it}
+                          sauceOptions={sauces}
+                          sodaFlavours={settings?.soda_flavours || []}
+                        />
                       </motion.div>
                     ))}
                   </div>

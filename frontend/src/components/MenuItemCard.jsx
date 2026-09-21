@@ -5,7 +5,7 @@ import { useCart } from "@/context/CartContext.jsx";
 import { useI18n } from "@/context/I18nContext.jsx";
 import { toast } from "sonner";
 
-export default function MenuItemCard({ compact = false, item, sodaFlavours = [] }) {
+export default function MenuItemCard({ compact = false, item, sauceOptions = [], sodaFlavours = [] }) {
   const { addPlainItem } = useCart();
   const { t } = useI18n();
   const [openConfig, setOpenConfig] = React.useState(false);
@@ -13,6 +13,7 @@ export default function MenuItemCard({ compact = false, item, sodaFlavours = [] 
   const [selectedFormat, setSelectedFormat] = React.useState(item.formats?.[0]?.name || null);
   const [drink, setDrink] = React.useState("");
   const [removals, setRemovals] = React.useState([]);
+  const [selectedSauces, setSelectedSauces] = React.useState([]);
 
   const hasMenu = item.price_menu != null || (item.formats || []).some((f) => f.price_menu != null);
   const needsDrink = formula === "menu" && item.uses_soda_flavours;
@@ -44,7 +45,7 @@ export default function MenuItemCard({ compact = false, item, sodaFlavours = [] 
       formula,
       quantity: 1,
       unit_price: displayPrice,
-      sauces: [],
+      sauces: selectedSauces,
       included_drink: needsDrink ? drink : null,
       selected_format: selectedFormat,
       selected_variant: null,
@@ -55,11 +56,13 @@ export default function MenuItemCard({ compact = false, item, sodaFlavours = [] 
     setFormula("seul");
     setDrink("");
     setRemovals([]);
+    setSelectedSauces([]);
   };
 
   const hasConfig =
     hasMenu ||
     (item.formats && item.formats.length > 0) ||
+    item.uses_sauces ||
     (item.removable_ingredients && item.removable_ingredients.length > 0);
   const addLabel = compact && (item.removable_ingredients || []).length > 0
     ? "Personnaliser"
@@ -181,6 +184,29 @@ export default function MenuItemCard({ compact = false, item, sodaFlavours = [] 
                       className={`bt-chip ${drink === d ? "active" : ""}`}
                     >
                       {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {item.uses_sauces && (
+              <div>
+                <div className="bt-label">Sauces</div>
+                <div className="flex flex-wrap gap-2">
+                  {sauceOptions.map((sauce) => (
+                    <button
+                      key={sauce}
+                      data-testid={`item-${item.id}-sauce-${sauce}`}
+                      onClick={() =>
+                        setSelectedSauces((current) =>
+                          current.includes(sauce)
+                            ? current.filter((value) => value !== sauce)
+                            : [...current, sauce],
+                        )
+                      }
+                      className={`bt-chip ${selectedSauces.includes(sauce) ? "active" : ""}`}
+                    >
+                      {sauce}
                     </button>
                   ))}
                 </div>

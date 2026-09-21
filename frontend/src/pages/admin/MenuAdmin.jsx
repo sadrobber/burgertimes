@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import { adminClient, fmtError, formatEur, menuImageUrl } from "@/lib/api";
 import { Pencil, Plus, Save, Trash2, X, Search, Ban, CircleCheck } from "lucide-react";
 
+const COMMON_REMOVALS = ["oignons", "cornichons", "salade", "tomate", "sauce"];
+
 const emptyItem = {
   name: "",
   description: "",
@@ -13,6 +15,7 @@ const emptyItem = {
   variants: [],
   removable_ingredients: [],
   uses_soda_flavours: false,
+  uses_sauces: false,
   available: true,
   is_new: false,
   sort_order: 0,
@@ -55,7 +58,8 @@ export default function MenuAdmin() {
   const save = async (item) => {
     try {
       if (item.id) {
-        const { id, has_image, ...body } = item;
+        const { id, has_image, image_base64, ...body } = item;
+        if (image_base64) body.image_base64 = image_base64;
         await adminClient.put(`/admin/menu/${id}`, body);
       } else {
         await adminClient.post("/admin/menu", item);
@@ -65,6 +69,21 @@ export default function MenuAdmin() {
       load();
     } catch (e) {
       toast.error(fmtError(e));
+    }
+  };
+
+  const saveRemovals = async (id, removableIngredients) => {
+    try {
+      await adminClient.put(`/admin/menu/${id}`, {
+        removable_ingredients: removableIngredients,
+      });
+      setItems((current) =>
+        current.map((item) =>
+          item.id === id ? { ...item, removable_ingredients: removableIngredients } : item,
+        ),
+      );
+    } catch (error) {
+      toast.error(fmtError(error));
     }
   };
 
@@ -201,7 +220,7 @@ export default function MenuAdmin() {
                 </button>
                 <button
                   data-testid={`admin-edit-menu-${it.id}`}
-                  onClick={() => setEditing({ ...it, image_base64: null })}
+                  onClick={() => setEditing({ ...it })}
                   className="bt-btn-ghost px-2 text-xs"
                 >
                   <Pencil className="w-3 h-3" /> Éditer
@@ -232,14 +251,17 @@ export default function MenuAdmin() {
           categories={cats}
           onClose={() => setEditing(null)}
           onSave={save}
+          onSaveRemovals={saveRemovals}
         />
       )}
     </div>
   );
 }
 
-function EditItem({ item, categories, onClose, onSave }) {
+function EditItem({ item, categories, onClose, onSave, onSaveRemovals }) {
   const [it, setIt] = useState(item);
+  const [newRemoval, setNewRemoval] = useState("");
+  const [savingRemovals, setSavingRemovals] = useState(false);
 
   const set = (k, v) => setIt((s) => ({ ...s, [k]: v }));
 
@@ -260,6 +282,39 @@ function EditItem({ item, categories, onClose, onSave }) {
     const next = [...(it.formats || [])];
     next.splice(i, 1);
     set("formats", next);
+  };
+
+  const cleanRemovals = (values) =>
+    [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+
+  const persistRemovals = async (values) => {
+    const next = cleanRemovals(values);
+    set("removable_ingredients", next);
+    if (!it.id) return;
+    setSavingRemovals(true);
+    await onSaveRemovals(it.id, next);
+    setSavingRemovals(false);
+  };
+
+  const toggleCommonRemoval = (ingredient) => {
+    const current = it.removable_ingredients || [];
+    const next = current.includes(ingredient)
+      ? current.filter((value) => value !== ingredient)
+      : [...current, ingredient];
+    persistRemovals(next);
+  };
+
+  const addRemoval = () => {
+    const value = newRemoval.trim();
+    if (!value) return;
+    persistRemovals([...(it.removable_ingredients || []), value]);
+    setNewRemoval("");
+  };
+
+  const updateRemoval = (index, value) => {
+    const next = [...(it.removable_ingredients || [])];
+    next[index] = value;
+    set("removable_ingredients", next);
   };
 
   return (
@@ -293,27 +348,103 @@ function EditItem({ item, categories, onClose, onSave }) {
             <div className="bt-label">Description</div>
             <textarea data-testid="menu-input-desc" className="bt-input min-h-[80px]" value={it.description} onChange={(e) => set("description", e.target.value)} />
           </label>
-          <label className="block">
-            <div className="bt-label">Ingrédients retirable par le client</div>
-            <input
-              data-testid="menu-input-removable-ingredients"
-              className="bt-input"
-              placeholder="Oignons, cornichons, salade"
-              value={(it.removable_ingredients || []).join(", ")}
-              onChange={(e) =>
-                set(
-                  "removable_ingredients",
-                  e.target.value
-                    .split(",")
-                    .map((value) => value.trim())
-                    .filter(Boolean),
-                )
-              }
-            />
-            <div className="mt-1 text-xs text-[#A1A1A1]">
-              Chaque choix apparaît au client sous la forme « Sans oignons » et passe dans la note.
+          <section className="border-y-2 border-[#262626] py-4" data-testid="menu-removals-table">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="font-display text-2xl uppercase">Options « Sans »</div>
+                <div className="mt-1 text-xs text-[#A1A1A1]">
+                  Choisis ou ajoute les ingrédients que le client peut retirer.
+                </div>
+              </div>
+              {it.id && (
+                <div className="text-xs text-[#A1A1A1]" data-testid="menu-removals-save-status">
+                  {savingRemovals ? "Enregistrement…" : "Enregistré automatiquement"}
+                </div>
+              )}
             </div>
-          </label>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {COMMON_REMOVALS.map((ingredient) => {
+                const selected = (it.removable_ingredients || []).includes(ingredient);
+                return (
+                  <button
+                    className={`bt-chip ${selected ? "active" : ""}`}
+                    data-testid={`menu-removal-preset-${ingredient}`}
+                    key={ingredient}
+                    onClick={() => toggleCommonRemoval(ingredient)}
+                    type="button"
+                  >
+                    {selected ? "✓ " : "+ "}Sans {ingredient}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4">
+              <table className="w-full table-fixed text-left text-xs sm:text-sm">
+                <thead className="border-b-2 border-[#262626] text-xs font-accent uppercase text-[#A1A1A1]">
+                  <tr>
+                    <th className="w-[45%] py-2 pr-2">Ingrédient</th>
+                    <th className="w-[38%] py-2 pr-2">Visible au client</th>
+                    <th className="py-2 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(it.removable_ingredients || []).map((ingredient, index) => (
+                    <tr className="border-b border-[#262626]" key={`${ingredient}-${index}`}>
+                      <td className="py-2 pr-2">
+                        <input
+                          className="bt-input h-9 min-w-0 w-full"
+                          data-testid={`menu-removal-name-${index}`}
+                          onBlur={() => persistRemovals(it.removable_ingredients || [])}
+                          onChange={(event) => updateRemoval(index, event.target.value)}
+                          value={ingredient}
+                        />
+                      </td>
+                      <td className="break-words py-2 pr-2 text-[#EF2B2D]">
+                        Sans {ingredient || "…"}
+                      </td>
+                      <td className="py-2 text-right">
+                        <button
+                          className="bt-btn-ghost h-9 px-2 text-[#EF2B2D]"
+                          data-testid={`menu-removal-delete-${index}`}
+                          onClick={() =>
+                            persistRemovals(
+                              (it.removable_ingredients || []).filter((_, row) => row !== index),
+                            )
+                          }
+                          type="button"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <input
+                className="bt-input"
+                data-testid="menu-removal-new-input"
+                onChange={(event) => setNewRemoval(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addRemoval();
+                  }
+                }}
+                placeholder="Ex. jalapeños"
+                value={newRemoval}
+              />
+              <button
+                className="bt-btn-secondary shrink-0 px-3 text-xs"
+                data-testid="menu-removal-add"
+                onClick={addRemoval}
+                type="button"
+              >
+                <Plus className="h-3.5 w-3.5" /> Ajouter
+              </button>
+            </div>
+          </section>
           <div className="grid grid-cols-2 gap-4">
             <label className="block">
               <div className="bt-label">Prix seul (€) *</div>
@@ -348,6 +479,16 @@ function EditItem({ item, categories, onClose, onSave }) {
                 onChange={(e) => set("uses_soda_flavours", e.target.checked)}
               />
               Ajoute une boisson au menu
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                data-testid="menu-input-uses-sauces"
+                type="checkbox"
+                className="w-4 h-4"
+                checked={!!it.uses_sauces}
+                onChange={(e) => set("uses_sauces", e.target.checked)}
+              />
+              Proposer des sauces pour ce plat
             </label>
             <label className="inline-flex items-center gap-2 text-sm">
               <input

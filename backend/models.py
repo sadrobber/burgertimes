@@ -94,6 +94,7 @@ class MenuItem(BaseModel):
     variants: List[str] = Field(default_factory=list)
     removable_ingredients: List[str] = Field(default_factory=list)
     uses_soda_flavours: bool = False
+    uses_sauces: bool = False
     available: bool = True
     is_new: bool = False
     has_image: bool = False
@@ -112,6 +113,7 @@ class MenuItemCreate(BaseModel):
     variants: List[str] = Field(default_factory=list)
     removable_ingredients: List[str] = Field(default_factory=list)
     uses_soda_flavours: bool = False
+    uses_sauces: bool = False
     available: bool = True
     is_new: bool = False
     sort_order: int = 0
@@ -128,6 +130,7 @@ class MenuItemUpdate(BaseModel):
     variants: Optional[List[str]] = None
     removable_ingredients: Optional[List[str]] = None
     uses_soda_flavours: Optional[bool] = None
+    uses_sauces: Optional[bool] = None
     available: Optional[bool] = None
     is_new: Optional[bool] = None
     sort_order: Optional[int] = None

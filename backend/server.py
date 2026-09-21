@@ -468,9 +468,6 @@ async def admin_update_menu_item(item_id: str, payload: MenuItemUpdate, _: dict 
         if img:
             changes["image_base64"] = img
             changes["has_image"] = True
-        else:
-            changes["has_image"] = False
-            await db.menu_items.update_one({"id": item_id}, {"$unset": {"image_base64": ""}})
     if changes:
         changes["updated_at"] = utc_now_iso()
         await db.menu_items.update_one({"id": item_id}, {"$set": changes})
