@@ -22,6 +22,14 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Separate tablet reporting (2026-02-14):** Tablet-source orders now stay
+  out of the main Admin → Commandes list, dashboard stats, and delivery-fee
+  stats. Added Admin → `Ventes tablette` with its own order list, status
+  filters, detail drawer, totals, average basket, and pickup/delivery counts.
+  Also excluded `test_order` records from main dashboard stats for consistency.
+  Iteration_41 passed 5/5 with directly inserted/cleaned test records proving
+  the web/tablet split at every API boundary and responsive desktop/mobile UI;
+  no live order or printer call occurred.
 - **Sauces enabled everywhere by default (2026-02-14):** Enabled sauce choice
   for all existing menu items (41 current items), and made it the default for
   every new item created in Admin. The public menu and `/tablet` both show the

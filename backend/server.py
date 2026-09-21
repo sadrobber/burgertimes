@@ -1534,7 +1534,9 @@ async def kitchen_test_print(_: dict = Depends(require_kitchen)):
 
 @api.get("/admin/stats")
 async def admin_stats(_: dict = Depends(require_admin)):
-    docs = await db.orders.find({"order_source": {"$ne": "tablet"}}).to_list(5000)
+    docs = await db.orders.find(
+        {"order_source": {"$ne": "tablet"}, "test_order": {"$ne": True}}
+    ).to_list(5000)
     void = {"cancelled", "expired"}
     in_flight = {"pending", "accepted", "preparing", "ready", "delivering"}
     total_orders = len(docs)

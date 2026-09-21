@@ -1,0 +1,22 @@
+{
+  "summary": "Verified tablet-source isolation across admin listing + stats endpoints and Admin → Ventes tablette UI. Inserted TEST web (no order_source) and TEST tablet (order_source='tablet') delivery orders directly into MongoDB with unique order_number, exercised endpoints, and cleaned up unconditionally. UI smoke on desktop (1920) and mobile (390) both pass with no horizontal overflow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_tablet_isolation.py",
+    "/app/test_reports/pytest/tablet_isolation.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/api/admin/stats/tablet excludes docs with test_order=True but /api/admin/stats does NOT filter test_order for the non-tablet branch — asymmetry could inflate main revenue if any historic test orders exist. Consider adding {'test_order': {'$ne': True}} on admin_stats for consistency with delivery-fees stats.",
+    "Direct-insert path requires an order_number for the unique index (order_number_1). Existing seeding code should ensure this field is always present to avoid duplicate-null-key insert failures.",
+    "server.py is 1875 lines — consider splitting into routers (admin_orders, admin_stats, tablet) for maintainability."
+  ],
+  "updated_files": ["/app/backend/tests/test_tablet_isolation.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100%"},
+  "test_credentials": "chahineisgoated@gmail.com / BurgerTimes2026! (from /app/backend/.env)",
+  "seed_data_creation": "Inserted 2 TEST-prefixed orders (WEB + TABLET) directly via pymongo; deleted unconditionally in fixture finally block. No POST /orders, no kitchen/printer/tablet-order endpoint calls.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable regression test at /app/backend/tests/test_tablet_isolation.py. Run with: python -m pytest backend/tests/test_tablet_isolation.py -v -o addopts=''. All TEST_TABLET_ISOL_* docs are cleaned in finally. UI page /admin/tablet-orders is stable with data-testid coverage (tablet-orders-admin-page, tablet-orders-kpi-*, tablet-orders-empty, tablet-orders-delivery-count, tablet-orders-pickup-count). Do NOT invoke test_kitchen_flow.py or any printer/tablet-order POST endpoints."
+}
