@@ -30,7 +30,6 @@ export default function ItemConfigurationModal({
     setFormula(nextFormula);
     if (nextFormula === "seul") {
       setDrink("");
-      setRemovals([]);
     }
   };
 
@@ -147,29 +146,30 @@ export default function ItemConfigurationModal({
                 </div>
               </OptionGroup>
 
-              {(item.removable_ingredients || []).length > 0 && (
-                <OptionGroup label={`Retirer jusqu'à ${MAX_REMOVALS} ingrédients`}>
-                  <div className="flex flex-wrap gap-2">
-                    {item.removable_ingredients.map((ingredient) => {
-                      const selected = removals.includes(ingredient);
-                      const limitReached = !selected && removals.length >= MAX_REMOVALS;
-                      return (
-                        <button
-                          className={`bt-chip ${selected ? "active" : ""} disabled:opacity-40`}
-                          data-testid={`item-${item.id}-remove-${ingredient}`}
-                          disabled={limitReached}
-                          key={ingredient}
-                          onClick={() => toggleRemoval(ingredient)}
-                          type="button"
-                        >
-                          Sans {ingredient}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </OptionGroup>
-              )}
             </>
+          )}
+
+          {(item.removable_ingredients || []).length > 0 && (
+            <OptionGroup label={`Retirer jusqu'à ${MAX_REMOVALS} ingrédients`}>
+              <div className="flex flex-wrap gap-2">
+                {item.removable_ingredients.map((ingredient) => {
+                  const selected = removals.includes(ingredient);
+                  const limitReached = !selected && removals.length >= MAX_REMOVALS;
+                  return (
+                    <button
+                      className={`bt-chip ${selected ? "active" : ""} disabled:opacity-40`}
+                      data-testid={`item-${item.id}-remove-${ingredient}`}
+                      disabled={limitReached}
+                      key={ingredient}
+                      onClick={() => toggleRemoval(ingredient)}
+                      type="button"
+                    >
+                      Sans {ingredient}
+                    </button>
+                  );
+                })}
+              </div>
+            </OptionGroup>
           )}
 
           {item.uses_sauces && (

@@ -54,12 +54,6 @@ async def build_snapshots(
             raise HTTPException(status_code=400, detail="Maximum 2 sauces par article.")
         if len(removals) > 2:
             raise HTTPException(status_code=400, detail="Maximum 2 ingrédients retirés par article.")
-        if removals and formula != "menu":
-            raise HTTPException(
-                status_code=400,
-                detail="Les retraits d'ingrédients sont réservés aux formules menu.",
-            )
-
         # Validate included drink for menu formula
         included_drink = line.get("included_drink")
         included_drink_variant = line.get("included_drink_variant")

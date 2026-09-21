@@ -7,8 +7,8 @@ against a temporary TEST menu item with uses_sauces=True and 5 removable ingredi
 Verifies:
   * >2 sauces  -> 400
   * >2 removable_ingredients -> 400
-  * removals on formula=seul (non-menu) -> 400
-  * allowed-at-limit menu selection returns 200 and snapshots notes as "Sans X · Sans Y"
+  * removals work for both menu and sans-menu formulas
+  * allowed-at-limit selection returns 200 and snapshots notes as "Sans X · Sans Y"
 """
 import os
 import uuid
@@ -121,10 +121,11 @@ def test_more_than_2_removals_rejected(test_item):
     assert "ingr" in r.text.lower() or "retir" in r.text.lower()
 
 
-def test_removals_on_non_menu_rejected(test_item):
-    r = _quote(test_item["id"], formula="seul", removals=["oignons"])
-    assert r.status_code == 400, r.text
-    assert "menu" in r.text.lower() or "retrait" in r.text.lower()
+def test_removals_on_non_menu_are_allowed(test_item):
+    r = _quote(test_item["id"], formula="seul", removals=["oignons", "cornichons"])
+    assert r.status_code == 200, r.text
+    notes = (r.json().get("items") or [])[0].get("notes") or ""
+    assert "Sans oignons" in notes and "Sans cornichons" in notes
 
 
 def test_at_limit_menu_selection_snapshots_notes(test_item):
