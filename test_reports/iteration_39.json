@@ -1,0 +1,23 @@
+{
+  "summary": "Iteration 39 — Verified MAX_SAUCES=2 correction across UI + backend. Backend pytest backend/tests/test_config_modal_limits.py 5/5 PASS: 3 sauces => HTTP 400 'Maximum 2 sauces par article.'; exactly 2 sauces on menu formula => 200 with snapshots preserving sauces list & drink; >2 removals => 400; removals on formula='seul' => 400; sauces on uses_sauces=False => 400. All against ephemeral TEST_CFGMODAL_* item (fixture teardown deletes it). Frontend Playwright @390px with ephemeral TEST_SAUCEUI_* item (uses_sauces=True, auto-deleted): opening [data-testid=item-{id}-configure] renders modal with label 'Choisis jusqu'à 2 sauces'; modal parentElement.tagName === 'BODY' with position:fixed (portal correct); selecting 2 of 12 sauce chips disables the 3rd via HTML disabled attribute; deselecting one re-enables the 3rd; documentElement.scrollWidth === window.innerWidth === 390 (no horizontal overflow). Ephemeral admin item deleted successfully (HTTP 200). NO /checkout/session, NO /tablet/orders, NO kitchen or printer endpoints touched.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_config_modal_limits.py",
+    "/app/test_reports/pytest/iter39_config_modal.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "frontend/src/components/ItemConfigurationModal.jsx L7: MAX_SAUCES=2 correctly aligned with backend order_service.py L53-54 which enforces len(sauces)>2 => 400 'Maximum 2 sauces par article.'. UI label 'Choisis jusqu'à 2 sauces' matches.",
+    "Sauce chip disabling: `limitReached = !selected && selectedSauces.length >= MAX_SAUCES` correctly re-enables when a chip is deselected — verified live.",
+    "Modal still portalled to document.body via createPortal (position:fixed, z-70), no horizontal overflow at 390px viewport."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (@390px)"},
+  "test_credentials": "Admin chahineisgoated@gmail.com used only to create/delete ephemeral TEST_SAUCEUI_* and TEST_CFGMODAL_* items.",
+  "seed_data_creation": "Ephemeral only: TEST_SAUCEUI_<uuid> (UI test, deleted) and fixture-scoped TEST_CFGMODAL_<uuid> (pytest, deleted on teardown). No orders inserted. No printer calls.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MAX_SAUCES=2 now consistent frontend+backend. Safe suite backend/tests/test_config_modal_limits.py uses /api/checkout/quote only — printer-safe. NEVER run test_kitchen_flow.py.",
+  "rca of the issue": "No bug. MAX_SAUCES lowered from 3 to 2 consistently in ItemConfigurationModal.jsx and order_service.py; label text, disabled-chip logic, and backend French error message all updated."
+}

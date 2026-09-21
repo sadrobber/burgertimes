@@ -22,6 +22,18 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Focused menu configuration popup and order limits (2026-02-14):** Product
+  choice controls now open in a full page-level popup rather than expanding
+  cramped cards. Customers choose `Sans menu` or `Menu`; the menu path shows
+  `Frites incluses`, requires a drink, and permits up to two selected
+  removals. The sans-menu path hides drink/removal controls and shows sauces
+  only. Sauce selection is capped at **two** in both the portalled UI and
+  server quote validation; third sauce attempts return a French 400 response.
+  Removal selections and sauces now persist through cart identity and checkout
+  payloads, while receipt snapshots render removals as `Sans …`. Iterations
+  38/39 passed backend and responsive browser validation, including menu
+  popup portal behavior, two-sauce deselect/re-enable behavior, two-removal
+  cap, no mobile overflow, and no physical printer activity.
 - **Corrected global “Sans” workflow (2026-02-14):** Moved the master list of
   removable ingredient options to Admin → Réglages → `Options « Sans »`.
   Staff add or delete global options there with immediate persistence. The
