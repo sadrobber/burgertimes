@@ -1,0 +1,27 @@
+{
+  "summary": "Iteration 37 — Verified global 'Sans' removal_options architecture: Settings owns one master list; per-item Menu editor renders only selection buttons sourced from it (no add input, no editable rows, no per-item add control). Backend suite backend/tests/test_removal_options.py: 5/5 pass — GET/PUT settings supports removal_options, ephemeral add+delete round-trip persists then restores, PUT /api/admin/menu with only removable_ingredients persists selection and preserves has_image, global list untouched by per-item selection, and uses_sauces still accepted via PUT. Backend regression backend/tests/test_menu_image_and_sauces.py assumptions still hold (image_base64 omit / null both preserve image). Frontend Playwright @390px on /admin/settings: settings-removal-options-card visible, 5 chips rendered (oignons, cornichons, salade, tomate, sauce), settings-removal-option-new and settings-removal-option-add present, document.documentElement.scrollWidth == document.body.scrollWidth == window.innerWidth == 390 (no overflow). Frontend @1920 on /admin/menu edit modal (Cheese): menu-removals-selector present; menu-removal-new-input and menu-removal-add DO NOT exist; menu-removal-preset-* buttons render for all 5 global options; auto-save label 'Enregistré automatiquement' visible; clicking a preset triggers a PUT /api/admin/menu/{id} → 200 and updates removable_ingredients server-side; the Cheese removable_ingredients I mutated during the test was restored to the original 5-value set afterwards. No real orders created, no kitchen accept/reprint/test-print invoked, test_kitchen_flow.py not executed. Global removal_options list restored to ['oignons','cornichons','salade','tomate','sauce'] post-run (verified via GET /api/settings).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_removal_options.py",
+    "/app/backend/tests/test_menu_image_and_sauces.py",
+    "/app/test_reports/pytest/iter37_removal_options.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/models.py L316,352: Settings.removal_options: List[str] and SettingsUpdate.removal_options: Optional[List[str]] — clean single source of truth.",
+    "backend/seed.py L201: DEFAULT_BURGER_REMOVALS seeded on new Settings; L249-253 backfills existing menu items missing removable_ingredients. Idempotent.",
+    "frontend/src/pages/admin/SettingsAdmin.jsx L213-231: persistRemovalOptions auto-PUTs on add/delete with dedup+trim; data-testid=settings-removal-options-card exposes the master list card. Correctly the ONLY place with an add input.",
+    "frontend/src/pages/admin/MenuAdmin.jsx L262-373: EditItem renders removalOptions from GET /api/settings only as bt-chip buttons keyed by ingredient. No per-item add input, no editable rows, no per-item add control. Clicking a chip calls saveRemovals -> PUT /api/admin/menu/{id} with removable_ingredients only — server preserves image via exclude_unset. Matches spec exactly.",
+    "MenuAdmin.jsx L34: fetches /settings once on mount for removalOptions — if admin adds a new option in Settings and switches tabs, the Menu editor won't see it until page reload. Minor UX nit, not a bug.",
+    "Server /api/admin/menu/{id} PUT returns updated document without _id (verified via response.json()['has_image']==True path)."
+  ],
+  "updated_files": ["/app/backend/tests/test_removal_options.py"],
+  "success_rate": {"backend": "100% (5/5 removal_options + regression suites intact)", "frontend": "100% (390px no overflow; Menu editor renders only global buttons; auto-save PUT 200)"},
+  "test_credentials": "Admin chahineisgoated@gmail.com / BurgerTimes2026! (from /app/memory/test_credentials.md).",
+  "seed_data_creation": "Ephemeral only: test_removal_options creates temporary TEST_REMOVAL_ARCH menu item (deleted on teardown) and adds/removes TEST_JALAPENOS_XYZ from settings.removal_options within a single test. Module-scoped fixture restores exact original removal_options list on teardown (verified). Real Cheese item's removable_ingredients was mutated by the Playwright click and manually restored to ['oignons','cornichons','salade','tomate','sauce'] afterwards.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Safety upheld: zero /api/tablet/orders POSTs, zero kitchen accept/reprint/test-print calls, test_kitchen_flow.py NOT executed (live Sunmi/Pi). Reusable suites: test_removal_options.py, test_menu_image_and_sauces.py, test_tablet_closed_override_and_settings.py. If test_removal_options is interrupted mid-run, manually PUT /api/settings {removal_options:['oignons','cornichons','salade','tomate','sauce']}. Do not use pytest-xdist for test_removal_options.py — run with `-o \"addopts=\"` to force serial execution because the module-scoped original_removal_options fixture races with the ephemeral add/delete test when parallelized.",
+  "rca of the issue": "No bug. Prior architecture (per-item removal editor with custom add) has been fully replaced: SettingsAdmin.jsx is now the only place that mutates removal_options; MenuAdmin.jsx EditItem only reads them and renders selection chips. Backend contract unchanged (removal_options at Settings scope; removable_ingredients at MenuItem scope). All 6 review checkpoints verified end-to-end."
+}

@@ -22,6 +22,16 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Corrected global “Sans” workflow (2026-02-14):** Moved the master list of
+  removable ingredient options to Admin → Réglages → `Options « Sans »`.
+  Staff add or delete global options there with immediate persistence. The
+  Menu item editor now contains only auto-saving selection buttons sourced
+  from that list—there is no longer any per-item custom-add field, editable
+  options table, or per-item list configuration. Iteration_37 passed 5/5
+  backend tests plus desktop/mobile UI checks; it verified global-list
+  restoration, per-item auto-save without master-list mutation, image
+  preservation, sauce compatibility, and 390px no-overflow. No real order or
+  printer activity occurred.
 - **Admin menu reliability, sauces, and tablet-hours override (2026-02-14):**
   Fixed the reported menu-photo loss: item updates without a new upload (even
   a legacy `image_base64: null` request) now preserve the stored image.
