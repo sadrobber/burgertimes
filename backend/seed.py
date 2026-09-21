@@ -198,6 +198,7 @@ async def seed_settings(db) -> None:
         updates: Dict[str, Any] = {}
         for key, default in {
             "soda_flavours": DEFAULT_SODA_FLAVOURS,
+            "removal_options": DEFAULT_BURGER_REMOVALS,
             "delivery_fee_percent": 10.0,
             "delivery_postal_codes": [],
             "scheduled_delivery_enabled": True,

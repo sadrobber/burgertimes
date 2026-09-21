@@ -3,8 +3,6 @@ import { toast } from "sonner";
 import { adminClient, fmtError, formatEur, menuImageUrl } from "@/lib/api";
 import { Pencil, Plus, Save, Trash2, X, Search, Ban, CircleCheck } from "lucide-react";
 
-const COMMON_REMOVALS = ["oignons", "cornichons", "salade", "tomate", "sauce"];
-
 const emptyItem = {
   name: "",
   description: "",
@@ -28,10 +26,12 @@ export default function MenuAdmin() {
   const [editing, setEditing] = useState(null);
   const [query, setQuery] = useState("");
   const [catFilter, setCatFilter] = useState("all");
+  const [removalOptions, setRemovalOptions] = useState([]);
 
   const load = () => {
     adminClient.get("/admin/menu").then((r) => setItems(r.data || []));
     adminClient.get("/admin/categories").then((r) => setCats(r.data || []));
+    adminClient.get("/settings").then((r) => setRemovalOptions(r.data.removal_options || []));
   };
   useEffect(() => { load(); }, []);
 
@@ -249,6 +249,7 @@ export default function MenuAdmin() {
         <EditItem
           item={editing}
           categories={cats}
+          removalOptions={removalOptions}
           onClose={() => setEditing(null)}
           onSave={save}
           onSaveRemovals={saveRemovals}
@@ -258,9 +259,8 @@ export default function MenuAdmin() {
   );
 }
 
-function EditItem({ item, categories, onClose, onSave, onSaveRemovals }) {
+function EditItem({ item, categories, removalOptions, onClose, onSave, onSaveRemovals }) {
   const [it, setIt] = useState(item);
-  const [newRemoval, setNewRemoval] = useState("");
   const [savingRemovals, setSavingRemovals] = useState(false);
 
   const set = (k, v) => setIt((s) => ({ ...s, [k]: v }));
@@ -304,19 +304,6 @@ function EditItem({ item, categories, onClose, onSave, onSaveRemovals }) {
     persistRemovals(next);
   };
 
-  const addRemoval = () => {
-    const value = newRemoval.trim();
-    if (!value) return;
-    persistRemovals([...(it.removable_ingredients || []), value]);
-    setNewRemoval("");
-  };
-
-  const updateRemoval = (index, value) => {
-    const next = [...(it.removable_ingredients || [])];
-    next[index] = value;
-    set("removable_ingredients", next);
-  };
-
   return (
     <div className="fixed inset-0 z-40 bg-black/70 flex items-end md:items-center justify-center p-0 md:p-4">
       <div className="bg-[#141414] border-2 border-[#EF2B2D] w-full md:max-w-2xl max-h-[92vh] flex flex-col">
@@ -348,12 +335,12 @@ function EditItem({ item, categories, onClose, onSave, onSaveRemovals }) {
             <div className="bt-label">Description</div>
             <textarea data-testid="menu-input-desc" className="bt-input min-h-[80px]" value={it.description} onChange={(e) => set("description", e.target.value)} />
           </label>
-          <section className="border-y-2 border-[#262626] py-4" data-testid="menu-removals-table">
+          <section className="border-y-2 border-[#262626] py-4" data-testid="menu-removals-selector">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <div className="font-display text-2xl uppercase">Options « Sans »</div>
                 <div className="mt-1 text-xs text-[#A1A1A1]">
-                  Choisis ou ajoute les ingrédients que le client peut retirer.
+                  Choisis les options disponibles pour ce plat. Configure la liste dans Réglages.
                 </div>
               </div>
               {it.id && (
@@ -363,7 +350,7 @@ function EditItem({ item, categories, onClose, onSave, onSaveRemovals }) {
               )}
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              {COMMON_REMOVALS.map((ingredient) => {
+              {removalOptions.map((ingredient) => {
                 const selected = (it.removable_ingredients || []).includes(ingredient);
                 return (
                   <button
@@ -378,72 +365,11 @@ function EditItem({ item, categories, onClose, onSave, onSaveRemovals }) {
                 );
               })}
             </div>
-            <div className="mt-4">
-              <table className="w-full table-fixed text-left text-xs sm:text-sm">
-                <thead className="border-b-2 border-[#262626] text-xs font-accent uppercase text-[#A1A1A1]">
-                  <tr>
-                    <th className="w-[45%] py-2 pr-2">Ingrédient</th>
-                    <th className="w-[38%] py-2 pr-2">Visible au client</th>
-                    <th className="py-2 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(it.removable_ingredients || []).map((ingredient, index) => (
-                    <tr className="border-b border-[#262626]" key={`${ingredient}-${index}`}>
-                      <td className="py-2 pr-2">
-                        <input
-                          className="bt-input h-9 min-w-0 w-full"
-                          data-testid={`menu-removal-name-${index}`}
-                          onBlur={() => persistRemovals(it.removable_ingredients || [])}
-                          onChange={(event) => updateRemoval(index, event.target.value)}
-                          value={ingredient}
-                        />
-                      </td>
-                      <td className="break-words py-2 pr-2 text-[#EF2B2D]">
-                        Sans {ingredient || "…"}
-                      </td>
-                      <td className="py-2 text-right">
-                        <button
-                          className="bt-btn-ghost h-9 px-2 text-[#EF2B2D]"
-                          data-testid={`menu-removal-delete-${index}`}
-                          onClick={() =>
-                            persistRemovals(
-                              (it.removable_ingredients || []).filter((_, row) => row !== index),
-                            )
-                          }
-                          type="button"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <input
-                className="bt-input"
-                data-testid="menu-removal-new-input"
-                onChange={(event) => setNewRemoval(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    addRemoval();
-                  }
-                }}
-                placeholder="Ex. jalapeños"
-                value={newRemoval}
-              />
-              <button
-                className="bt-btn-secondary shrink-0 px-3 text-xs"
-                data-testid="menu-removal-add"
-                onClick={addRemoval}
-                type="button"
-              >
-                <Plus className="h-3.5 w-3.5" /> Ajouter
-              </button>
-            </div>
+            {removalOptions.length === 0 && (
+              <div className="mt-4 text-sm text-[#A1A1A1]" data-testid="menu-removal-options-empty">
+                Ajoute des options « Sans » dans Réglages avant de les activer ici.
+              </div>
+            )}
           </section>
           <div className="grid grid-cols-2 gap-4">
             <label className="block">

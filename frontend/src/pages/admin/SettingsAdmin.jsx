@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { adminClient, fmtError, formatEur, builderImageUrl } from "@/lib/api";
-import { Save, Send, Trash2, Bell, CreditCard, Wallet, RefreshCw, ImagePlus } from "lucide-react";
+import { Save, Send, Trash2, Bell, CreditCard, Wallet, RefreshCw, ImagePlus, Plus } from "lucide-react";
 
 const DAYS = [
   ["mon", "Lundi"],
@@ -22,6 +22,8 @@ export default function SettingsAdmin() {
   const [uploadingBuilderImg, setUploadingBuilderImg] = useState(false);
   const [builderImgVersion, setBuilderImgVersion] = useState(0);
   const [savingTabletOverride, setSavingTabletOverride] = useState(false);
+  const [newRemovalOption, setNewRemovalOption] = useState("");
+  const [savingRemovalOptions, setSavingRemovalOptions] = useState(false);
 
   useEffect(() => {
     adminClient.get("/settings").then((r) => setS(r.data));
@@ -47,6 +49,7 @@ export default function SettingsAdmin() {
         eta_default_min: parseInt(s.eta_default_min, 10) || 0,
         eta_default_max: parseInt(s.eta_default_max, 10) || 0,
         soda_flavours: (s.soda_flavours || []).map((v) => v.trim()).filter(Boolean),
+        removal_options: (s.removal_options || []).map((v) => v.trim()).filter(Boolean),
         delivery_fee_percent: parseFloat(s.delivery_fee_percent) || 0,
         free_delivery_threshold:
           s.free_delivery_threshold === null || s.free_delivery_threshold === ""
@@ -207,6 +210,26 @@ export default function SettingsAdmin() {
     }
   };
 
+  const persistRemovalOptions = async (values) => {
+    const removalOptions = [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+    setSavingRemovalOptions(true);
+    try {
+      const { data } = await adminClient.put("/settings", { removal_options: removalOptions });
+      setS(data);
+    } catch (error) {
+      toast.error(fmtError(error));
+    } finally {
+      setSavingRemovalOptions(false);
+    }
+  };
+
+  const addRemovalOption = () => {
+    const option = newRemovalOption.trim();
+    if (!option) return;
+    persistRemovalOptions([...(s.removal_options || []), option]);
+    setNewRemovalOption("");
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -251,6 +274,61 @@ export default function SettingsAdmin() {
             onChange={(e) => set("closed_message", e.target.value)}
           />
         </label>
+      </div>
+
+      <div className="bt-card p-5 space-y-4" data-testid="settings-removal-options-card">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="font-display text-2xl uppercase">Options « Sans »</div>
+            <p className="mt-1 text-sm text-[#A1A1A1]">
+              Cette liste apparaît ensuite comme des boutons quand tu édites chaque plat.
+            </p>
+          </div>
+          <div className="text-xs text-[#A1A1A1]" data-testid="settings-removal-options-status">
+            {savingRemovalOptions ? "Enregistrement…" : "Enregistré automatiquement"}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2" data-testid="settings-removal-options-list">
+          {(s.removal_options || []).map((option, index) => (
+            <div className="flex items-center gap-1 border-2 border-[#262626] px-2 py-1" key={option}>
+              <span className="text-sm">Sans {option}</span>
+              <button
+                className="text-[#EF2B2D]"
+                data-testid={`settings-removal-option-delete-${index}`}
+                onClick={() =>
+                  persistRemovalOptions((s.removal_options || []).filter((_, row) => row !== index))
+                }
+                type="button"
+                title={`Supprimer ${option}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            className="bt-input"
+            data-testid="settings-removal-option-new"
+            onChange={(event) => setNewRemovalOption(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addRemovalOption();
+              }
+            }}
+            placeholder="Ex. jalapeños"
+            value={newRemovalOption}
+          />
+          <button
+            className="bt-btn-secondary shrink-0 px-3 text-xs"
+            data-testid="settings-removal-option-add"
+            onClick={addRemovalOption}
+            type="button"
+          >
+            <Plus className="h-3.5 w-3.5" /> Ajouter
+          </button>
+        </div>
       </div>
 
       <div className="bt-card p-5" data-testid="tablet-closed-orders-card">

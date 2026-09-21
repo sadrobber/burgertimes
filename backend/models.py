@@ -313,6 +313,7 @@ class Settings(BaseModel):
     eta_default_min: int = 20
     eta_default_max: int = 30
     soda_flavours: List[str] = Field(default_factory=list)
+    removal_options: List[str] = Field(default_factory=list)
     delivery_fee_percent: float = 10.0
     free_delivery_threshold: Optional[float] = None
     delivery_postal_codes: List[str] = Field(default_factory=list)
@@ -348,6 +349,7 @@ class SettingsUpdate(BaseModel):
     eta_default_min: Optional[int] = None
     eta_default_max: Optional[int] = None
     soda_flavours: Optional[List[str]] = None
+    removal_options: Optional[List[str]] = None
     delivery_fee_percent: Optional[float] = None
     free_delivery_threshold: Optional[float] = None
     delivery_postal_codes: Optional[List[str]] = None
