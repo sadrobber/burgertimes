@@ -4,7 +4,7 @@ import { Plus, X } from "lucide-react";
 import { formatEur } from "@/lib/api";
 
 const MAX_REMOVALS = 2;
-const MAX_SAUCES = 3;
+const MAX_SAUCES = 2;
 
 export default function ItemConfigurationModal({
   canAdd,

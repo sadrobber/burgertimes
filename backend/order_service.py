@@ -50,8 +50,8 @@ async def build_snapshots(
             raise HTTPException(status_code=400, detail=f"Invalid formula: {formula!r}")
         sauces = list(line.get("sauces") or [])
         removals = list(line.get("removable_ingredients") or [])
-        if len(sauces) > 3:
-            raise HTTPException(status_code=400, detail="Maximum 3 sauces par article.")
+        if len(sauces) > 2:
+            raise HTTPException(status_code=400, detail="Maximum 2 sauces par article.")
         if len(removals) > 2:
             raise HTTPException(status_code=400, detail="Maximum 2 ingrédients retirés par article.")
         if removals and formula != "menu":

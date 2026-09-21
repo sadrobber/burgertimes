@@ -1,0 +1,28 @@
+{
+  "summary": "Iteration 38 — Verified new full-page product-configuration modal (ItemConfigurationModal.jsx) and backend limit enforcement. Backend: new pytest suite backend/tests/test_config_modal_limits.py (5/5 pass) drives /api/checkout/quote against an ephemeral TEST menu item (uses_sauces=True + 5 removable_ingredients, deleted on teardown) — >3 sauces => 400 'Maximum 3 sauces par article.'; >2 removable_ingredients => 400 'Maximum 2 ingrédients retirés par article.'; removals on formula='seul' => 400 'Les retraits d'ingrédients sont réservés aux formules menu.'; at-limit menu selection (3 sauces + 2 removals + valid soda) => 200 with snapshots[0].notes == 'Sans oignons · Sans cornichons', sauces list preserved, included_drink preserved; sauces on item with uses_sauces=False => 400. Frontend Playwright @1920 and @390: clicking data-testid=item-{id}-configure on the Cheese card opens data-testid=item-{id}-config-modal whose parentElement.tagName === 'BODY' (react-portal) with getComputedStyle(...).position === 'fixed' (NOT inline in card); in default 'Sans menu' formula no drink selector and no removal chips render; clicking 'Menu' formula renders 'Frites incluses' text, 6 soda chips, and 5 removal chips, and the Add-to-cart button is disabled='' (Playwright reports empty string, i.e. present) until a drink is chosen; selecting 2 removals disables the 3rd via HTML disabled attribute (limit enforced in UI); switching back to 'Sans menu' hides drinks and removals; @390 documentElement.scrollWidth==window.innerWidth==390 (no horizontal overflow). Cart-identity merge verified by code review: CartContext.addPlainItem key includes formula|selected_format|selected_variant|notes|sauces|removable_ingredients so same item with different removals/sauces stays as separate lines. NO real orders created, NO POST /api/tablet/orders, NO kitchen accept/reprint/test-print calls, test_kitchen_flow.py NOT executed. TEST menu item auto-deleted by fixture teardown.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_config_modal_limits.py",
+    "/app/test_reports/pytest/iter38_config_modal.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "frontend/src/components/ItemConfigurationModal.jsx: correctly uses createPortal(..., document.body) with fixed inset-0 z-[70] backdrop — modal escapes animated card container. MAX_REMOVALS=2 and MAX_SAUCES=3 enforced in toggle handlers AND via disabled prop on chips when limit reached.",
+    "frontend/src/components/MenuItemCard.jsx L34-62 doAdd: passes removable_ingredients & sauces into addPlainItem so merge key discriminates them. Note: hasConfig=false (L65) means the OLD inline config block (L105-235) is dead code — safe to delete in a follow-up cleanup but not a bug.",
+    "frontend/src/context/CartContext.jsx L40-47: merge key correctly includes formula, selected_format, selected_variant, notes, sauces, removable_ingredients — 'Sans oignons' stays a separate cart line from the plain version. Confirmed.",
+    "backend/order_service.py L51-61: server-side limits identical to frontend (3 sauces, 2 removals, removals require formula==menu) with clear French error messages. L147-149: notes snapshot correctly serializes removals as 'Sans <ingredient>' joined by ' · ' — verified in test.",
+    "backend/order_service.py L114-118: sauces on non-uses_sauces items rejected (returns 400 'Les sauces ne sont pas disponibles pour ...') — verified.",
+    "Minor UX nit (not a bug): ItemConfigurationModal drink selector uses max-h-36 overflow-y-auto — with 6+ sodas at 390px this can be a bit cramped but scrolls fine; consider max-h-48 on mobile in a future polish."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_config_modal_limits.py"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (desktop + 390px)"},
+  "test_credentials": "Admin chahineisgoated@gmail.com / BurgerTimes2026! used only to create/delete the ephemeral TEST_CFGMODAL_* menu item.",
+  "seed_data_creation": "Ephemeral only: fixture-scoped TEST_CFGMODAL_<uuid> menu item (uses_sauces=True, 5 removable_ingredients, price_seul=8, price_menu=11); deleted in fixture teardown. No orders inserted. Verified no residual TEST items via /api/menu after run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable safe suite: backend/tests/test_config_modal_limits.py — printer-safe (uses /api/checkout/quote, never creates orders). Existing test_removal_options.py still valid. NEVER run test_kitchen_flow.py (live Sunmi/Pi printer). If frontend test needs an item with uses_sauces, create ephemeral one via /api/admin/menu; current seed has no uses_sauces=True items. Modal is portalled to document.body — always target [data-testid='item-{id}-config-modal'] from page root, not from within the menu-item card.",
+  "rca of the issue": "No bug found. Full-page popup implementation via react-dom createPortal to document.body correctly escapes the animated bt-card container; fixed positioning + z-[70] overlay dims the page; frontend + backend independently enforce 3-sauce and 2-removal limits with matching French error copy; removals gated to formula==menu on both sides; cart-line merge key discriminates by sauces & removable_ingredients so choice variants remain distinct lines."
+}
