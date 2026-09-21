@@ -22,6 +22,14 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-02-XX)
+- **Tablet copies and complete menu access (2026-02-14):** Immediate tablet
+  confirmations now queue **two** Pi receipts. Standard kitchen acceptance
+  remains three copies; reprint and test-print remain one. Added an explicit
+  `Tout le menu` tablet category with per-category item counts while preserving
+  focused category views. Iteration_43 passed 30 static/unit checks plus
+  authenticated UI verification: all 40 `/api/menu` items across nine
+  categories are reachable in tablet, and the 390px all-menu view has no
+  overflow. No live order or printer request occurred.
 - **Removals available with either formula (2026-02-14):** Corrected the
   product popup so configured `Sans …` choices remain available for both Menu
   and Sans-menu orders. Menu still requires a drink and advertises fries;
