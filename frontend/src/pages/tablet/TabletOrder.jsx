@@ -154,8 +154,8 @@ export default function TabletOrder() {
       .post("/tablet/quote", {
         items: cartPayload,
         fulfillment,
-        customer_first_name: form.first || "Tablette",
-        customer_last_name: form.last || "Client",
+        customer_first_name: form.first || "Client",
+        customer_last_name: form.last || "",
         customer_phone: fullPhone || "0000000000",
         customer_email: form.email || null,
         address_line1: form.address1 || null,
@@ -175,7 +175,7 @@ export default function TabletOrder() {
 
   const canSubmit =
     items.length > 0 &&
-    form.last.trim() &&
+    form.first.trim() &&
     form.phone.trim() &&
     (fulfillment === "pickup" ||
       (form.address1.trim() && form.postal.trim() && form.city.trim())) &&
@@ -191,7 +191,7 @@ export default function TabletOrder() {
       const { data } = await tabletClient.post("/tablet/orders", {
         items: cartPayload,
         fulfillment,
-        customer_first_name: form.first.trim() || "Client",
+        customer_first_name: form.first.trim(),
         customer_last_name: form.last.trim(),
         customer_phone: fullPhone,
         customer_email: form.email.trim() || null,
@@ -509,7 +509,7 @@ export default function TabletOrder() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-3">
-              <Field label="Prénom (optionnel)">
+              <Field label="Prénom *">
                 <input
                   className="bt-input"
                   data-testid="tablet-customer-first"
@@ -517,7 +517,7 @@ export default function TabletOrder() {
                   value={form.first}
                 />
               </Field>
-              <Field label="Nom *">
+              <Field label="Nom (optionnel)">
                 <input
                   className="bt-input"
                   data-testid="tablet-customer-last"
