@@ -218,7 +218,7 @@ class TestCouponNotConsumedOnTabletWaiver:
 # ---------- Feature 5 (static): confirm print copies contract in code ----------
 class TestPrintCopiesStaticContract:
     """Static inspection — no HTTP, no physical print, no order created."""
-    def test_immediate_tablet_order_pushes_3_copies(self):
+    def test_immediate_tablet_order_pushes_2_copies(self):
         import inspect
         # server.py may not be importable easily; grep the source instead.
         with open("/app/backend/server.py") as f:
@@ -226,14 +226,14 @@ class TestPrintCopiesStaticContract:
         # scheduled branch returns print_queued False BEFORE any print push
         assert 'print_queued": False' in src or "print_queued': False" in src or 'print_queued":False' in src
         # immediate branch pushes 3 copies via background task
-        assert "_push_print_job_background(order_id, accepted, copies=3)" in src, \
-            "tablet_create_order must push 3 copies on immediate accept"
+        assert "_push_print_job_background(order_id, accepted, copies=2)" in src, \
+            "tablet_create_order must push 2 copies on immediate accept"
 
     def test_scheduled_tablet_order_does_not_print(self):
         with open("/app/backend/server.py") as f:
             src = f.read()
         # ensure the scheduled short-circuit precedes the print push
         idx_return = src.find('"print_queued": False')
-        idx_push = src.find("_push_print_job_background(order_id, accepted, copies=3)")
+        idx_push = src.find("_push_print_job_background(order_id, accepted, copies=2)")
         assert idx_return != -1 and idx_push != -1
         assert idx_return < idx_push, "scheduled return must come before print push"

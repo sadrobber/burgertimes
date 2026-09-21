@@ -253,9 +253,18 @@ export default function TabletOrder() {
   };
 
   const categories = [...new Set(menu.map((item) => item.category))];
-  const activeCategoryLabel = activeCategory
-    ? CATEGORY_LABELS[activeCategory] || activeCategory.replaceAll("-", " ")
-    : null;
+  const categoryCounts = menu.reduce(
+    (counts, item) => ({ ...counts, [item.category]: (counts[item.category] || 0) + 1 }),
+    {},
+  );
+  const activeCategoryLabel = activeCategory === "all"
+    ? "Tout le menu"
+    : activeCategory
+      ? CATEGORY_LABELS[activeCategory] || activeCategory.replaceAll("-", " ")
+      : null;
+  const visibleItems = activeCategory === "all"
+    ? menu
+    : menu.filter((item) => item.category === activeCategory);
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#F5F1E8]" data-testid="tablet-order-page">
@@ -300,6 +309,20 @@ export default function TabletOrder() {
               Choisir une catégorie
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+              <button
+                className={`border-2 px-4 py-5 text-left font-display text-2xl uppercase leading-none transition-colors ${
+                  activeCategory === "all"
+                    ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
+                    : "border-[#262626] bg-[#141414] text-[#F5F1E8] hover:border-[#EF2B2D]"
+                }`}
+                data-testid="tablet-category-select-all"
+                onClick={() => setActiveCategory("all")}
+              >
+                Tout le menu
+                <span className="mt-2 block text-xs font-accent tracking-widest opacity-70">
+                  {menu.length} articles
+                </span>
+              </button>
               {categories.map((category) => {
                 const label = CATEGORY_LABELS[category] || category.replaceAll("-", " ");
                 const active = activeCategory === category;
@@ -315,6 +338,9 @@ export default function TabletOrder() {
                     onClick={() => setActiveCategory(category)}
                   >
                     {label}
+                    <span className="mt-2 block text-xs font-accent tracking-widest opacity-70">
+                      {categoryCounts[category]} articles
+                    </span>
                   </button>
                 );
               })}
@@ -327,9 +353,7 @@ export default function TabletOrder() {
                 {activeCategoryLabel}
               </h2>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
-                {menu
-                  .filter((item) => item.category === activeCategory)
-                  .map((item) => (
+                {visibleItems.map((item) => (
                     <MenuItemCard
                       compact
                       item={item}

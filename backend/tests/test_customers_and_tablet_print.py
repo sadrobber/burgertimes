@@ -452,7 +452,7 @@ class TestTabletOrdersPrintCodePath:
     """Static source-level assertions about tablet_create_order:
       * scheduled branch returns print_queued:false and does NOT call
         _push_print_job_background
-      * non-scheduled branch calls _push_print_job_background(..., copies=3)
+      * non-scheduled branch calls _push_print_job_background(..., copies=2)
     STRICT SAFETY: no real HTTP call to /api/tablet/orders is made."""
 
     def test_scheduled_branch_returns_print_queued_false(self):
@@ -460,10 +460,10 @@ class TestTabletOrdersPrintCodePath:
         assert 'print_queued": False' in src or "'print_queued': False" in src, src
         assert "scheduled_delivery_start" in src
 
-    def test_non_scheduled_queues_three_print_copies(self):
+    def test_non_scheduled_queues_two_print_copies(self):
         src = inspect.getsource(server_module.tablet_create_order)
         assert src.count("_push_print_job_background") == 1
-        assert re.search(r"_push_print_job_background\([^)]*copies=3", src), src
+        assert re.search(r"_push_print_job_background\([^)]*copies=2", src), src
         assert 'print_queued": True' in src or "'print_queued': True" in src
 
     def test_scheduled_branch_precedes_print_queue(self):

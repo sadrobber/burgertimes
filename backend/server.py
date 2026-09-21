@@ -1065,7 +1065,7 @@ async def tablet_create_order(payload: CheckoutPayload, staff: dict = Depends(re
         staff.get("email", "tablet"),
         note="Confirmée et imprimée depuis /tablet",
     )
-    asyncio.create_task(_push_print_job_background(order_id, accepted, copies=3))
+    asyncio.create_task(_push_print_job_background(order_id, accepted, copies=2))
     return {**result, "print_queued": True}
 
 

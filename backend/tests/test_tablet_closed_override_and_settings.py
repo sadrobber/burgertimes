@@ -9,7 +9,7 @@ We validate:
      _ensure_accepting_orders when order_source == "tablet" AND
      tablet_orders_when_closed is true, and does NOT bypass otherwise.
   4. Static source-level verification that tablet immediate orders call
-     _push_print_job_background with copies=3 (no real call made).
+     _push_print_job_background with copies=2 (no real call made).
 
 The setting is restored to its original value at teardown.
 """
@@ -190,13 +190,13 @@ class TestSourceLevelBypassLogic:
             full,
         ), "checkout/session must call _quote_or_create with create=True and no tablet override"
 
-    def test_tablet_immediate_uses_three_print_copies(self, server_src):
-        # Tablet immediate (non-scheduled) creation must invoke print job with copies=3.
+    def test_tablet_immediate_uses_two_print_copies(self, server_src):
+        # Tablet immediate (non-scheduled) creation must invoke print job with copies=2.
         full = pathlib.Path("/app/backend/server.py").read_text()
         assert re.search(
-            r"_push_print_job_background\([^)]*copies=3",
+            r"_push_print_job_background\([^)]*copies=2",
             full,
-        ), "Tablet immediate accept path must call _push_print_job_background(..., copies=3)"
+        ), "Tablet immediate accept path must call _push_print_job_background(..., copies=2)"
 
 
 class TestSettingsUIExposesField:
