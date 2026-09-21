@@ -134,6 +134,9 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - **Pi bridge handoff (2026-02-14):** Provided the current complete
   `pi_print_bridge/server.py` copy for the restaurant Raspberry Pi on request.
   No Pi-side change was required for the tablet country-code selector.
+- **Pi script retransmission (2026-02-14):** Re-sent the complete enlarged
+  kitchen-text bridge script in one copy-ready code block after the earlier
+  response was difficult to copy.
 - **Tablet dial-code selector (2026-02-14):** The tablet phone field now has
   a country selector ordered France (+33), Monaco (+377), then Italy (+39).
   Chosen dial codes are included when saving/printing an order; customer
