@@ -130,13 +130,13 @@ export default function Menu() {
         className="sticky top-16 md:top-20 z-30 bg-[#0A0A0A]/95 backdrop-blur border-y-2 border-[#EF2B2D]"
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap justify-center gap-1.5 py-2.5 sm:gap-2 md:py-3">
+          <div className="flex flex-wrap justify-center gap-1.5 py-2.5 sm:gap-2 md:py-3 md:max-xl:grid md:max-xl:grid-cols-5">
             {visibleCategories.map((c) => (
               <button
                 key={c.id}
                 onClick={() => scrollToCat(c.slug)}
                 data-testid={`cat-${c.slug}`}
-                className={`bt-chip whitespace-nowrap text-xs sm:text-sm ${activeCat === c.slug ? "active" : ""}`}
+                className={`bt-chip whitespace-nowrap text-xs sm:text-sm md:max-xl:min-h-[44px] md:max-xl:justify-center md:max-xl:text-sm lg:max-xl:text-base ${activeCat === c.slug ? "active" : ""}`}
               >
                 {labelFor(c.label)}
               </button>

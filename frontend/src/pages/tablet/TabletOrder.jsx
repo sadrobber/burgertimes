@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Baby,
-  Beef,
   Bike,
   CakeSlice,
   Cookie,
   CupSoda,
+  Flame,
+  Hamburger,
   LogOut,
   Minus,
   Plus,
+  Popcorn,
   Salad,
   Sandwich,
   ShoppingBag,
@@ -48,11 +50,11 @@ const CATEGORY_LABELS = {
 };
 
 const CATEGORY_ICONS = {
-  signatures: Beef,
-  classiques: Beef,
-  "smash-burgers": Beef,
+  signatures: Hamburger,
+  classiques: Hamburger,
+  "smash-burgers": Flame,
   kids: Baby,
-  sides: UtensilsCrossed,
+  sides: Popcorn,
   sandwiches: Sandwich,
   drinks: CupSoda,
   desserts: CakeSlice,
@@ -108,6 +110,52 @@ export default function TabletOrder() {
   const [activeCategory, setActiveCategory] = useState(null);
   const dialCode = findCountry(countryIso).dial;
   const fullPhone = form.phone.trim() ? `${dialCode} ${form.phone.trim()}` : "";
+
+  // Lock the document while the kiosk is open: body's global min-height: 100vh
+  // is taller than the visible area on iPad Safari, which let the page scroll
+  // into empty space below the layout. Only the inner panels should scroll.
+  useEffect(() => {
+    const html = document.documentElement.style;
+    const body = document.body.style;
+    // Never set overflow on body: with the fixed layout it has zero height, and
+    // Safari then clips the whole page to nothing (blank screen).
+    const prev = [html.overflow, html.overscrollBehavior, body.overscrollBehavior, body.minHeight];
+    html.overflow = "hidden";
+    html.overscrollBehavior = "none";
+    body.overscrollBehavior = "none";
+    body.minHeight = "0";
+
+    // iOS Safari still drags the page from non-scrollable areas; only let a
+    // touch move when it starts inside something that can actually scroll.
+    const canScroll = (node) => {
+      for (let el = node; el && el !== document.body; el = el.parentElement) {
+        const { overflowX, overflowY } = window.getComputedStyle(el);
+        const scrolls = (value) => value === "auto" || value === "scroll";
+        if (scrolls(overflowY) && el.scrollHeight > el.clientHeight) return true;
+        if (scrolls(overflowX) && el.scrollWidth > el.clientWidth) return true;
+      }
+      return false;
+    };
+    const blockPageDrag = (event) => {
+      if (!canScroll(event.target)) event.preventDefault();
+    };
+    // Closing the on-screen keyboard can leave the page shifted up, showing a
+    // blank strip at the bottom. Snap back once focus leaves an input.
+    let resetTimer;
+    const resetPageScroll = () => {
+      window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(() => window.scrollTo(0, 0), 100);
+    };
+    document.addEventListener("touchmove", blockPageDrag, { passive: false });
+    document.addEventListener("focusout", resetPageScroll);
+
+    return () => {
+      document.removeEventListener("touchmove", blockPageDrag);
+      document.removeEventListener("focusout", resetPageScroll);
+      window.clearTimeout(resetTimer);
+      [html.overflow, html.overscrollBehavior, body.overscrollBehavior, body.minHeight] = prev;
+    };
+  }, []);
 
   useEffect(() => {
     Promise.all([apiClient.get("/menu"), apiClient.get("/settings"), apiClient.get("/sauces")])
@@ -310,7 +358,7 @@ export default function TabletOrder() {
   const visibleItems = menu.filter((item) => item.category === activeCategory);
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#0A0A0A] text-[#F5F1E8]" data-testid="tablet-order-page">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0A0A0A] text-[#F5F1E8]" data-testid="tablet-order-page">
       {/* Top bar */}
       <header className="flex items-center justify-between gap-4 border-b-2 border-[#EF2B2D] bg-[#141414] px-5 py-3">
         <div className="leading-none">
@@ -338,11 +386,11 @@ export default function TabletOrder() {
       </header>
 
       {/* Body */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,1fr)_300px] lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
         {/* LEFT: fixed category tabs + scrolling products */}
         <div className="flex min-h-0 flex-col">
           <nav
-            className="flex flex-wrap gap-2 border-b border-[#262626] bg-[#0F0F0F] px-3 py-2.5"
+            className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2 border-b border-[#262626] bg-[#0F0F0F] px-3 py-2.5"
             data-testid="tablet-category-picker"
           >
             {categories.map((category) => {
@@ -350,7 +398,7 @@ export default function TabletOrder() {
               const active = activeCategory === category;
               return (
                 <button
-                  className={`flex items-center gap-2 border-2 px-3 py-2 font-accent uppercase tracking-widest transition-colors ${
+                  className={`flex min-h-[84px] flex-col items-center justify-center gap-2 rounded-[10px] border-2 px-1.5 py-2.5 text-center font-accent uppercase tracking-widest transition-colors ${
                     active
                       ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
                       : "border-[#262626] bg-[#141414] text-[#F5F1E8] hover:border-[#EF2B2D]"
@@ -359,28 +407,29 @@ export default function TabletOrder() {
                   key={category}
                   onClick={() => setActiveCategory(category)}
                 >
-                  <Icon className="h-5 w-5" strokeWidth={1.7} />
-                  <span className="text-sm leading-none">
+                  <Icon className="h-8 w-8 shrink-0" strokeWidth={1.5} />
+                  <span className="text-xs leading-tight">
                     {CATEGORY_LABELS[category] || category.replaceAll("-", " ")}
                   </span>
                 </button>
               );
             })}
+            <button
+              className="flex min-h-[84px] flex-col items-center justify-center gap-2 rounded-[10px] border-2 border-[#262626] bg-[#141414] px-1.5 py-2.5 text-center font-accent uppercase tracking-widest text-[#F5F1E8] transition-colors hover:border-[#EF2B2D]"
+              data-testid="tablet-open-tacos-builder"
+              onClick={() => setBuilderOpen(true)}
+            >
+              <UtensilsCrossed className="h-8 w-8 shrink-0" strokeWidth={1.5} />
+              <span className="text-xs leading-tight">Composer un Tacos</span>
+            </button>
           </nav>
 
-          <section className="min-w-0 flex-1 overflow-y-auto p-3">
-            <div className="mb-3 flex items-center justify-between gap-3">
+          <section className="min-w-0 flex-1 overflow-y-auto overscroll-contain p-3">
+            <div className="mb-3 flex items-center gap-3">
               <h2 className="flex items-center gap-3 font-display text-2xl uppercase leading-none text-[#EF2B2D] sm:text-3xl">
                 <span className="h-6 w-1.5 bg-[#EF2B2D]" />
                 {activeCategoryLabel || "Menu"}
               </h2>
-              <button
-                className="bt-btn-primary px-4 py-2 text-sm"
-                data-testid="tablet-open-tacos-builder"
-                onClick={() => setBuilderOpen(true)}
-              >
-                <UtensilsCrossed className="h-4 w-4" /> Composer un Tacos
-              </button>
             </div>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-testid={`tablet-category-${activeCategory}`}>
               {visibleItems.map((item) => (
@@ -397,7 +446,7 @@ export default function TabletOrder() {
         </div>
 
         {/* Order panel */}
-        <aside className="flex min-h-0 flex-col border-t-2 border-[#262626] bg-[#141414] xl:border-l-2 xl:border-t-0" data-testid="tablet-order-summary">
+        <aside className="flex min-h-0 flex-col border-t-2 border-[#262626] bg-[#141414] md:border-l-2 md:border-t-0" data-testid="tablet-order-summary">
           <div className="flex items-center justify-between gap-2 border-b border-[#262626] px-5 py-4">
             <div className="flex items-center gap-2 font-display text-2xl uppercase">
               <ShoppingCart className="h-6 w-6 text-[#EF2B2D]" /> Votre commande
@@ -441,7 +490,7 @@ export default function TabletOrder() {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-4">
             {/* Cart lines */}
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center" data-testid="tablet-cart-empty">

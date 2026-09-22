@@ -69,7 +69,7 @@ export default function MenuItemCard({ compact = false, dense = false, item, sau
       data-testid={`menu-item-${item.id}`}
       className="bt-card relative flex flex-col overflow-hidden"
     >
-      {!compact && <div className={`${dense ? "h-24 sm:h-28" : "aspect-[4/3]"} w-full overflow-hidden bg-[#1A1A1A] relative`}>
+      {!compact && <div className="aspect-[4/3] w-full overflow-hidden bg-[#1A1A1A] relative">
         {item.has_image ? (
           <img
             src={menuImageUrl(item.id)}

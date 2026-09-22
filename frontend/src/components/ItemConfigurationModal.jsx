@@ -128,27 +128,6 @@ export default function ItemConfigurationModal({
             </OptionGroup>
           )}
 
-          {formula === "menu" && (
-            <>
-              <OptionGroup label="Ta boisson">
-                <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto">
-                  {sodaFlavours.map((soda) => (
-                    <button
-                      className={`bt-chip ${drink === soda ? "active" : ""}`}
-                      data-testid={`item-${item.id}-drink-${soda}`}
-                      key={soda}
-                      onClick={() => setDrink(soda)}
-                      type="button"
-                    >
-                      {soda}
-                    </button>
-                  ))}
-                </div>
-              </OptionGroup>
-
-            </>
-          )}
-
           {(item.removable_ingredients || []).length > 0 && (
             <OptionGroup label={`Retirer jusqu'à ${MAX_REMOVALS} ingrédients`}>
               <div className="flex flex-wrap gap-2">
@@ -191,6 +170,24 @@ export default function ItemConfigurationModal({
                     </button>
                   );
                 })}
+              </div>
+            </OptionGroup>
+          )}
+
+          {formula === "menu" && (
+            <OptionGroup label="Ta boisson">
+              <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto">
+                {sodaFlavours.map((soda) => (
+                  <button
+                    className={`bt-chip ${drink === soda ? "active" : ""}`}
+                    data-testid={`item-${item.id}-drink-${soda}`}
+                    key={soda}
+                    onClick={() => setDrink(soda)}
+                    type="button"
+                  >
+                    {soda}
+                  </button>
+                ))}
               </div>
             </OptionGroup>
           )}
