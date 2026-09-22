@@ -4,15 +4,16 @@ import { adminClient, fmtError, formatEur } from "@/lib/api";
 import { Plus, Trash2 } from "lucide-react";
 
 const TABS = [
-  { key: "styles", label: "Styles", fields: ["name", "description", "price_modifier", "flat_price", "flat_price_menu", "max_meats", "available", "sort_order"] },
-  { key: "sizes", label: "Tailles", fields: ["code", "label", "price_simple", "price_menu", "nb_meats", "supplement_upcharge", "available", "sort_order"] },
-  { key: "meats", label: "Viandes", fields: ["name", "base_price", "available", "sort_order"] },
-  { key: "cheeses", label: "Fromages", fields: ["name", "base_price", "available", "sort_order"] },
-  { key: "supplements", label: "Suppléments", fields: ["name", "base_price", "available", "sort_order"] },
+  { key: "styles", label: "Styles", fields: ["name", "ticket_shortcode", "description", "price_modifier", "flat_price", "flat_price_menu", "max_meats", "available", "sort_order"] },
+  { key: "sizes", label: "Tailles", fields: ["code", "label", "ticket_shortcode", "price_simple", "price_menu", "nb_meats", "supplement_upcharge", "available", "sort_order"] },
+  { key: "meats", label: "Viandes", fields: ["name", "ticket_shortcode", "base_price", "available", "sort_order"] },
+  { key: "cheeses", label: "Fromages", fields: ["name", "ticket_shortcode", "base_price", "available", "sort_order"] },
+  { key: "supplements", label: "Suppléments", fields: ["name", "ticket_shortcode", "base_price", "available", "sort_order"] },
 ];
 
 const FIELD_LABELS = {
   name: "Nom",
+  ticket_shortcode: "Code ticket",
   description: "Description",
   code: "Code",
   label: "Libellé",

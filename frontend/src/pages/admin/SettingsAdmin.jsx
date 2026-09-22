@@ -26,10 +26,12 @@ export default function SettingsAdmin() {
   const [savingRemovalOptions, setSavingRemovalOptions] = useState(false);
   const [newSuppName, setNewSuppName] = useState("");
   const [newSuppPrice, setNewSuppPrice] = useState("");
+  const [preview, setPreview] = useState("");
 
   useEffect(() => {
     adminClient.get("/settings").then((r) => setS(r.data));
     adminClient.get("/admin/waitlist").then((r) => setWaitlist(r.data || []));
+    adminClient.get("/admin/receipt-preview").then((r) => setPreview(r.data.text || "")).catch(() => {});
   }, []);
 
   if (!s) return <div>Chargement…</div>;
@@ -258,6 +260,14 @@ export default function SettingsAdmin() {
     set("drink_shortcodes", { ...(s.drink_shortcodes || {}), [flavour]: val });
   const setRemovalCode = (option, val) =>
     set("removal_shortcodes", { ...(s.removal_shortcodes || {}), [option]: val });
+  const loadPreview = async () => {
+    try {
+      const { data } = await adminClient.get("/admin/receipt-preview");
+      setPreview(data.text || "");
+    } catch (e) {
+      toast.error(fmtError(e));
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -486,6 +496,30 @@ export default function SettingsAdmin() {
           onChange={(e) => set("kids_ticket_code", e.target.value)}
           value={s.kids_ticket_code ?? "c"}
         />
+      </div>
+
+      <div className="bt-card p-5 space-y-3" data-testid="settings-receipt-preview-card">
+        <div className="flex items-center justify-between gap-3">
+          <div className="font-display text-2xl uppercase">Aperçu du ticket</div>
+          <button
+            className="bt-btn-secondary px-3 text-xs"
+            data-testid="settings-receipt-preview-refresh"
+            onClick={loadPreview}
+            type="button"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Rafraîchir
+          </button>
+        </div>
+        <p className="text-sm text-[#A1A1A1]">
+          Exemple avec tes codes actuels. Enregistre d&apos;abord, puis rafraîchis pour voir les
+          derniers codes.
+        </p>
+        <pre
+          className="bg-[#0A0A0A] border-2 border-[#262626] p-4 text-xs leading-5 overflow-x-auto whitespace-pre"
+          data-testid="settings-receipt-preview-text"
+        >
+          {preview || "…"}
+        </pre>
       </div>
 
       <div className="bt-card p-5" data-testid="tablet-closed-orders-card">

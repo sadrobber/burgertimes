@@ -67,7 +67,7 @@ from models import (
     gen_id,
     utc_now_iso,
 )
-from order_service import build_snapshots, gen_order_number, gen_pickup_code
+from order_service import build_snapshots, gen_order_number, gen_pickup_code, _compose_ticket_line, _short
 from pricing import BurgerBuilderConfig
 from restaurant_status import compute_status
 from seed import force_reseed_reference_data, run_seed
@@ -354,6 +354,67 @@ async def admin_update_builder_image(payload: BuilderImageUpdate, _: dict = Depe
             },
         )
     return {"has_builder_image": bool(payload.image_base64)}
+
+
+@api.get("/admin/receipt-preview")
+async def admin_receipt_preview(_: dict = Depends(require_admin)):
+    """Render a sample thermal-ticket text block using the owner's current
+    shortcodes, so they can tune codes without printing real paper."""
+    settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or {}
+
+    sauce_docs = await db.sauces.find({}, {"_id": 0}).to_list(500)
+    sauce = next((x for x in sauce_docs if x.get("active", True)), None)
+    sauce_code = (sauce.get("ticket_shortcode") or sauce.get("name")) if sauce else "Sauce"
+
+    supps = settings.get("supplement_options") or []
+    supp_code = (supps[0].get("code") or supps[0].get("name")) if supps else "Supp"
+
+    removals = settings.get("removal_options") or ["tomate"]
+    removal_codes = settings.get("removal_shortcodes") or {}
+    removal_name = removals[0]
+    removal_code = removal_codes.get(removal_name) or removal_name
+
+    drinks = settings.get("soda_flavours") or []
+    drink_codes = settings.get("drink_shortcodes") or {}
+    drink_name = drinks[0] if drinks else None
+    drink_code = (drink_codes.get(drink_name) or drink_name) if drink_name else None
+
+    kids_code = (settings.get("kids_ticket_code") or "c").strip() or "c"
+
+    item_docs = await db.menu_items.find({"available": True}, NO_IMAGE_FIELDS).to_list(2000)
+    non_kids = [d for d in item_docs if d.get("category") != "kids"]
+    kids = [d for d in item_docs if d.get("category") == "kids"]
+    it1_short = (non_kids[0].get("ticket_shortcode") or non_kids[0].get("name")) if non_kids else "Classique"
+    it2_short = (non_kids[1].get("ticket_shortcode") or non_kids[1].get("name")) if len(non_kids) > 1 else "Wings"
+    kid_short = (kids[0].get("ticket_shortcode") or kids[0].get("name")) if kids else "Menu Enfant"
+
+    lines = [
+        _compose_ticket_line(
+            qty=1,
+            name_short=it1_short if it1_short.lower().startswith("menu") else f"Menu {it1_short}",
+            parens=[f"Sans {removal_code}"],
+            extras=[supp_code, sauce_code], drink=drink_code, kids_code=None,
+        ),
+        _compose_ticket_line(
+            qty=2, name_short=it2_short, parens=[], extras=[], drink=None, kids_code=None,
+        ),
+    ]
+    if kids:
+        lines.append(
+            _compose_ticket_line(
+                qty=1,
+                name_short=kid_short if kid_short.lower().startswith("menu") else f"Menu {kid_short}",
+                parens=[], extras=[], drink=drink_code, kids_code=kids_code,
+            )
+        )
+
+    divider = "-" * 46
+    text = ["[ A EMPORTER ]", "BURGER TIMES", divider, "COMMANDE #APERCU", divider]
+    for ln in lines:
+        text.append(ln)
+        text.append("")
+    text += [divider, "TOTAL : 00,00 EUR", divider, "Client : Apercu"]
+    return {"lines": lines, "text": "\n".join(text)}
 
 
 @api.get("/restaurant/status")

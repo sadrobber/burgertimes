@@ -182,7 +182,9 @@ async def build_snapshots(
             item_short = item.get("ticket_shortcode") or item["name"]
             if line.get("selected_format"):
                 item_short += f" {line['selected_format']}"
-            name_short = f"Menu {item_short}" if formula == "menu" else item_short
+            name_short = item_short
+            if formula == "menu" and not item_short.lower().startswith("menu"):
+                name_short = f"Menu {item_short}"
             parens = [f"Sans {_short(r, removal_codes)}" for r in removals]
             extras = [_short(s, supplement_codes) for s in supplements] + [_short(s, sauce_codes) for s in sauces]
             is_kids = (item.get("category") == "kids")

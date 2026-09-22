@@ -22,6 +22,7 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-06)
+- **Builder shortcodes + live ticket preview (2026-06):** Burger Builder admin now has a "Code ticket" column on Styles/Tailles/Viandes/Fromages/Suppléments (`ticket_shortcode`, saved on blur; pricing already denorms these onto the burger ticket line). Added **Aperçu du ticket** card in Réglages backed by `GET /api/admin/receipt-preview`, which renders a sample thermal ticket (blank line after each item, kids bare code) using the owner's current codes — no printing needed. Fixed a double-"Menu " prefix bug for items already named "Menu …".
 - **Editable receipt codes everywhere + spacing (2026-06):** Every printed token is now an editable code: supplements got a `code` field (Settings), removals got `removal_shortcodes`, plus existing sauce/item/drink codes. Kids menu prints a bare configurable code (`kids_ticket_code`, default `c`, no `+`). Pi receipt now prints a blank line after each item. Verified: `1x Menu Classiq (Sans tom) +Bcn +Alg - Cola` and `1x Menu Kids c`.
 - **Shortcode + supplements admin UI (2026-06):** Owner can now edit ticket abbreviations and supplements from the admin:
   - Sauces admin: "Ticket" column (per-sauce `ticket_shortcode`, saves on blur).
