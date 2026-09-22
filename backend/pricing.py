@@ -76,7 +76,7 @@ def compute_burger_price(
     for mid in meat_ids:
         m = _get(config.meats, mid, "burger meat")
         meats_total += m.get("base_price", 0.0) or 0.0
-        meats_snapshot.append({"id": m["id"], "name": m["name"]})
+        meats_snapshot.append({"id": m["id"], "name": m["name"], "code": m.get("ticket_shortcode")})
 
     # Cheeses (multi-select, each adds base_price)
     cheese_ids: List[str] = list(burger_config.get("cheese_ids") or [])
@@ -85,7 +85,7 @@ def compute_burger_price(
     for cid in cheese_ids:
         c = _get(config.cheeses, cid, "burger cheese")
         cheeses_total += c.get("base_price", 0.0) or 0.0
-        cheeses_snapshot.append({"id": c["id"], "name": c["name"]})
+        cheeses_snapshot.append({"id": c["id"], "name": c["name"], "code": c.get("ticket_shortcode")})
 
     # Supplements (multi-select, each: base_price + size.supplement_upcharge)
     supp_ids: List[str] = list(burger_config.get("supplement_ids") or [])
@@ -94,7 +94,7 @@ def compute_burger_price(
     for sid in supp_ids:
         s = _get(config.supplements, sid, "burger supplement")
         supps_total += (s.get("base_price", 0.0) or 0.0) + supp_upcharge
-        supps_snapshot.append({"id": s["id"], "name": s["name"]})
+        supps_snapshot.append({"id": s["id"], "name": s["name"], "code": s.get("ticket_shortcode")})
 
     # Style price_modifier
     price_modifier = style.get("price_modifier", 0.0) or 0.0
@@ -104,6 +104,7 @@ def compute_burger_price(
     denorm = {
         "style_id": style["id"],
         "style_name": style["name"],
+        "style_code": style.get("ticket_shortcode"),
         "size": size_snapshot,
         "meats": meats_snapshot,
         "cheeses": cheeses_snapshot,

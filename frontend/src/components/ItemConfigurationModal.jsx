@@ -23,6 +23,9 @@ export default function ItemConfigurationModal({
   setRemovals,
   setSelectedFormat,
   setSelectedSauces,
+  selectedSupplements = [],
+  setSelectedSupplements = () => {},
+  supplementOptions = [],
   sodaFlavours,
   total,
 }) {
@@ -167,6 +170,33 @@ export default function ItemConfigurationModal({
                       type="button"
                     >
                       {sauce}
+                    </button>
+                  );
+                })}
+              </div>
+            </OptionGroup>
+          )}
+
+          {(supplementOptions || []).length > 0 && (
+            <OptionGroup label="Suppléments">
+              <div className="flex flex-wrap gap-2">
+                {supplementOptions.map((sup) => {
+                  const selected = selectedSupplements.includes(sup.name);
+                  return (
+                    <button
+                      className={`bt-chip ${selected ? "active" : ""}`}
+                      data-testid={`item-${item.id}-supplement-${sup.name}`}
+                      key={sup.name}
+                      onClick={() =>
+                        setSelectedSupplements((current) =>
+                          current.includes(sup.name)
+                            ? current.filter((value) => value !== sup.name)
+                            : [...current, sup.name],
+                        )
+                      }
+                      type="button"
+                    >
+                      {sup.name}{sup.price ? ` +${formatEur(sup.price)}` : ""}
                     </button>
                   );
                 })}

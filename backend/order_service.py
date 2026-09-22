@@ -31,15 +31,44 @@ def _burger_line_name(denorm: Dict[str, Any], formula: str) -> str:
     return name
 
 
+def _short(name: str, codes: Dict[str, str] | None) -> str:
+    return ((codes or {}).get(name) or name)
+
+
+def _compose_ticket_line(
+    *,
+    qty: int,
+    name_short: str,
+    parens: List[str],
+    extras: List[str],
+    drink: str | None,
+    kids: bool,
+) -> str:
+    line = f"{qty}x {name_short}"
+    if parens:
+        line += f" ({', '.join(parens)})"
+    for extra in extras:
+        line += f" +{extra}"
+    if kids:
+        line += " +c"
+    if drink:
+        line += f" - {drink}"
+    return line
+
+
 async def build_snapshots(
     lines: List[dict],
     menu_items: Dict[str, dict],
     burger_cfg: BurgerBuilderConfig,
     soda_flavours: List[str],
+    sauce_codes: Dict[str, str] | None = None,
+    drink_codes: Dict[str, str] | None = None,
+    supplement_prices: Dict[str, float] | None = None,
 ) -> Tuple[List[dict], float]:
     """Build validated OrderItemSnapshot list and compute subtotal."""
     snapshots: List[dict] = []
     subtotal = 0.0
+    supplement_prices = supplement_prices or {}
 
     for line in lines:
         qty = int(line.get("quantity") or 1)
@@ -50,6 +79,7 @@ async def build_snapshots(
             raise HTTPException(status_code=400, detail=f"Invalid formula: {formula!r}")
         sauces = list(line.get("sauces") or [])
         removals = list(line.get("removable_ingredients") or [])
+        supplements = list(line.get("supplements") or [])
         if len(sauces) > 2:
             raise HTTPException(status_code=400, detail="Maximum 2 sauces par article.")
         if len(removals) > 2:
@@ -64,7 +94,6 @@ async def build_snapshots(
                     detail="A drink is required for menu formula.",
                 )
             if included_drink not in soda_flavours and not soda_flavours:
-                # if no soda_flavours configured, accept freely
                 pass
             elif soda_flavours and included_drink not in soda_flavours:
                 raise HTTPException(
@@ -72,10 +101,25 @@ async def build_snapshots(
                     detail=f"Drink '{included_drink}' not available.",
                 )
 
+        drink_short = _short(included_drink, drink_codes) if included_drink else None
+
         if line.get("is_burger"):
             burger_config = line.get("burger_config") or {}
             unit_price, denorm = compute_burger_price(burger_config, formula, burger_cfg)
             name = _burger_line_name(denorm, formula)
+            # Compact ticket line
+            style_short = denorm.get("style_code") or denorm.get("style_name") or "Burger"
+            name_short = f"Menu {style_short}" if formula == "menu" else style_short
+            parens = [m.get("code") or m.get("name") for m in denorm.get("meats") or []]
+            if denorm.get("sauce_fromagere") is False:
+                parens.append("sans from")
+            extras = [c.get("code") or c.get("name") for c in denorm.get("cheeses") or []]
+            extras += [s.get("code") or s.get("name") for s in denorm.get("supplements") or []]
+            extras += [_short(s, sauce_codes) for s in (denorm.get("sauces") or [])]
+            ticket_line = _compose_ticket_line(
+                qty=qty, name_short=name_short, parens=parens, extras=extras,
+                drink=drink_short, kids=False,
+            )
             snapshots.append(
                 {
                     "line_id": line.get("line_id"),
@@ -88,6 +132,8 @@ async def build_snapshots(
                     "unit_price": unit_price,
                     "line_total": round(unit_price * qty, 2),
                     "sauces": list(line.get("sauces") or []),
+                    "supplements": [],
+                    "ticket_line": ticket_line,
                     "included_drink": included_drink,
                     "included_drink_variant": included_drink_variant,
                     "selected_format": None,
@@ -116,12 +162,31 @@ async def build_snapshots(
                     status_code=400,
                     detail=f"Retrait indisponible pour : {item.get('name')}",
                 )
+            allowed_supps = item.get("supplement_options") or []
+            if any(sup not in allowed_supps for sup in supplements):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Supplément indisponible pour : {item.get('name')}",
+                )
             unit_price = compute_menu_item_price(item, formula, line.get("selected_format"))
+            unit_price = round(unit_price + sum(supplement_prices.get(s, 0.0) for s in supplements), 2)
             display_name = item["name"]
             if line.get("selected_format"):
                 display_name += f" ({line['selected_format']})"
             if formula == "menu":
                 display_name = f"Menu {display_name}"
+            # Compact ticket line
+            item_short = item.get("ticket_shortcode") or item["name"]
+            if line.get("selected_format"):
+                item_short += f" {line['selected_format']}"
+            name_short = f"Menu {item_short}" if formula == "menu" else item_short
+            parens = [f"Sans {r}" for r in removals]
+            extras = list(supplements) + [_short(s, sauce_codes) for s in sauces]
+            is_kids = (item.get("category") == "kids")
+            ticket_line = _compose_ticket_line(
+                qty=qty, name_short=name_short, parens=parens, extras=extras,
+                drink=drink_short, kids=is_kids,
+            )
             snapshots.append(
                 {
                     "line_id": line.get("line_id"),
@@ -134,6 +199,8 @@ async def build_snapshots(
                     "unit_price": unit_price,
                     "line_total": round(unit_price * qty, 2),
                     "sauces": sauces,
+                    "supplements": supplements,
+                    "ticket_line": ticket_line,
                     "included_drink": included_drink,
                     "included_drink_variant": included_drink_variant,
                     "selected_format": line.get("selected_format"),

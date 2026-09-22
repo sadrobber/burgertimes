@@ -83,6 +83,10 @@
 .font-marker {
   font-family: "Permanent Marker", cursive;
 }
+button, [role="button"], a, select, input, label {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
 
 /* All bt-* component classes live in Tailwind's "components" layer so that
    any Tailwind utility class placed alongside one on the same element

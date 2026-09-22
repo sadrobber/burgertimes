@@ -6,7 +6,7 @@ import { useCart } from "@/context/CartContext.jsx";
 import { useI18n } from "@/context/I18nContext.jsx";
 import { toast } from "sonner";
 
-export default function MenuItemCard({ compact = false, dense = false, item, sauceOptions = [], sodaFlavours = [] }) {
+export default function MenuItemCard({ compact = false, dense = false, item, sauceOptions = [], sodaFlavours = [], supplementOptions = [] }) {
   const { addPlainItem } = useCart();
   const { t } = useI18n();
   const [openConfig, setOpenConfig] = React.useState(false);
@@ -15,6 +15,7 @@ export default function MenuItemCard({ compact = false, dense = false, item, sau
   const [drink, setDrink] = React.useState("");
   const [removals, setRemovals] = React.useState([]);
   const [selectedSauces, setSelectedSauces] = React.useState([]);
+  const [selectedSupplements, setSelectedSupplements] = React.useState([]);
 
   const hasMenu = item.price_menu != null || (item.formats || []).some((f) => f.price_menu != null);
   const needsDrink = formula === "menu";
@@ -31,6 +32,14 @@ export default function MenuItemCard({ compact = false, dense = false, item, sau
 
   const canAdd = formula === "seul" || (formula === "menu" && drink);
 
+  const itemSupplements = (supplementOptions || []).filter((s) =>
+    (item.supplement_options || []).includes(s.name),
+  );
+  const suppTotal = itemSupplements
+    .filter((s) => selectedSupplements.includes(s.name))
+    .reduce((sum, s) => sum + (s.price || 0), 0);
+  const totalPrice = displayPrice + suppTotal;
+
   const doAdd = () => {
     if (!canAdd) {
       toast.error("Choisis une boisson");
@@ -45,12 +54,13 @@ export default function MenuItemCard({ compact = false, dense = false, item, sau
       name: nameParts.join(" "),
       formula,
       quantity: 1,
-      unit_price: displayPrice,
+      unit_price: totalPrice,
       sauces: selectedSauces,
       included_drink: needsDrink ? drink : null,
       selected_format: selectedFormat,
       selected_variant: null,
       removable_ingredients: removals,
+      supplements: selectedSupplements,
       notes: null,
     });
     toast.success("Ajouté au panier");
@@ -59,6 +69,7 @@ export default function MenuItemCard({ compact = false, dense = false, item, sau
     setDrink("");
     setRemovals([]);
     setSelectedSauces([]);
+    setSelectedSupplements([]);
   };
 
   const addLabel = compact ? "Personnaliser" : t("menu.add");
@@ -67,7 +78,10 @@ export default function MenuItemCard({ compact = false, dense = false, item, sau
   return (
     <div
       data-testid={`menu-item-${item.id}`}
-      className="bt-card relative flex flex-col overflow-hidden"
+      onClick={() => setOpenConfig(true)}
+      role="button"
+      tabIndex={0}
+      className="bt-card relative flex flex-col overflow-hidden cursor-pointer"
     >
       {!compact && <div className="aspect-[4/3] w-full overflow-hidden bg-[#1A1A1A] relative">
         {item.has_image ? (
@@ -262,8 +276,11 @@ export default function MenuItemCard({ compact = false, dense = false, item, sau
           setRemovals={setRemovals}
           setSelectedFormat={setSelectedFormat}
           setSelectedSauces={setSelectedSauces}
+          selectedSupplements={selectedSupplements}
+          setSelectedSupplements={setSelectedSupplements}
+          supplementOptions={itemSupplements}
           sodaFlavours={sodaFlavours}
-          total={displayPrice}
+          total={totalPrice}
         />
       )}
     </div>

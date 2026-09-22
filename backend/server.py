@@ -904,11 +904,23 @@ async def _quote_or_create(
     menu_items = {d["id"]: _strip_mongo(d) for d in menu_docs}
     burger_cfg = await _load_builder_config()
 
+    sauce_docs = await db.sauces.find({}, {"_id": 0}).to_list(500)
+    sauce_codes = {s["name"]: s.get("ticket_shortcode") for s in sauce_docs if s.get("ticket_shortcode")}
+    drink_codes = settings.get("drink_shortcodes") or {}
+    supplement_prices = {
+        s.get("name"): float(s.get("price") or 0.0)
+        for s in (settings.get("supplement_options") or [])
+        if s.get("name")
+    }
+
     snapshots, subtotal = await build_snapshots(
         [line.model_dump() for line in payload.items],
         menu_items,
         burger_cfg,
         settings.get("soda_flavours") or [],
+        sauce_codes=sauce_codes,
+        drink_codes=drink_codes,
+        supplement_prices=supplement_prices,
     )
     delivery_fee = _compute_delivery_fee(payload.fulfillment, subtotal, settings)
     coupon_discount = 0.0

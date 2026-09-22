@@ -116,9 +116,10 @@ def _kitchen(text: str = "", indent: str = "") -> bytes:
 # Ticket content — one combined ticket (items, total, customer, payment)
 # printed as many times as "print_copies" asks for.
 # ---------------------------------------------------------------------------
-FULFILLMENT_LABEL = {"pickup": "A EMPORTER", "delivery": "LIVRAISON"}
+FULFILLMENT_LABEL = {"pickup": "A EMPORTER", "delivery": "LIVRAISON", "dine_in": "SUR PLACE"}
 PAYMENT_LABEL = {"cash": "Especes sur place", "card_in_person": "Carte sur place"}
-DIVIDER = "-" * 32
+DIVIDER = "-" * 46
+NORMAL_LINE_WIDTH = 46
 
 
 def _fmt_datetime(iso_str: str) -> tuple[str, str]:
@@ -130,37 +131,33 @@ def _fmt_datetime(iso_str: str) -> tuple[str, str]:
         return "", ""
 
 
-def _item_line(item: dict) -> str:
-    """Item header line: qty + name (name already has a "Menu " prefix
-    baked in by the backend when it's a menu formula) + the meat names
-    directly in parens right after — no "Taille : N Viandes" label, just
-    the meats themselves — plus "sans from" appended right here when the
-    customer opted out of the cheese sauce. Cheeses/supplements/sauces go
-    on their own "+ ..." lines below via _item_lines()."""
+def _wrapped(text: str = "", indent: str = "  ") -> bytes:
+    """Emit `text` as normal-size line(s), wrapped at word boundaries at
+    NORMAL_LINE_WIDTH so nothing is cut mid-word on the narrow roll."""
+    out = b""
+    for w in (textwrap.wrap(text, width=NORMAL_LINE_WIDTH, subsequent_indent=indent) or [""]):
+        out += _line(w)
+    return out
+
+
+def _legacy_item_line(item: dict) -> str:
+    """Fallback compact line for orders created before ticket_line existed."""
     cfg = item.get("burger_config") or {}
     meats = [x.get("name", x) if isinstance(x, dict) else x for x in cfg.get("meats") or []]
     line = f"{item.get('quantity', 1)}x {item.get('name', '')}"
-    if meats:
-        line += f" ({', '.join(meats)})"
+    parts = list(meats)
     if cfg.get("sauce_fromagere") is False:
-        line += " sans from"
-    return line
-
-
-def _item_lines(item: dict) -> list:
-    rows = [_item_line(item)]
-    cfg = item.get("burger_config") or {}
+        parts.append("sans from")
+    if parts:
+        line += f" ({', '.join(parts)})"
     for group in ("cheeses", "supplements"):
         for x in cfg.get(group) or []:
-            name = x.get("name", x) if isinstance(x, dict) else x
-            rows.append(f"  + {name}")
+            line += f" +{x.get('name', x) if isinstance(x, dict) else x}"
     for s in item.get("sauces") or []:
-        rows.append(f"  + {s}")
-    if item.get("formula") == "menu" and item.get("included_drink"):
-        rows.append(f"  Boisson : {item['included_drink']}")
-    if item.get("notes"):
-        rows.append(f"  Note : {item['notes']}")
-    return rows
+        line += f" +{s}"
+    if item.get("included_drink"):
+        line += f" - {item['included_drink']}"
+    return line
 
 
 def build_escpos_ticket(order: dict) -> bytes:
@@ -175,34 +172,36 @@ def build_escpos_ticket(order: dict) -> bytes:
     out += INIT
     out += SELECT_CODEPAGE
 
-    out += ALIGN_CENTER + BOLD_ON + SIZE_DOUBLE
+    # Fulfillment mode banner at the very top (bold, tall).
+    out += ALIGN_CENTER + BOLD_ON + SIZE_TALL
+    out += _line(fulfillment_label)
+    out += SIZE_DOUBLE
     out += _line("BURGER TIMES")
     out += SIZE_NORMAL
     out += _line(DIVIDER)
     out += _line(f"COMMANDE #{order.get('order_number', '')}")
     out += BOLD_OFF
-    out += _line(fulfillment_label)
     out += _line(f"{date_str} {time_str}")
     out += _line(DIVIDER)
 
-    # Kitchen content is double-width and double-height. It is wrapped to
-    # sixteen characters ourselves so the printer never cuts a word in half.
-    out += ALIGN_LEFT + BOLD_ON + SIZE_KITCHEN
+    # Item lines — normal size, one product per line (server pre-formats the
+    # compact ticket_line; wrap only if it exceeds the roll width).
+    out += ALIGN_LEFT + BOLD_ON + SIZE_NORMAL
     for item in order.get("items") or []:
-        for row in _item_lines(item):
-            out += _kitchen(row, indent="  ")
+        line = item.get("ticket_line") or _legacy_item_line(item)
+        out += _wrapped(line, indent="   ")
+        if item.get("notes"):
+            out += _wrapped(f"  Note : {item['notes']}", indent="   ")
     if order.get("notes"):
-        out += _kitchen(f"Note : {order['notes']}", indent="  ")
-    out += BOLD_OFF + SIZE_NORMAL
+        out += _wrapped(f"Note : {order['notes']}", indent="   ")
+    out += BOLD_OFF
     out += _line(DIVIDER)
-    out += SIZE_TALL
 
     total = order.get("total") or 0
-    out += BOLD_ON
-    out += _tall(f"TOTAL : {total:.2f} EUR".replace(".", ","))
+    out += BOLD_ON + SIZE_TALL
+    out += _line(f"TOTAL : {total:.2f} EUR".replace(".", ","))
     out += BOLD_OFF + SIZE_NORMAL
     out += _line(DIVIDER)
-    out += SIZE_NORMAL
 
     if customer_name:
         out += _line(f"Client : {customer_name}")
@@ -210,9 +209,8 @@ def build_escpos_ticket(order: dict) -> bytes:
         out += _line(f"Tel : {order['customer_phone']}")
     if fulfillment == "delivery":
         _, slot_start = _fmt_datetime(order.get("scheduled_delivery_start", ""))
-        _, slot_end = _fmt_datetime(order.get("scheduled_delivery_end", ""))
-        if slot_start and slot_end:
-            out += _line(f"Creneau livraison : {slot_start} - {slot_end}")
+        if slot_start:
+            out += _line(f"Creneau livraison : {slot_start}")
         addr = ", ".join(filter(None, [order.get("address_line1"), order.get("address_line2")]))
         if addr:
             out += _line(addr)

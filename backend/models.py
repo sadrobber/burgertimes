@@ -95,6 +95,8 @@ class MenuItem(BaseModel):
     removable_ingredients: List[str] = Field(default_factory=list)
     uses_soda_flavours: bool = False
     uses_sauces: bool = True
+    supplement_options: List[str] = Field(default_factory=list)
+    ticket_shortcode: Optional[str] = None
     available: bool = True
     is_new: bool = False
     has_image: bool = False
@@ -114,6 +116,8 @@ class MenuItemCreate(BaseModel):
     removable_ingredients: List[str] = Field(default_factory=list)
     uses_soda_flavours: bool = False
     uses_sauces: bool = True
+    supplement_options: List[str] = Field(default_factory=list)
+    ticket_shortcode: Optional[str] = None
     available: bool = True
     is_new: bool = False
     sort_order: int = 0
@@ -131,6 +135,8 @@ class MenuItemUpdate(BaseModel):
     removable_ingredients: Optional[List[str]] = None
     uses_soda_flavours: Optional[bool] = None
     uses_sauces: Optional[bool] = None
+    supplement_options: Optional[List[str]] = None
+    ticket_shortcode: Optional[str] = None
     available: Optional[bool] = None
     is_new: Optional[bool] = None
     sort_order: Optional[int] = None
@@ -149,18 +155,21 @@ class Sauce(BaseModel):
 
     id: str = Field(default_factory=gen_id)
     name: str
+    ticket_shortcode: Optional[str] = None
     sort_order: int = 0
     active: bool = True
 
 
 class SauceCreate(BaseModel):
     name: str
+    ticket_shortcode: Optional[str] = None
     sort_order: int = 0
     active: bool = True
 
 
 class SauceUpdate(BaseModel):
     name: Optional[str] = None
+    ticket_shortcode: Optional[str] = None
     sort_order: Optional[int] = None
     active: Optional[bool] = None
 
@@ -269,6 +278,7 @@ class BuilderItemCreate(BaseModel):
     nb_meats: Optional[int] = None
     supplement_upcharge: Optional[float] = None
     base_price: Optional[float] = None
+    ticket_shortcode: Optional[str] = None
     available: bool = True
     sort_order: int = 0
 
@@ -314,6 +324,8 @@ class Settings(BaseModel):
     eta_default_max: int = 30
     soda_flavours: List[str] = Field(default_factory=list)
     removal_options: List[str] = Field(default_factory=list)
+    supplement_options: List[dict] = Field(default_factory=list)
+    drink_shortcodes: dict = Field(default_factory=dict)
     delivery_fee_percent: float = 10.0
     free_delivery_threshold: Optional[float] = None
     delivery_postal_codes: List[str] = Field(default_factory=list)
@@ -350,6 +362,8 @@ class SettingsUpdate(BaseModel):
     eta_default_max: Optional[int] = None
     soda_flavours: Optional[List[str]] = None
     removal_options: Optional[List[str]] = None
+    supplement_options: Optional[List[dict]] = None
+    drink_shortcodes: Optional[dict] = None
     delivery_fee_percent: Optional[float] = None
     free_delivery_threshold: Optional[float] = None
     delivery_postal_codes: Optional[List[str]] = None
@@ -393,6 +407,7 @@ class CartLine(BaseModel):
     included_drink_variant: Optional[str] = None
     sauces: List[str] = Field(default_factory=list)
     removable_ingredients: List[str] = Field(default_factory=list)
+    supplements: List[str] = Field(default_factory=list)
     notes: Optional[str] = None
     is_burger: bool = False
     burger_config: Optional[BurgerConfig] = None
@@ -409,6 +424,8 @@ class OrderItemSnapshot(BaseModel):
     unit_price: float
     line_total: float
     sauces: List[str] = Field(default_factory=list)
+    supplements: List[str] = Field(default_factory=list)
+    ticket_line: Optional[str] = None
     included_drink: Optional[str] = None
     included_drink_variant: Optional[str] = None
     selected_format: Optional[str] = None

@@ -227,6 +227,7 @@ export default function TabletOrder() {
         included_drink_variant: item.included_drink_variant || null,
         sauces: item.sauces || [],
         removable_ingredients: item.removable_ingredients || [],
+        supplements: item.supplements || [],
         notes: item.notes || null,
         is_burger: !!item.is_burger,
         burger_config: item.burger_config
@@ -439,6 +440,7 @@ export default function TabletOrder() {
                   key={item.id}
                   sauceOptions={sauces}
                   sodaFlavours={settings?.soda_flavours || []}
+                  supplementOptions={settings?.supplement_options || []}
                 />
               ))}
             </div>

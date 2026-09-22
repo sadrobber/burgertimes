@@ -72,12 +72,13 @@ export default function BurgerBuilderModal({ open, onClose }) {
     if (styles.length !== 1) ordered.push("style");
     if (!isFlat) ordered.push("size");
     ordered.push("meats");
-    if ((config?.cheeses || []).length > 0) ordered.push("cheeses");
-    if ((config?.supplements || []).length > 0) ordered.push("supplements");
     if ((sauces || []).length > 0) ordered.push("sauces");
+    if ((config?.supplements || []).length > 0) ordered.push("supplements");
+    if ((config?.cheeses || []).length > 0) ordered.push("cheeses");
     ordered.push("fromagere");
+    if (formula === "menu") ordered.push("drink");
     return ordered;
-  }, [config, sauces, isFlat]);
+  }, [config, sauces, isFlat, formula]);
   const currentStep = steps[stepIdx];
 
   const price = useMemo(() => {
@@ -114,7 +115,7 @@ export default function BurgerBuilderModal({ open, onClose }) {
   };
 
   const canNext = () => {
-    if (currentStep === "format") return formula === "seul" || (formula === "menu" && !!drink);
+    if (currentStep === "format") return true;
     if (currentStep === "style") return !!styleId;
     if (currentStep === "size") return !!sizeId;
     if (currentStep === "meats") return meats.length === requiredMeats;
@@ -122,6 +123,7 @@ export default function BurgerBuilderModal({ open, onClose }) {
     if (currentStep === "supplements") return true;
     if (currentStep === "sauces") return true;
     if (currentStep === "fromagere") return true;
+    if (currentStep === "drink") return !!drink;
     return true;
   };
 
@@ -232,28 +234,29 @@ export default function BurgerBuilderModal({ open, onClose }) {
                   </button>
                 ))}
               </div>
-              {formula === "menu" && (
-                <div>
-                  <div className="bt-label">{t("menu.select_drink")}</div>
-                  <div className="flex flex-wrap gap-2">
-                    {(settings?.soda_flavours || []).map((d) => (
-                      <button
-                        key={d}
-                        data-testid={`burger-drink-${d}`}
-                        onClick={() => setDrink(d)}
-                        className={`bt-chip ${drink === d ? "active" : ""}`}
-                      >
-                        {d}
-                      </button>
-                    ))}
-                    {(settings?.soda_flavours || []).length === 0 && (
-                      <div className="text-sm text-[#A1A1A1]">
-                        Aucune boisson configurée. Ajoute-les depuis l&apos;admin.
-                      </div>
-                    )}
+            </div>
+          )}
+
+          {currentStep === "drink" && (
+            <div>
+              <div className="bt-label">{t("menu.select_drink")}</div>
+              <div className="flex flex-wrap gap-2">
+                {(settings?.soda_flavours || []).map((d) => (
+                  <button
+                    key={d}
+                    data-testid={`burger-drink-${d}`}
+                    onClick={() => setDrink(d)}
+                    className={`bt-chip ${drink === d ? "active" : ""}`}
+                  >
+                    {d}
+                  </button>
+                ))}
+                {(settings?.soda_flavours || []).length === 0 && (
+                  <div className="text-sm text-[#A1A1A1]">
+                    Aucune boisson configurée. Ajoute-les depuis l&apos;admin.
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 
