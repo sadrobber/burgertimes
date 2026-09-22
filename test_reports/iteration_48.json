@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only verification of the 5 requested UX changes for Burger Times (Web /menu, Tablet /tablet, Tacos builder). All 5 acceptance criteria PASS. No orders submitted (Valider/Encaisser never clicked).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_acceptance_criteria": [
+    "1. /menu card click opens config modal (item-<id>-config-modal). Tested 3 different items — all opened via card root click (menu-item-<id>). Section order top-to-bottom is exactly: 'Ta formule' → 'Retirer jusqu'à 2 ingrédients' → 'Choisis jusqu'à 2 sauces' → 'Suppléments' → (when Menu chosen) 'Ta boisson'. Verified programmatically via .bt-label collection order.",
+    "2. Suppléments section renders global supplements with +price (Cheddar +1.00€, Bacon +1.50€, Œuf +1.00€, Steak +2.00€ on classique). Selecting item-<id>-supplement-Cheddar, choosing Menu formula + drink, then clicking item-<id>-add-to-cart closed the modal and increased the cart badge to 1. Full add-to-cart with supplements works.",
+    "3. Removals ('Sans …') section present on every one of the 3 different items tested (2 classiques + 1 signature). Confirmed 'Retirer jusqu'à 2 ingrédients' label appears in each modal via section-label enumeration.",
+    "4. /tablet: login with tablet@burgertimes.fr / BurgerTablet2026! succeeds. 9 category tabs (tablet-category-select-*). Single click on tablet-category-select-signatures immediately switched grid to data-testid='tablet-category-signatures' — first-tap responsive ✓. Tapping a menu-item card on tablet opened item-<id>-config-modal (screenshot confirms Ta formule → Retirer → Choisis sauces → Suppléments rendering).",
+    "5. Tacos builder (data-testid=burger-builder-modal) opened via 'Composer un Tacos' card (menu-item-tacos-builder) on both /menu and /tablet. Step order with formula='seul': [format, style, size, meats, fromagere] — drink correctly HIDDEN. Switching to formula='menu' recomputes steps to [format, style, size, meats, sauces, supplements, cheeses, fromagere, drink] — drink is LAST ✓. Filtered order (removing optional style) === ['format','size','meats','sauces','supplements','cheeses','fromagere','drink'] which matches the requested order exactly. Code confirms canNext() on 'drink' step returns !!drink, so final Ajouter is disabled until a drink is picked."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BurgerBuilderModal.jsx line 8: STEP_KEYS constant is now unused dead code (steps are computed in useMemo). Remove it.",
+    "MenuItemCard.jsx: `hasConfig` is hard-coded false (line 76), so lines 119-249 (the inline config block) are permanently dead code. Extract or delete to keep the file small and focused (currently ~289 lines).",
+    "MenuItemCard.jsx: the card root has role='button' + onClick={setOpenConfig(true)}, but the inner 'Ajouter' button (item-<id>-configure) is nested inside that clickable root. Click bubbling means the Ajouter button click also fires the root handler — currently harmless (both open the same modal) but a) it's redundant given the requirement was 'no need to press Ajouter' and b) any future stopPropagation could regress the card-click behavior. Consider removing the redundant Ajouter button or e.stopPropagation() on it.",
+    "TabletOrder.jsx still 700+ lines (previous iteration flag) — not blocking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "tablet@burgertimes.fr / BurgerTablet2026! (from request)",
+  "seed_data_creation": "None. No orders placed — Valider/Encaisser was NOT clicked (would trigger ESC/POS printing). Only client-side cart interactions.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "For /menu section order tests use `.bt-label` textContent enumeration inside the modal DOM (createPortal to document.body — the modal is NOT inside the card element). Skip 'menu-item-tacos-builder' when iterating card ids because that card opens the BurgerBuilderModal (data-testid=burger-builder-modal), not the ItemConfigurationModal. For the tacos builder, use `Array.from(document.querySelectorAll('[data-testid^=\"burger-step-\"]')).map(...)` to read the current step order; the step highlight class uses `border-[#EF2B2D]` (Tailwind bracket syntax — invalid inside a plain CSS querySelector, needs escaping). Config: styles length > 1 on this env so the 'style' step is present; task says it should hide when only 1 style — code already handles this via `if (styles.length !== 1) ordered.push('style')`."
+}
