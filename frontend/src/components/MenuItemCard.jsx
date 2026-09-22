@@ -6,7 +6,7 @@ import { useCart } from "@/context/CartContext.jsx";
 import { useI18n } from "@/context/I18nContext.jsx";
 import { toast } from "sonner";
 
-export default function MenuItemCard({ compact = false, item, sauceOptions = [], sodaFlavours = [] }) {
+export default function MenuItemCard({ compact = false, dense = false, item, sauceOptions = [], sodaFlavours = [] }) {
   const { addPlainItem } = useCart();
   const { t } = useI18n();
   const [openConfig, setOpenConfig] = React.useState(false);
@@ -69,7 +69,7 @@ export default function MenuItemCard({ compact = false, item, sauceOptions = [],
       data-testid={`menu-item-${item.id}`}
       className="bt-card relative flex flex-col overflow-hidden"
     >
-      {!compact && <div className="aspect-[4/3] w-full overflow-hidden bg-[#1A1A1A] relative">
+      {!compact && <div className={`${dense ? "h-24 sm:h-28" : "aspect-[4/3]"} w-full overflow-hidden bg-[#1A1A1A] relative`}>
         {item.has_image ? (
           <img
             src={menuImageUrl(item.id)}
@@ -96,9 +96,9 @@ export default function MenuItemCard({ compact = false, item, sauceOptions = [],
           />
         )}
       </div>}
-      <div className="p-2.5 sm:p-4 flex-1 flex flex-col">
-        <div className="font-display text-base sm:text-xl md:text-2xl uppercase leading-none">{item.name}</div>
-        {item.description && (
+      <div className={`${dense ? "p-2" : "p-2.5 sm:p-4"} flex-1 flex flex-col`}>
+        <div className={`font-display uppercase leading-none ${dense ? "text-sm sm:text-base" : "text-base sm:text-xl md:text-2xl"}`}>{item.name}</div>
+        {!dense && item.description && (
           <p className="text-xs sm:text-sm text-[#B3B3B3] mt-1.5 sm:mt-2 line-clamp-2">{item.description}</p>
         )}
 
@@ -234,11 +234,11 @@ export default function MenuItemCard({ compact = false, item, sauceOptions = [],
           </div>
         )}
 
-        <div className="mt-auto pt-3 sm:pt-4 flex items-center gap-2">
+        <div className={`mt-auto flex items-center gap-2 ${dense ? "pt-2" : "pt-3 sm:pt-4"}`}>
           <button
             onClick={() => setOpenConfig(true)}
             data-testid={`item-${item.id}-configure`}
-            className="bt-btn-primary py-2 px-2.5 sm:px-4 text-xs sm:text-sm flex-1"
+            className={`bt-btn-primary flex-1 ${dense ? "py-1.5 px-2 text-xs" : "py-2 px-2.5 sm:px-4 text-xs sm:text-sm"}`}
           >
             <Plus className="w-4 h-4" /> {addLabel}
           </button>

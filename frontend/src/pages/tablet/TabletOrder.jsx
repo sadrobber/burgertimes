@@ -337,62 +337,64 @@ export default function TabletOrder() {
         </div>
       </header>
 
-      {/* Category tabs */}
-      <nav
-        className="flex gap-2 overflow-x-auto border-b border-[#262626] bg-[#0F0F0F] px-4 py-3 no-scrollbar"
-        data-testid="tablet-category-picker"
-      >
-        {categories.map((category) => {
-          const Icon = CATEGORY_ICONS[category] || Cookie;
-          const active = activeCategory === category;
-          return (
-            <button
-              className={`flex min-w-[104px] flex-col items-center gap-1.5 border-2 px-4 py-3 font-accent uppercase tracking-widest transition-colors ${
-                active
-                  ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
-                  : "border-[#262626] bg-[#141414] text-[#F5F1E8] hover:border-[#EF2B2D]"
-              }`}
-              data-testid={`tablet-category-select-${category}`}
-              key={category}
-              onClick={() => setActiveCategory(category)}
-            >
-              <Icon className="h-7 w-7" strokeWidth={1.6} />
-              <span className="text-sm leading-none">
-                {CATEGORY_LABELS[category] || category.replaceAll("-", " ")}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
-
       {/* Body */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_400px]">
-        {/* Products */}
-        <section className="min-w-0 overflow-y-auto p-4">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-3 font-display text-3xl uppercase leading-none text-[#EF2B2D] sm:text-4xl">
-              <span className="h-7 w-1.5 bg-[#EF2B2D]" />
-              {activeCategoryLabel || "Menu"}
-            </h2>
-            <button
-              className="bt-btn-primary px-4 py-2 text-sm"
-              data-testid="tablet-open-tacos-builder"
-              onClick={() => setBuilderOpen(true)}
-            >
-              <UtensilsCrossed className="h-4 w-4" /> Composer un Tacos
-            </button>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3" data-testid={`tablet-category-${activeCategory}`}>
-            {visibleItems.map((item) => (
-              <MenuItemCard
-                item={item}
-                key={item.id}
-                sauceOptions={sauces}
-                sodaFlavours={settings?.soda_flavours || []}
-              />
-            ))}
-          </div>
-        </section>
+      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px]">
+        {/* LEFT: fixed category tabs + scrolling products */}
+        <div className="flex min-h-0 flex-col">
+          <nav
+            className="flex flex-wrap gap-2 border-b border-[#262626] bg-[#0F0F0F] px-3 py-2.5"
+            data-testid="tablet-category-picker"
+          >
+            {categories.map((category) => {
+              const Icon = CATEGORY_ICONS[category] || Cookie;
+              const active = activeCategory === category;
+              return (
+                <button
+                  className={`flex items-center gap-2 border-2 px-3 py-2 font-accent uppercase tracking-widest transition-colors ${
+                    active
+                      ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
+                      : "border-[#262626] bg-[#141414] text-[#F5F1E8] hover:border-[#EF2B2D]"
+                  }`}
+                  data-testid={`tablet-category-select-${category}`}
+                  key={category}
+                  onClick={() => setActiveCategory(category)}
+                >
+                  <Icon className="h-5 w-5" strokeWidth={1.7} />
+                  <span className="text-sm leading-none">
+                    {CATEGORY_LABELS[category] || category.replaceAll("-", " ")}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <section className="min-w-0 flex-1 overflow-y-auto p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-3 font-display text-2xl uppercase leading-none text-[#EF2B2D] sm:text-3xl">
+                <span className="h-6 w-1.5 bg-[#EF2B2D]" />
+                {activeCategoryLabel || "Menu"}
+              </h2>
+              <button
+                className="bt-btn-primary px-4 py-2 text-sm"
+                data-testid="tablet-open-tacos-builder"
+                onClick={() => setBuilderOpen(true)}
+              >
+                <UtensilsCrossed className="h-4 w-4" /> Composer un Tacos
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-testid={`tablet-category-${activeCategory}`}>
+              {visibleItems.map((item) => (
+                <MenuItemCard
+                  dense
+                  item={item}
+                  key={item.id}
+                  sauceOptions={sauces}
+                  sodaFlavours={settings?.soda_flavours || []}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
 
         {/* Order panel */}
         <aside className="flex min-h-0 flex-col border-t-2 border-[#262626] bg-[#141414] xl:border-l-2 xl:border-t-0" data-testid="tablet-order-summary">
