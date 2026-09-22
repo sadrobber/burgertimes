@@ -392,7 +392,7 @@ async def admin_receipt_preview(_: dict = Depends(require_admin)):
         _compose_ticket_line(
             qty=1,
             name_short=it1_short if it1_short.lower().startswith("menu") else f"Menu {it1_short}",
-            parens=[f"Sans {removal_code}"],
+            parens=[f"no {removal_code}"],
             extras=[supp_code, sauce_code], drink=drink_code, kids_code=None,
         ),
         _compose_ticket_line(
@@ -409,9 +409,9 @@ async def admin_receipt_preview(_: dict = Depends(require_admin)):
         )
 
     divider = "-" * 46
-    text = ["[ A EMPORTER ]", "BURGER TIMES", divider, "COMMANDE #APERCU", divider]
+    text = ["[ A EMPORTER ]".center(46), "BURGER TIMES".center(46), divider, "COMMANDE #APERCU".center(46), divider]
     for ln in lines:
-        text.append(ln)
+        text.append(ln.center(46))
         text.append("")
     text += [divider, "TOTAL : 00,00 EUR", divider, "Client : Apercu"]
     return {"lines": lines, "text": "\n".join(text)}

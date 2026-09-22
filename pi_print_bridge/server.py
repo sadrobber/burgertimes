@@ -120,6 +120,7 @@ FULFILLMENT_LABEL = {"pickup": "A EMPORTER", "delivery": "LIVRAISON", "dine_in":
 PAYMENT_LABEL = {"cash": "Especes sur place", "card_in_person": "Carte sur place"}
 DIVIDER = "-" * 46
 NORMAL_LINE_WIDTH = 46
+BIG_LINE_WIDTH = 22
 
 
 def _fmt_datetime(iso_str: str) -> tuple[str, str]:
@@ -136,6 +137,14 @@ def _wrapped(text: str = "", indent: str = "  ") -> bytes:
     NORMAL_LINE_WIDTH so nothing is cut mid-word on the narrow roll."""
     out = b""
     for w in (textwrap.wrap(text, width=NORMAL_LINE_WIDTH, subsequent_indent=indent) or [""]):
+        out += _line(w)
+    return out
+
+
+def _wrapped_big(text: str = "") -> bytes:
+    """Wrap for the big double-size kitchen font (~22 cols on an 80mm roll)."""
+    out = b""
+    for w in (textwrap.wrap(text, width=BIG_LINE_WIDTH) or [""]):
         out += _line(w)
     return out
 
@@ -184,18 +193,19 @@ def build_escpos_ticket(order: dict) -> bytes:
     out += _line(f"{date_str} {time_str}")
     out += _line(DIVIDER)
 
-    # Item lines — normal size, one product per line (server pre-formats the
-    # compact ticket_line; wrap only if it exceeds the roll width).
-    out += ALIGN_LEFT + BOLD_ON + SIZE_NORMAL
+    # Item lines — BIG (double width + height) and CENTERED, one product per
+    # block, wrapping to 2-3 lines when long. Blank line after each item.
+    out += ALIGN_CENTER + BOLD_ON + SIZE_DOUBLE
     for item in order.get("items") or []:
         line = item.get("ticket_line") or _legacy_item_line(item)
-        out += _wrapped(line, indent="   ")
+        out += _wrapped_big(line)
         if item.get("notes"):
-            out += _wrapped(f"  Note : {item['notes']}", indent="   ")
+            out += _wrapped_big(f"Note: {item['notes']}")
         out += _line("")
     if order.get("notes"):
-        out += _wrapped(f"Note : {order['notes']}", indent="   ")
-    out += BOLD_OFF
+        out += _wrapped_big(f"Note: {order['notes']}")
+    out += BOLD_OFF + SIZE_NORMAL
+    out += ALIGN_LEFT
     out += _line(DIVIDER)
 
     total = order.get("total") or 0

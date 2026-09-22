@@ -185,7 +185,7 @@ async def build_snapshots(
             name_short = item_short
             if formula == "menu" and not item_short.lower().startswith("menu"):
                 name_short = f"Menu {item_short}"
-            parens = [f"Sans {_short(r, removal_codes)}" for r in removals]
+            parens = [f"no {_short(r, removal_codes)}" for r in removals]
             extras = [_short(s, supplement_codes) for s in supplements] + [_short(s, sauce_codes) for s in sauces]
             is_kids = (item.get("category") == "kids")
             ticket_line = _compose_ticket_line(
