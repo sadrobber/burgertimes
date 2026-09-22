@@ -22,6 +22,11 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-06)
+- **Shortcode + supplements admin UI (2026-06):** Owner can now edit ticket abbreviations and supplements from the admin:
+  - Sauces admin: "Ticket" column (per-sauce `ticket_shortcode`, saves on blur).
+  - Menu item editor: "Code ticket" field + per-item Suppléments toggle chips.
+  - Settings: global Suppléments editor (name+price) and "Codes ticket boissons" (per-drink shortcode); saved with the main Enregistrer button.
+  - All save paths curl-verified; quote renders `1x Menu Classiq (Sans tomate) +Bacon +Alg - Cola` with correct pricing.
 - **Compact receipts + supplements + shortcodes + tacos reorder (2026-06):**
   - Receipt engine rewritten: each order item now carries a server-built compact `ticket_line` (`1x Menu Cheese (Sans tomate) +Bacon +Alg - Cola`). Pi script prints food lines in NORMAL size (46 cols, one product per line), fulfillment banner at top, TOTAL big. Kids items auto-append `+c` (compote). Backend verified via curl.
   - Supplements: global `supplement_options` (name+price) in Settings; enabled per menu item (`MenuItem.supplement_options`); selectable in the item popup; priced server-side. Removals now synced onto ALL menu items.

@@ -12,6 +12,8 @@ const emptyItem = {
   formats: [],
   variants: [],
   removable_ingredients: [],
+  supplement_options: [],
+  ticket_shortcode: "",
   uses_soda_flavours: false,
   uses_sauces: true,
   available: true,
@@ -27,11 +29,15 @@ export default function MenuAdmin() {
   const [query, setQuery] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [removalOptions, setRemovalOptions] = useState([]);
+  const [supplementOptions, setSupplementOptions] = useState([]);
 
   const load = () => {
     adminClient.get("/admin/menu").then((r) => setItems(r.data || []));
     adminClient.get("/admin/categories").then((r) => setCats(r.data || []));
-    adminClient.get("/settings").then((r) => setRemovalOptions(r.data.removal_options || []));
+    adminClient.get("/settings").then((r) => {
+      setRemovalOptions(r.data.removal_options || []);
+      setSupplementOptions(r.data.supplement_options || []);
+    });
   };
   useEffect(() => { load(); }, []);
 
@@ -250,6 +256,7 @@ export default function MenuAdmin() {
           item={editing}
           categories={cats}
           removalOptions={removalOptions}
+          supplementOptions={supplementOptions}
           onClose={() => setEditing(null)}
           onSave={save}
           onSaveRemovals={saveRemovals}
@@ -259,7 +266,7 @@ export default function MenuAdmin() {
   );
 }
 
-function EditItem({ item, categories, removalOptions, onClose, onSave, onSaveRemovals }) {
+function EditItem({ item, categories, removalOptions, supplementOptions = [], onClose, onSave, onSaveRemovals }) {
   const [it, setIt] = useState(item);
   const [savingRemovals, setSavingRemovals] = useState(false);
 
@@ -335,6 +342,50 @@ function EditItem({ item, categories, removalOptions, onClose, onSave, onSaveRem
             <div className="bt-label">Description</div>
             <textarea data-testid="menu-input-desc" className="bt-input min-h-[80px]" value={it.description} onChange={(e) => set("description", e.target.value)} />
           </label>
+          <label className="block">
+            <div className="bt-label">Code ticket (abréviation imprimée)</div>
+            <input
+              data-testid="menu-input-shortcode"
+              className="bt-input"
+              value={it.ticket_shortcode || ""}
+              onChange={(e) => set("ticket_shortcode", e.target.value)}
+              placeholder="Ex. Classiq — laisse vide pour le nom complet"
+            />
+          </label>
+          <section className="border-b-2 border-[#262626] pb-4" data-testid="menu-supplements-selector">
+            <div className="font-display text-2xl uppercase">Suppléments</div>
+            <div className="mt-1 text-xs text-[#A1A1A1]">
+              Suppléments proposés pour ce plat. Configure la liste + prix dans Réglages.
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {supplementOptions.map((sup) => {
+                const selected = (it.supplement_options || []).includes(sup.name);
+                return (
+                  <button
+                    className={`bt-chip ${selected ? "active" : ""}`}
+                    data-testid={`menu-supplement-preset-${sup.name}`}
+                    key={sup.name}
+                    onClick={() =>
+                      set(
+                        "supplement_options",
+                        selected
+                          ? (it.supplement_options || []).filter((v) => v !== sup.name)
+                          : [...(it.supplement_options || []), sup.name],
+                      )
+                    }
+                    type="button"
+                  >
+                    {selected ? "✓ " : "+ "}
+                    {sup.name}
+                    {sup.price ? ` (+${formatEur(sup.price)})` : ""}
+                  </button>
+                );
+              })}
+              {supplementOptions.length === 0 && (
+                <div className="text-sm text-[#A1A1A1]">Ajoute des suppléments dans Réglages.</div>
+              )}
+            </div>
+          </section>
           <section className="border-y-2 border-[#262626] py-4" data-testid="menu-removals-selector">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>

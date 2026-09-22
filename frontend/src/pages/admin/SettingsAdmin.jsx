@@ -24,6 +24,8 @@ export default function SettingsAdmin() {
   const [savingTabletOverride, setSavingTabletOverride] = useState(false);
   const [newRemovalOption, setNewRemovalOption] = useState("");
   const [savingRemovalOptions, setSavingRemovalOptions] = useState(false);
+  const [newSuppName, setNewSuppName] = useState("");
+  const [newSuppPrice, setNewSuppPrice] = useState("");
 
   useEffect(() => {
     adminClient.get("/settings").then((r) => setS(r.data));
@@ -50,6 +52,10 @@ export default function SettingsAdmin() {
         eta_default_max: parseInt(s.eta_default_max, 10) || 0,
         soda_flavours: (s.soda_flavours || []).map((v) => v.trim()).filter(Boolean),
         removal_options: (s.removal_options || []).map((v) => v.trim()).filter(Boolean),
+        supplement_options: (s.supplement_options || [])
+          .filter((x) => (x.name || "").trim())
+          .map((x) => ({ name: x.name.trim(), price: parseFloat(x.price) || 0 })),
+        drink_shortcodes: s.drink_shortcodes || {},
         delivery_fee_percent: parseFloat(s.delivery_fee_percent) || 0,
         free_delivery_threshold:
           s.free_delivery_threshold === null || s.free_delivery_threshold === ""
@@ -230,6 +236,25 @@ export default function SettingsAdmin() {
     setNewRemovalOption("");
   };
 
+  const updateSupp = (i, patch) => {
+    const next = [...(s.supplement_options || [])];
+    next[i] = { ...next[i], ...patch };
+    set("supplement_options", next);
+  };
+  const addSupp = () => {
+    if (!newSuppName.trim()) return;
+    set("supplement_options", [
+      ...(s.supplement_options || []),
+      { name: newSuppName.trim(), price: parseFloat(newSuppPrice) || 0 },
+    ]);
+    setNewSuppName("");
+    setNewSuppPrice("");
+  };
+  const removeSupp = (i) =>
+    set("supplement_options", (s.supplement_options || []).filter((_, r) => r !== i));
+  const setDrinkCode = (flavour, val) =>
+    set("drink_shortcodes", { ...(s.drink_shortcodes || {}), [flavour]: val });
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -329,6 +354,107 @@ export default function SettingsAdmin() {
             <Plus className="h-3.5 w-3.5" /> Ajouter
           </button>
         </div>
+      </div>
+
+      <div className="bt-card p-5 space-y-4" data-testid="settings-supplements-card">
+        <div>
+          <div className="font-display text-2xl uppercase">Suppléments</div>
+          <p className="mt-1 text-sm text-[#A1A1A1]">
+            Nom + prix. Disponibles ensuite comme boutons dans le popup de chaque plat.
+            Clique « Enregistrer » en haut pour sauver.
+          </p>
+        </div>
+        <div className="space-y-2" data-testid="settings-supplement-list">
+          {(s.supplement_options || []).map((sup, i) => (
+            <div className="flex items-center gap-2" key={i}>
+              <input
+                className="bt-input flex-1"
+                data-testid={`settings-supplement-name-${i}`}
+                onChange={(e) => updateSupp(i, { name: e.target.value })}
+                placeholder="Nom"
+                value={sup.name || ""}
+              />
+              <div className="relative w-28">
+                <input
+                  className="bt-input pr-7"
+                  data-testid={`settings-supplement-price-${i}`}
+                  min="0"
+                  onChange={(e) => updateSupp(i, { price: e.target.value })}
+                  step="0.5"
+                  type="number"
+                  value={sup.price ?? 0}
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A1A1A1] text-xs">€</span>
+              </div>
+              <button
+                className="text-[#EF2B2D]"
+                data-testid={`settings-supplement-delete-${i}`}
+                onClick={() => removeSupp(i)}
+                type="button"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            className="bt-input flex-1"
+            data-testid="settings-supplement-new-name"
+            onChange={(e) => setNewSuppName(e.target.value)}
+            placeholder="Ex. Bacon"
+            value={newSuppName}
+          />
+          <input
+            className="bt-input w-28"
+            data-testid="settings-supplement-new-price"
+            min="0"
+            onChange={(e) => setNewSuppPrice(e.target.value)}
+            placeholder="1.5"
+            step="0.5"
+            type="number"
+            value={newSuppPrice}
+          />
+          <button
+            className="bt-btn-secondary shrink-0 px-3 text-xs"
+            data-testid="settings-supplement-add"
+            onClick={addSupp}
+            type="button"
+          >
+            <Plus className="h-3.5 w-3.5" /> Ajouter
+          </button>
+        </div>
+      </div>
+
+      <div className="bt-card p-5 space-y-4" data-testid="settings-drink-codes-card">
+        <div>
+          <div className="font-display text-2xl uppercase">Codes ticket boissons</div>
+          <p className="mt-1 text-sm text-[#A1A1A1]">
+            Abréviation imprimée sur le ticket pour chaque boisson (ex. Coca-Cola → Cola).
+            Clique « Enregistrer » en haut.
+          </p>
+        </div>
+        {(s.soda_flavours || []).map((d) => (d || "").trim()).filter(Boolean).length === 0 ? (
+          <div className="text-sm text-[#A1A1A1]">Ajoute d&apos;abord des boissons plus bas.</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {(s.soda_flavours || [])
+              .map((d) => (d || "").trim())
+              .filter(Boolean)
+              .map((d) => (
+                <div className="flex items-center gap-2" key={d}>
+                  <span className="text-sm flex-1 truncate">{d}</span>
+                  <input
+                    className="bt-input w-32"
+                    data-testid={`settings-drink-code-${d}`}
+                    onChange={(e) => setDrinkCode(d, e.target.value)}
+                    placeholder="Cola"
+                    value={(s.drink_shortcodes || {})[d] || ""}
+                  />
+                </div>
+              ))}
+          </div>
+        )}
       </div>
 
       <div className="bt-card p-5" data-testid="tablet-closed-orders-card">

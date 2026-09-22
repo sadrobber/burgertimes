@@ -59,6 +59,7 @@ export default function SaucesAdmin() {
           <thead>
             <tr className="text-left font-accent uppercase tracking-widest text-[#A1A1A1] text-xs bg-[#0A0A0A]">
               <th className="p-3">Nom</th>
+              <th className="p-3">Ticket</th>
               <th className="p-3">Tri</th>
               <th className="p-3">Actif</th>
               <th className="p-3"></th>
@@ -69,6 +70,15 @@ export default function SaucesAdmin() {
               <tr key={s.id} className="border-t border-[#262626]" data-testid={`sauce-row-${s.id}`}>
                 <td className="p-3">
                   <input className="bt-input" defaultValue={s.name} onBlur={(e) => update(s, { name: e.target.value })} />
+                </td>
+                <td className="p-3 w-32">
+                  <input
+                    className="bt-input"
+                    data-testid={`sauce-shortcode-${s.id}`}
+                    defaultValue={s.ticket_shortcode || ""}
+                    onBlur={(e) => update(s, { ticket_shortcode: e.target.value })}
+                    placeholder="Alg"
+                  />
                 </td>
                 <td className="p-3 w-24">
                   <input
@@ -90,7 +100,7 @@ export default function SaucesAdmin() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={4} className="p-6 text-center text-[#A1A1A1]">Aucune sauce.</td>
+                <td colSpan={5} className="p-6 text-center text-[#A1A1A1]">Aucune sauce.</td>
               </tr>
             )}
           </tbody>
