@@ -62,6 +62,7 @@ def delivery_slots(settings: dict, now: Optional[datetime] = None) -> list[dict[
                 {
                     "start": start.astimezone(timezone.utc).isoformat(),
                     "end": end.astimezone(timezone.utc).isoformat(),
+                    "time": f"{start:%H:%M}",
                     "label": f"{start:%H:%M} — {end:%H:%M}",
                 }
             )

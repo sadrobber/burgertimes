@@ -319,7 +319,7 @@ class Settings(BaseModel):
     delivery_postal_codes: List[str] = Field(default_factory=list)
     scheduled_delivery_enabled: bool = True
     delivery_lead_minutes: int = 40
-    delivery_window_minutes: int = 20
+    delivery_window_minutes: int = 15
     tablet_orders_when_closed: bool = False
     contact_phone: str = "04.97.07.17.93"
     contact_address: str = "6 Avenue de Villaine, 06240 Beausoleil"

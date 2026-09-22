@@ -375,7 +375,7 @@ export default function TabletOrder() {
               {activeCategoryLabel || "Menu"}
             </h2>
             <button
-              className="bt-btn-secondary px-4 py-2 text-sm"
+              className="bt-btn-primary px-4 py-2 text-sm"
               data-testid="tablet-open-tacos-builder"
               onClick={() => setBuilderOpen(true)}
             >
@@ -410,6 +410,33 @@ export default function TabletOrder() {
                 <Trash2 className="h-5 w-5" />
               </button>
             )}
+          </div>
+
+          {/* Fulfillment mode (always visible, top of panel) */}
+          <div className="border-b border-[#262626] px-5 py-3">
+            <div className="flex flex-wrap gap-2" data-testid="tablet-fulfillment-group">
+              <FulfillmentButton
+                active={fulfillment === "pickup"}
+                icon={ShoppingBag}
+                label="À emporter"
+                onClick={() => setFulfillment("pickup")}
+                testId="tablet-fulfillment-pickup"
+              />
+              <FulfillmentButton
+                active={fulfillment === "delivery"}
+                icon={Bike}
+                label="Livraison"
+                onClick={() => setFulfillment("delivery")}
+                testId="tablet-fulfillment-delivery"
+              />
+              <FulfillmentButton
+                active={fulfillment === "dine_in"}
+                icon={Store}
+                label="Sur place"
+                onClick={() => setFulfillment("dine_in")}
+                testId="tablet-fulfillment-dine-in"
+              />
+            </div>
           </div>
 
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
@@ -581,7 +608,7 @@ export default function TabletOrder() {
                       <option value="">Dès que possible</option>
                       {slots.map((slot) => (
                         <option key={slot.start} value={slot.start}>
-                          {slot.label}
+                          {slot.time || slot.label}
                         </option>
                       ))}
                     </select>
@@ -637,29 +664,6 @@ export default function TabletOrder() {
             >
               {submitting ? "..." : "Valider / Encaisser"}
             </button>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <FulfillmentButton
-                active={fulfillment === "pickup"}
-                icon={ShoppingBag}
-                label="À emporter"
-                onClick={() => setFulfillment("pickup")}
-                testId="tablet-fulfillment-pickup"
-              />
-              <FulfillmentButton
-                active={fulfillment === "delivery"}
-                icon={Bike}
-                label="Livraison"
-                onClick={() => setFulfillment("delivery")}
-                testId="tablet-fulfillment-delivery"
-              />
-              <FulfillmentButton
-                active={fulfillment === "dine_in"}
-                icon={Store}
-                label="Sur place"
-                onClick={() => setFulfillment("dine_in")}
-                testId="tablet-fulfillment-dine-in"
-              />
-            </div>
           </div>
         </aside>
       </div>
@@ -671,7 +675,7 @@ export default function TabletOrder() {
 function FulfillmentButton({ active, icon: Icon, label, onClick, testId }) {
   return (
     <button
-      className={`flex flex-col items-center gap-1 border-2 py-2.5 font-accent uppercase tracking-widest transition-colors ${
+      className={`flex flex-1 basis-[100px] flex-col items-center gap-1 border-2 py-2.5 font-accent uppercase tracking-widest transition-colors ${
         active
           ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
           : "border-[#262626] bg-[#0A0A0A] text-[#F5F1E8] hover:border-[#EF2B2D]"
