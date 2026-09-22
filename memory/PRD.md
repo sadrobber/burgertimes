@@ -21,6 +21,13 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Admin: dashboard metrics, orders (accept/preparing/ready/delivered/cancel + hard delete), menu CRUD w/ images, categories CRUD, tacos builder CRUD, sauces, reviews approval, settings (hours, cutoff, ETA, % delivery fee, sodas, force_closed, too_busy, payment toggles, order limits, delivery postal codes).
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
+## Implemented (2026-06)
+- **Tablet POS kiosk redesign (2026-06):** Rebuilt `/tablet` (`TabletOrder.jsx`) into a kiosk layout matching the owner's reference: top bar with BURGER TIMES logo + live FR clock, horizontal category tab bar with lucide icons, photo product grid (left, uses non-compact `MenuItemCard` with placeholder fallback), and a right "Votre commande" panel (cart, customer form kept visible, total, big "Valider / Encaisser" button, 3 fulfillment buttons).
+  - Added **"Sur place" (dine_in)** fulfillment — backend `_quote_or_create` now accepts `dine_in` (no address/fee, like pickup). Labels mapped in `Kitchen.jsx`, `OrdersAdmin.jsx` (fallback), `TabletOrdersAdmin.jsx`, and the Pi bridge (falls back to "SUR PLACE").
+  - Tablet-only removals: **email field, code postal field, and cash/card payment selector** removed. Payment defaults to `cash`. Backend relaxes the delivery postal-code requirement + allowed-postal check for `order_source == "tablet"` (still enforced for web).
+  - Verified via testing_agent iteration_46 (100% frontend, 8/8 criteria). Orders not submitted during test to avoid firing physical prints.
+
+
 ## Implemented (2026-02-XX)
 - **Larger kitchen ticket text (2026-02-14):** Updated the Raspberry Pi
   bridge so food item lines, sauces, removals, and kitchen notes print in
