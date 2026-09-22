@@ -33,6 +33,6 @@ async def send_commission_alert(order: dict[str, Any]) -> bool:
             response = await client.post(url, json=payload)
             response.raise_for_status()
         return True
-    except httpx.HTTPError as error:
+    except Exception as error:  # noqa: BLE001
         logger.warning("Telegram commission notification failed: %s", type(error).__name__)
         return False

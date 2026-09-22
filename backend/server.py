@@ -848,7 +848,7 @@ async def _quote_or_create(
     settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or Settings().model_dump()
     _strip_mongo(settings)
 
-    if payload.fulfillment not in ("delivery", "pickup"):
+    if payload.fulfillment not in ("delivery", "pickup", "dine_in"):
         raise HTTPException(status_code=400, detail="Invalid fulfillment")
     if payload.payment_method not in ("cash", "card_in_person"):
         raise HTTPException(status_code=400, detail="Invalid payment method")
@@ -873,14 +873,17 @@ async def _quote_or_create(
         await _check_order_limit(settings)
 
     if payload.fulfillment == "delivery" and create:
-        if not (payload.address_line1 and payload.postal_code and payload.city):
+        required = [payload.address_line1, payload.city]
+        if order_source != "tablet":
+            required.append(payload.postal_code)
+        if not all(required):
             raise HTTPException(status_code=400, detail="Adresse de livraison requise")
         allowed = [
             str(x).strip()
             for x in (settings.get("delivery_postal_codes") or [])
             if str(x).strip()
         ]
-        if allowed:
+        if allowed and order_source != "tablet":
             incoming = (payload.postal_code or "").strip()
             if incoming not in allowed:
                 raise HTTPException(

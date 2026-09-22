@@ -1,5 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { LogOut, Minus, Plus, ShoppingBag, Trash2, UtensilsCrossed } from "lucide-react";
+import {
+  Baby,
+  Beef,
+  Bike,
+  CakeSlice,
+  Cookie,
+  CupSoda,
+  LogOut,
+  Minus,
+  Plus,
+  Salad,
+  Sandwich,
+  ShoppingBag,
+  ShoppingCart,
+  Store,
+  Trash2,
+  UtensilsCrossed,
+} from "lucide-react";
 import { toast } from "sonner";
 import BurgerBuilderModal from "@/components/BurgerBuilderModal.jsx";
 import MenuItemCard from "@/components/MenuItemCard.jsx";
@@ -12,18 +29,34 @@ const initialForm = {
   first: "",
   last: "",
   phone: "",
-  email: "",
   address1: "",
   address2: "",
-  postal: "",
   city: "",
   notes: "",
 };
 
 const CATEGORY_LABELS = {
-  signatures: "Burgers signatures",
+  signatures: "Signatures",
   classiques: "Les classiques",
   "smash-burgers": "Smash burgers",
+  kids: "Enfants",
+  sides: "Accompagnements",
+  sandwiches: "Sandwichs",
+  drinks: "Boissons",
+  desserts: "Desserts",
+  wraps: "Wraps",
+};
+
+const CATEGORY_ICONS = {
+  signatures: Beef,
+  classiques: Beef,
+  "smash-burgers": Beef,
+  kids: Baby,
+  sides: UtensilsCrossed,
+  sandwiches: Sandwich,
+  drinks: CupSoda,
+  desserts: CakeSlice,
+  wraps: Salad,
 };
 
 function phoneParts(phone) {
@@ -38,14 +71,30 @@ function phoneParts(phone) {
   };
 }
 
+function useClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 15000);
+    return () => window.clearInterval(id);
+  }, []);
+  const time = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(now);
+  const date = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(now);
+  return { time, date: date.charAt(0).toUpperCase() + date.slice(1) };
+}
+
 export default function TabletOrder() {
   const { clear, items, removeLine, totalPrice, updateQuantity } = useCart();
   const { email, logout } = useTabletAuth();
+  const clock = useClock();
+  const payment = "cash";
   const [menu, setMenu] = useState([]);
   const [settings, setSettings] = useState(null);
   const [sauces, setSauces] = useState([]);
   const [fulfillment, setFulfillment] = useState("pickup");
-  const [payment, setPayment] = useState("cash");
   const [countryIso, setCountryIso] = useState(DEFAULT_COUNTRY_ISO);
   const [form, setForm] = useState(initialForm);
   const [slots, setSlots] = useState([]);
@@ -63,9 +112,12 @@ export default function TabletOrder() {
   useEffect(() => {
     Promise.all([apiClient.get("/menu"), apiClient.get("/settings"), apiClient.get("/sauces")])
       .then(([menuResponse, settingsResponse, saucesResponse]) => {
-        setMenu(menuResponse.data || []);
+        const menuData = menuResponse.data || [];
+        setMenu(menuData);
         setSettings(settingsResponse.data || null);
         setSauces((saucesResponse.data || []).map((sauce) => sauce.name));
+        const firstCategory = [...new Set(menuData.map((item) => item.category))][0];
+        if (firstCategory) setActiveCategory((current) => current || firstCategory);
       })
       .catch(() => toast.error("Impossible de charger le menu"));
   }, []);
@@ -157,10 +209,10 @@ export default function TabletOrder() {
         customer_first_name: form.first || "",
         customer_last_name: form.last || "",
         customer_phone: fullPhone || "0000000000",
-        customer_email: form.email || null,
+        customer_email: null,
         address_line1: form.address1 || null,
         address_line2: form.address2 || null,
-        postal_code: form.postal || null,
+        postal_code: null,
         city: form.city || null,
         notes: form.notes,
         payment_method: payment,
@@ -171,14 +223,14 @@ export default function TabletOrder() {
     return () => {
       cancelled = true;
     };
-  }, [cartPayload, fulfillment, items.length, payment, scheduledStart]);
+  }, [cartPayload, fulfillment, items.length, scheduledStart]);
 
+  const needsAddress = fulfillment === "delivery";
   const canSubmit =
     items.length > 0 &&
     form.first.trim() &&
     form.phone.trim() &&
-    (fulfillment === "pickup" ||
-      (form.address1.trim() && form.postal.trim() && form.city.trim())) &&
+    (!needsAddress || (form.address1.trim() && form.city.trim())) &&
     !quote?.error;
 
   const submit = async () => {
@@ -194,10 +246,10 @@ export default function TabletOrder() {
         customer_first_name: form.first.trim(),
         customer_last_name: form.last.trim(),
         customer_phone: fullPhone,
-        customer_email: form.email.trim() || null,
+        customer_email: null,
         address_line1: form.address1.trim() || null,
         address_line2: form.address2.trim() || null,
-        postal_code: form.postal.trim() || null,
+        postal_code: null,
         city: form.city.trim() || null,
         notes: form.notes.trim(),
         payment_method: payment,
@@ -252,139 +304,127 @@ export default function TabletOrder() {
   };
 
   const categories = [...new Set(menu.map((item) => item.category))];
-  const categoryCounts = menu.reduce(
-    (counts, item) => ({ ...counts, [item.category]: (counts[item.category] || 0) + 1 }),
-    {},
-  );
-  const activeCategoryLabel = activeCategory === "all"
-    ? "Tout le menu"
-    : activeCategory
-      ? CATEGORY_LABELS[activeCategory] || activeCategory.replaceAll("-", " ")
-      : null;
-  const visibleItems = activeCategory === "all"
-    ? menu
-    : menu.filter((item) => item.category === activeCategory);
+  const activeCategoryLabel = activeCategory
+    ? CATEGORY_LABELS[activeCategory] || activeCategory.replaceAll("-", " ")
+    : null;
+  const visibleItems = menu.filter((item) => item.category === activeCategory);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-[#F5F1E8]" data-testid="tablet-order-page">
-      <header className="sticky top-0 z-20 border-b-2 border-[#EF2B2D] bg-[#141414] px-4 py-3">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4">
-          <div>
-            <div className="font-display text-3xl uppercase leading-none">Prise de commande</div>
-            <div className="mt-1 text-xs font-accent uppercase tracking-widest text-[#A1A1A1]">
-              {email}
-            </div>
+    <div className="flex h-screen flex-col overflow-hidden bg-[#0A0A0A] text-[#F5F1E8]" data-testid="tablet-order-page">
+      {/* Top bar */}
+      <header className="flex items-center justify-between gap-4 border-b-2 border-[#EF2B2D] bg-[#141414] px-5 py-3">
+        <div className="leading-none">
+          <div className="font-display text-3xl uppercase tracking-tight">
+            Burger <span className="text-[#EF2B2D]">Times</span>
+          </div>
+          <div className="mt-0.5 font-accent text-[10px] uppercase tracking-[0.3em] text-[#A1A1A1]">
+            Good burgers. Good mood.
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right leading-tight" data-testid="tablet-clock">
+            <div className="font-display text-2xl">{clock.time}</div>
+            <div className="text-xs text-[#A1A1A1]">{clock.date}</div>
           </div>
           <button
-            className="bt-btn-ghost px-3 text-xs text-[#EF2B2D]"
+            className="flex items-center gap-2 border-2 border-[#EF2B2D] px-4 py-2 font-accent uppercase tracking-widest text-[#EF2B2D] transition-colors hover:bg-[#EF2B2D] hover:text-[#0A0A0A]"
             data-testid="tablet-logout"
             onClick={logout}
+            title={email}
           >
             <LogOut className="h-4 w-4" /> Sortir
           </button>
         </div>
       </header>
 
-      <main
-        className="mx-auto grid max-w-[1600px] grid-cols-1 gap-5 p-4
-          xl:grid-cols-[minmax(0,1fr)_380px]"
+      {/* Category tabs */}
+      <nav
+        className="flex gap-2 overflow-x-auto border-b border-[#262626] bg-[#0F0F0F] px-4 py-3 no-scrollbar"
+        data-testid="tablet-category-picker"
       >
-        <section className="min-w-0 space-y-7">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="font-marker text-[#EF2B2D]">Sans les photos</div>
-              <h1 className="font-display text-5xl uppercase leading-none">Le menu</h1>
-            </div>
+        {categories.map((category) => {
+          const Icon = CATEGORY_ICONS[category] || Cookie;
+          const active = activeCategory === category;
+          return (
             <button
-              className="bt-btn-primary px-4 text-sm"
+              className={`flex min-w-[104px] flex-col items-center gap-1.5 border-2 px-4 py-3 font-accent uppercase tracking-widest transition-colors ${
+                active
+                  ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
+                  : "border-[#262626] bg-[#141414] text-[#F5F1E8] hover:border-[#EF2B2D]"
+              }`}
+              data-testid={`tablet-category-select-${category}`}
+              key={category}
+              onClick={() => setActiveCategory(category)}
+            >
+              <Icon className="h-7 w-7" strokeWidth={1.6} />
+              <span className="text-sm leading-none">
+                {CATEGORY_LABELS[category] || category.replaceAll("-", " ")}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Body */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_400px]">
+        {/* Products */}
+        <section className="min-w-0 overflow-y-auto p-4">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-3 font-display text-3xl uppercase leading-none text-[#EF2B2D] sm:text-4xl">
+              <span className="h-7 w-1.5 bg-[#EF2B2D]" />
+              {activeCategoryLabel || "Menu"}
+            </h2>
+            <button
+              className="bt-btn-secondary px-4 py-2 text-sm"
               data-testid="tablet-open-tacos-builder"
               onClick={() => setBuilderOpen(true)}
             >
               <UtensilsCrossed className="h-4 w-4" /> Composer un Tacos
             </button>
           </div>
-          <section data-testid="tablet-category-picker">
-            <div className="mb-3 font-accent text-sm uppercase tracking-widest text-[#A1A1A1]">
-              Choisir une catégorie
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-              <button
-                className={`border-2 px-4 py-5 text-left font-display text-2xl uppercase leading-none transition-colors ${
-                  activeCategory === "all"
-                    ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
-                    : "border-[#262626] bg-[#141414] text-[#F5F1E8] hover:border-[#EF2B2D]"
-                }`}
-                data-testid="tablet-category-select-all"
-                onClick={() => setActiveCategory("all")}
-              >
-                Tout le menu
-                <span className="mt-2 block text-xs font-accent tracking-widest opacity-70">
-                  {menu.length} articles
-                </span>
-              </button>
-              {categories.map((category) => {
-                const label = CATEGORY_LABELS[category] || category.replaceAll("-", " ");
-                const active = activeCategory === category;
-                return (
-                  <button
-                    className={`border-2 px-4 py-5 text-left font-display text-2xl uppercase leading-none transition-colors ${
-                      active
-                        ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
-                        : "border-[#262626] bg-[#141414] text-[#F5F1E8] hover:border-[#EF2B2D]"
-                    }`}
-                    data-testid={`tablet-category-select-${category}`}
-                    key={category}
-                    onClick={() => setActiveCategory(category)}
-                  >
-                    {label}
-                    <span className="mt-2 block text-xs font-accent tracking-widest opacity-70">
-                      {categoryCounts[category]} articles
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {activeCategory ? (
-            <section data-testid={`tablet-category-${activeCategory}`}>
-              <h2 className="mb-3 border-l-4 border-[#EF2B2D] pl-3 font-display text-3xl uppercase leading-none text-[#EF2B2D] sm:text-4xl">
-                {activeCategoryLabel}
-              </h2>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
-                {visibleItems.map((item) => (
-                    <MenuItemCard
-                      compact
-                      item={item}
-                      key={item.id}
-                      sauceOptions={sauces}
-                      sodaFlavours={settings?.soda_flavours || []}
-                    />
-                  ))}
-              </div>
-            </section>
-          ) : (
-            <div
-              className="border-l-4 border-[#EF2B2D] bg-[#141414] px-4 py-5 text-sm text-[#A1A1A1]"
-              data-testid="tablet-category-empty-state"
-            >
-              Choisis une catégorie pour afficher ses produits.
-            </div>
-          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3" data-testid={`tablet-category-${activeCategory}`}>
+            {visibleItems.map((item) => (
+              <MenuItemCard
+                item={item}
+                key={item.id}
+                sauceOptions={sauces}
+                sodaFlavours={settings?.soda_flavours || []}
+              />
+            ))}
+          </div>
         </section>
 
-        <aside className="xl:sticky xl:top-20 xl:h-[calc(100vh-6rem)] xl:overflow-y-auto">
-          <div className="bt-card p-5 space-y-5" data-testid="tablet-order-summary">
-            <div className="flex items-center gap-2 font-display text-3xl uppercase">
-              <ShoppingBag className="h-6 w-6 text-[#EF2B2D]" /> Commande
+        {/* Order panel */}
+        <aside className="flex min-h-0 flex-col border-t-2 border-[#262626] bg-[#141414] xl:border-l-2 xl:border-t-0" data-testid="tablet-order-summary">
+          <div className="flex items-center justify-between gap-2 border-b border-[#262626] px-5 py-4">
+            <div className="flex items-center gap-2 font-display text-2xl uppercase">
+              <ShoppingCart className="h-6 w-6 text-[#EF2B2D]" /> Votre commande
             </div>
-            <div className="max-h-52 space-y-3 overflow-y-auto">
-              {items.length === 0 ? (
-                <div className="text-sm text-[#A1A1A1]" data-testid="tablet-cart-empty">
-                  Panier vide.
+            {items.length > 0 && (
+              <button
+                className="text-[#A1A1A1] transition-colors hover:text-[#EF2B2D]"
+                data-testid="tablet-clear-cart"
+                onClick={clear}
+                title="Vider le panier"
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+            {/* Cart lines */}
+            {items.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center" data-testid="tablet-cart-empty">
+                <ShoppingCart className="h-14 w-14 text-[#262626]" strokeWidth={1.4} />
+                <div className="mt-4 font-display text-xl uppercase">Votre panier est vide</div>
+                <div className="mt-1 text-xs text-[#A1A1A1]">
+                  Ajoutez des produits en touchant les cartes à gauche.
                 </div>
-              ) : (
-                items.map((item) => (
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {items.map((item) => (
                   <div className="border-b border-[#262626] pb-3" key={item.line_id}>
                     <div className="flex justify-between gap-2 text-sm font-bold">
                       <span>{item.name}</span>
@@ -394,19 +434,21 @@ export default function TabletOrder() {
                     <div className="mt-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <button
-                          className="h-7 w-7 border-2 border-[#262626]"
+                          className="flex h-8 w-8 items-center justify-center border-2 border-[#262626] hover:border-[#EF2B2D]"
                           data-testid={`tablet-line-${item.line_id}-dec`}
                           onClick={() => updateQuantity(item.line_id, item.quantity - 1)}
                         >
-                          <Minus className="mx-auto h-3 w-3" />
+                          <Minus className="h-3.5 w-3.5" />
                         </button>
-                        <span data-testid={`tablet-line-${item.line_id}-qty`}>{item.quantity}</span>
+                        <span className="w-6 text-center font-bold" data-testid={`tablet-line-${item.line_id}-qty`}>
+                          {item.quantity}
+                        </span>
                         <button
-                          className="h-7 w-7 border-2 border-[#262626]"
+                          className="flex h-8 w-8 items-center justify-center border-2 border-[#262626] hover:border-[#EF2B2D]"
                           data-testid={`tablet-line-${item.line_id}-inc`}
                           onClick={() => updateQuantity(item.line_id, item.quantity + 1)}
                         >
-                          <Plus className="mx-auto h-3 w-3" />
+                          <Plus className="h-3.5 w-3.5" />
                         </button>
                       </div>
                       <button
@@ -418,31 +460,15 @@ export default function TabletOrder() {
                       </button>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <ChoiceButton
-                active={fulfillment === "pickup"}
-                label="À emporter"
-                onClick={() => setFulfillment("pickup")}
-                testId="tablet-fulfillment-pickup"
-              />
-              <ChoiceButton
-                active={fulfillment === "delivery"}
-                label="Livraison"
-                onClick={() => setFulfillment("delivery")}
-                testId="tablet-fulfillment-delivery"
-              />
-            </div>
-
+            {/* Customer search */}
             <section className="border-y-2 border-[#EF2B2D] py-4" data-testid="tablet-customer-search-section">
-              <div className="font-display text-2xl uppercase">Retrouver un client</div>
-              <p className="mt-1 text-xs text-[#A1A1A1]">
-                Recherche les anciens clients par leur numéro de téléphone.
-              </p>
-              <Field label="Téléphone">
+              <div className="font-display text-xl uppercase">Retrouver un client</div>
+              <p className="mt-1 text-xs text-[#A1A1A1]">Recherche par numéro de téléphone.</p>
+              <Field label="Téléphone *">
                 <div className="mt-1 grid grid-cols-[88px_minmax(0,1fr)] gap-2">
                   <select
                     className="bt-input px-2"
@@ -479,10 +505,7 @@ export default function TabletOrder() {
                 </div>
               )}
               {suggestions.length > 0 && (
-                <div
-                  className="mt-2 border-2 border-[#EF2B2D] bg-[#0A0A0A] p-1"
-                  data-testid="tablet-customer-suggestions"
-                >
+                <div className="mt-2 border-2 border-[#EF2B2D] bg-[#0A0A0A] p-1" data-testid="tablet-customer-suggestions">
                   {suggestions.map((customer) => (
                     <button
                       className="block w-full px-3 py-3 text-left text-sm hover:bg-[#262626]"
@@ -491,24 +514,18 @@ export default function TabletOrder() {
                       onClick={() => selectCustomer(customer)}
                       type="button"
                     >
-                      <span className="block font-bold">{customer.first} {customer.last}</span>
+                      <span className="block font-bold">
+                        {customer.first} {customer.last}
+                      </span>
                       <span className="text-[#A1A1A1]">{customer.phone}</span>
                     </button>
                   ))}
                 </div>
               )}
-              <Field label="Email">
-                <input
-                  className="bt-input"
-                  data-testid="tablet-customer-email"
-                  onChange={(event) => setForm({ ...form, email: event.target.value })}
-                  value={form.email}
-                />
-              </Field>
             </section>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-3">
+            {/* Customer name */}
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Prénom *">
                 <input
                   className="bt-input"
@@ -525,7 +542,6 @@ export default function TabletOrder() {
                   value={form.last}
                 />
               </Field>
-              </div>
             </div>
 
             {fulfillment === "delivery" && (
@@ -546,24 +562,14 @@ export default function TabletOrder() {
                     value={form.address2}
                   />
                 </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Code postal *">
-                    <input
-                      className="bt-input"
-                      data-testid="tablet-postal"
-                      onChange={(e) => setForm({ ...form, postal: e.target.value })}
-                      value={form.postal}
-                    />
-                  </Field>
-                  <Field label="Ville *">
-                    <input
-                      className="bt-input"
-                      data-testid="tablet-city"
-                      onChange={(e) => setForm({ ...form, city: e.target.value })}
-                      value={form.city}
-                    />
-                  </Field>
-                </div>
+                <Field label="Ville *">
+                  <input
+                    className="bt-input"
+                    data-testid="tablet-city"
+                    onChange={(e) => setForm({ ...form, city: e.target.value })}
+                    value={form.city}
+                  />
+                </Field>
                 {slots.length > 0 && (
                   <Field label="Créneau aujourd'hui">
                     <select
@@ -586,45 +592,28 @@ export default function TabletOrder() {
 
             <Field label="Note cuisine">
               <textarea
-                className="bt-input min-h-[72px]"
+                className="bt-input min-h-[64px]"
                 data-testid="tablet-order-note"
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 value={form.notes}
               />
             </Field>
-            <div className="grid grid-cols-2 gap-2">
-              <ChoiceButton
-                active={payment === "cash"}
-                label="Espèces"
-                onClick={() => setPayment("cash")}
-                testId="tablet-payment-cash"
-              />
-              <ChoiceButton
-                active={payment === "card_in_person"}
-                label="Carte"
-                onClick={() => setPayment("card_in_person")}
-                testId="tablet-payment-card"
-              />
-            </div>
-            <div className="border-t-2 border-[#262626] pt-3 space-y-1">
+          </div>
+
+          {/* Footer: total, validate, fulfillment */}
+          <div className="border-t-2 border-[#262626] px-5 py-4">
+            <div className="mb-3 space-y-1">
               <div className="flex justify-between text-sm">
                 <span>Sous-total</span>
                 <span>{formatEur(quote?.subtotal ?? totalPrice)}</span>
               </div>
-              {quote?.delivery_fee > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span>Livraison</span>
-                  <span>{formatEur(quote.delivery_fee)}</span>
-                </div>
-              )}
               {fulfillment === "delivery" && quote?.tablet_delivery_waived && (
                 <div
-                  aria-label="Livraison tablette offerte"
                   className="flex justify-between text-sm text-[#3DDC97]"
                   data-testid="tablet-delivery-fee-waived"
                 >
-                  <span aria-hidden="true">Livraison tablette</span>
-                  <span aria-hidden="true">Offerte</span>
+                  <span>Livraison tablette</span>
+                  <span>Offerte</span>
                 </div>
               )}
               <div
@@ -634,36 +623,64 @@ export default function TabletOrder() {
                 <span>Total</span>
                 <span>{formatEur(quote?.total ?? totalPrice)}</span>
               </div>
+              {quote?.error && (
+                <div className="text-sm text-[#FF3B30]" data-testid="tablet-quote-error">
+                  {quote.error}
+                </div>
+              )}
             </div>
-            {quote?.error && (
-              <div className="text-sm text-[#FF3B30]" data-testid="tablet-quote-error">
-                {quote.error}
-              </div>
-            )}
             <button
-              className="bt-btn-primary w-full disabled:opacity-40"
+              className="bt-btn-primary w-full py-4 text-xl disabled:opacity-40"
               data-testid="tablet-submit-order"
               disabled={!canSubmit || submitting}
               onClick={submit}
             >
-              {submitting ? "..." : "Enregistrer la commande et imprimer"}
+              {submitting ? "..." : "Valider / Encaisser"}
             </button>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <FulfillmentButton
+                active={fulfillment === "pickup"}
+                icon={ShoppingBag}
+                label="À emporter"
+                onClick={() => setFulfillment("pickup")}
+                testId="tablet-fulfillment-pickup"
+              />
+              <FulfillmentButton
+                active={fulfillment === "delivery"}
+                icon={Bike}
+                label="Livraison"
+                onClick={() => setFulfillment("delivery")}
+                testId="tablet-fulfillment-delivery"
+              />
+              <FulfillmentButton
+                active={fulfillment === "dine_in"}
+                icon={Store}
+                label="Sur place"
+                onClick={() => setFulfillment("dine_in")}
+                testId="tablet-fulfillment-dine-in"
+              />
+            </div>
           </div>
         </aside>
-      </main>
+      </div>
       <BurgerBuilderModal open={builderOpen} onClose={() => setBuilderOpen(false)} />
     </div>
   );
 }
 
-function ChoiceButton({ active, label, onClick, testId }) {
+function FulfillmentButton({ active, icon: Icon, label, onClick, testId }) {
   return (
     <button
-      className={`bt-option p-2 text-xs ${active ? "selected" : ""}`}
+      className={`flex flex-col items-center gap-1 border-2 py-2.5 font-accent uppercase tracking-widest transition-colors ${
+        active
+          ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
+          : "border-[#262626] bg-[#0A0A0A] text-[#F5F1E8] hover:border-[#EF2B2D]"
+      }`}
       data-testid={testId}
       onClick={onClick}
     >
-      {label}
+      <Icon className="h-5 w-5" strokeWidth={1.7} />
+      <span className="text-xs leading-none">{label}</span>
     </button>
   );
 }

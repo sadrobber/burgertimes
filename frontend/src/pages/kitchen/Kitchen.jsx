@@ -39,7 +39,7 @@ const TABS = [
   { key: "declined", label: "Refusées" },
 ];
 
-const FULFILLMENT_LABEL = { pickup: "A EMPORTER", delivery: "LIVRAISON" };
+const FULFILLMENT_LABEL = { pickup: "A EMPORTER", delivery: "LIVRAISON", dine_in: "SUR PLACE" };
 const PAYMENT_LABEL = { cash: "Espèces sur place", card_in_person: "Carte sur place" };
 
 /** Two-tone chime via Web Audio API — no external asset, works offline. */

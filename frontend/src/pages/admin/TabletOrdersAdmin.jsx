@@ -126,7 +126,7 @@ export default function TabletOrdersAdmin() {
                     <td className="py-3 pr-4 font-display">{order.order_number}</td>
                     <td className="py-3 pr-4">{order.customer_first_name} {order.customer_last_name}</td>
                     <td className="py-3 pr-4 text-xs text-[#A1A1A1]">{order.tablet_taken_by || "Tablette"}</td>
-                    <td className="py-3 pr-4">{order.fulfillment}</td>
+                    <td className="py-3 pr-4">{order.fulfillment === "dine_in" ? "Sur place" : order.fulfillment === "delivery" ? "Livraison" : "À emporter"}</td>
                     <td className="py-3 pr-4"><span className="bt-badge-red">{STATUS_LABELS[order.status] || order.status}</span></td>
                     <td className="py-3 pr-4 text-right">{formatEur(order.total)}</td>
                     <td className="py-3 text-right">
