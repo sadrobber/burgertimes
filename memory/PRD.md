@@ -22,6 +22,7 @@ Build a food-ordering website for **Burger Times** (Instagram: `@burgertimes_bsl
 - Order display IDs prefixed with `BT-`. Pickup orders get 4-digit `pickup_code`.
 
 ## Implemented (2026-06)
+- **Editable receipt codes everywhere + spacing (2026-06):** Every printed token is now an editable code: supplements got a `code` field (Settings), removals got `removal_shortcodes`, plus existing sauce/item/drink codes. Kids menu prints a bare configurable code (`kids_ticket_code`, default `c`, no `+`). Pi receipt now prints a blank line after each item. Verified: `1x Menu Classiq (Sans tom) +Bcn +Alg - Cola` and `1x Menu Kids c`.
 - **Shortcode + supplements admin UI (2026-06):** Owner can now edit ticket abbreviations and supplements from the admin:
   - Sauces admin: "Ticket" column (per-sauce `ticket_shortcode`, saves on blur).
   - Menu item editor: "Code ticket" field + per-item Suppléments toggle chips.

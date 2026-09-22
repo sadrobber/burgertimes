@@ -326,6 +326,8 @@ class Settings(BaseModel):
     removal_options: List[str] = Field(default_factory=list)
     supplement_options: List[dict] = Field(default_factory=list)
     drink_shortcodes: dict = Field(default_factory=dict)
+    removal_shortcodes: dict = Field(default_factory=dict)
+    kids_ticket_code: str = "c"
     delivery_fee_percent: float = 10.0
     free_delivery_threshold: Optional[float] = None
     delivery_postal_codes: List[str] = Field(default_factory=list)
@@ -364,6 +366,8 @@ class SettingsUpdate(BaseModel):
     removal_options: Optional[List[str]] = None
     supplement_options: Optional[List[dict]] = None
     drink_shortcodes: Optional[dict] = None
+    removal_shortcodes: Optional[dict] = None
+    kids_ticket_code: Optional[str] = None
     delivery_fee_percent: Optional[float] = None
     free_delivery_threshold: Optional[float] = None
     delivery_postal_codes: Optional[List[str]] = None

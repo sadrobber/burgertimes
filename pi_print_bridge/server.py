@@ -192,6 +192,7 @@ def build_escpos_ticket(order: dict) -> bytes:
         out += _wrapped(line, indent="   ")
         if item.get("notes"):
             out += _wrapped(f"  Note : {item['notes']}", indent="   ")
+        out += _line("")
     if order.get("notes"):
         out += _wrapped(f"Note : {order['notes']}", indent="   ")
     out += BOLD_OFF

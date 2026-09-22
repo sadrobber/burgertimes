@@ -42,15 +42,15 @@ def _compose_ticket_line(
     parens: List[str],
     extras: List[str],
     drink: str | None,
-    kids: bool,
+    kids_code: str | None = None,
 ) -> str:
     line = f"{qty}x {name_short}"
     if parens:
         line += f" ({', '.join(parens)})"
     for extra in extras:
         line += f" +{extra}"
-    if kids:
-        line += " +c"
+    if kids_code:
+        line += f" {kids_code}"
     if drink:
         line += f" - {drink}"
     return line
@@ -64,6 +64,9 @@ async def build_snapshots(
     sauce_codes: Dict[str, str] | None = None,
     drink_codes: Dict[str, str] | None = None,
     supplement_prices: Dict[str, float] | None = None,
+    supplement_codes: Dict[str, str] | None = None,
+    removal_codes: Dict[str, str] | None = None,
+    kids_code: str = "c",
 ) -> Tuple[List[dict], float]:
     """Build validated OrderItemSnapshot list and compute subtotal."""
     snapshots: List[dict] = []
@@ -118,7 +121,7 @@ async def build_snapshots(
             extras += [_short(s, sauce_codes) for s in (denorm.get("sauces") or [])]
             ticket_line = _compose_ticket_line(
                 qty=qty, name_short=name_short, parens=parens, extras=extras,
-                drink=drink_short, kids=False,
+                drink=drink_short, kids_code=None,
             )
             snapshots.append(
                 {
@@ -180,12 +183,12 @@ async def build_snapshots(
             if line.get("selected_format"):
                 item_short += f" {line['selected_format']}"
             name_short = f"Menu {item_short}" if formula == "menu" else item_short
-            parens = [f"Sans {r}" for r in removals]
-            extras = list(supplements) + [_short(s, sauce_codes) for s in sauces]
+            parens = [f"Sans {_short(r, removal_codes)}" for r in removals]
+            extras = [_short(s, supplement_codes) for s in supplements] + [_short(s, sauce_codes) for s in sauces]
             is_kids = (item.get("category") == "kids")
             ticket_line = _compose_ticket_line(
                 qty=qty, name_short=name_short, parens=parens, extras=extras,
-                drink=drink_short, kids=is_kids,
+                drink=drink_short, kids_code=(kids_code if is_kids else None),
             )
             snapshots.append(
                 {

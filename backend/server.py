@@ -912,6 +912,13 @@ async def _quote_or_create(
         for s in (settings.get("supplement_options") or [])
         if s.get("name")
     }
+    supplement_codes = {
+        s.get("name"): s.get("code")
+        for s in (settings.get("supplement_options") or [])
+        if s.get("name") and s.get("code")
+    }
+    removal_codes = settings.get("removal_shortcodes") or {}
+    kids_code = (settings.get("kids_ticket_code") or "c").strip() or "c"
 
     snapshots, subtotal = await build_snapshots(
         [line.model_dump() for line in payload.items],
@@ -921,6 +928,9 @@ async def _quote_or_create(
         sauce_codes=sauce_codes,
         drink_codes=drink_codes,
         supplement_prices=supplement_prices,
+        supplement_codes=supplement_codes,
+        removal_codes=removal_codes,
+        kids_code=kids_code,
     )
     delivery_fee = _compute_delivery_fee(payload.fulfillment, subtotal, settings)
     coupon_discount = 0.0

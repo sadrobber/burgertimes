@@ -54,8 +54,10 @@ export default function SettingsAdmin() {
         removal_options: (s.removal_options || []).map((v) => v.trim()).filter(Boolean),
         supplement_options: (s.supplement_options || [])
           .filter((x) => (x.name || "").trim())
-          .map((x) => ({ name: x.name.trim(), price: parseFloat(x.price) || 0 })),
+          .map((x) => ({ name: x.name.trim(), price: parseFloat(x.price) || 0, code: (x.code || "").trim() })),
         drink_shortcodes: s.drink_shortcodes || {},
+        removal_shortcodes: s.removal_shortcodes || {},
+        kids_ticket_code: (s.kids_ticket_code || "").trim() || "c",
         delivery_fee_percent: parseFloat(s.delivery_fee_percent) || 0,
         free_delivery_threshold:
           s.free_delivery_threshold === null || s.free_delivery_threshold === ""
@@ -254,6 +256,8 @@ export default function SettingsAdmin() {
     set("supplement_options", (s.supplement_options || []).filter((_, r) => r !== i));
   const setDrinkCode = (flavour, val) =>
     set("drink_shortcodes", { ...(s.drink_shortcodes || {}), [flavour]: val });
+  const setRemovalCode = (option, val) =>
+    set("removal_shortcodes", { ...(s.removal_shortcodes || {}), [option]: val });
 
   return (
     <div className="space-y-8">
@@ -315,8 +319,15 @@ export default function SettingsAdmin() {
         </div>
         <div className="flex flex-wrap gap-2" data-testid="settings-removal-options-list">
           {(s.removal_options || []).map((option, index) => (
-            <div className="flex items-center gap-1 border-2 border-[#262626] px-2 py-1" key={option}>
+            <div className="flex items-center gap-2 border-2 border-[#262626] px-2 py-1" key={option}>
               <span className="text-sm">Sans {option}</span>
+              <input
+                className="bt-input h-7 w-20 text-xs"
+                data-testid={`settings-removal-code-${option}`}
+                onChange={(e) => setRemovalCode(option, e.target.value)}
+                placeholder="code"
+                value={(s.removal_shortcodes || {})[option] || ""}
+              />
               <button
                 className="text-[#EF2B2D]"
                 data-testid={`settings-removal-option-delete-${index}`}
@@ -386,6 +397,13 @@ export default function SettingsAdmin() {
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A1A1A1] text-xs">€</span>
               </div>
+              <input
+                className="bt-input w-24"
+                data-testid={`settings-supplement-code-${i}`}
+                onChange={(e) => updateSupp(i, { code: e.target.value })}
+                placeholder="code"
+                value={sup.code || ""}
+              />
               <button
                 className="text-[#EF2B2D]"
                 data-testid={`settings-supplement-delete-${i}`}
@@ -455,6 +473,19 @@ export default function SettingsAdmin() {
               ))}
           </div>
         )}
+      </div>
+
+      <div className="bt-card p-5 space-y-2" data-testid="settings-kids-code-card">
+        <div className="font-display text-2xl uppercase">Code menu enfant</div>
+        <p className="text-sm text-[#A1A1A1]">
+          Lettre/mot imprimé pour la compote du menu enfant (ex. « c »). Clique « Enregistrer ».
+        </p>
+        <input
+          className="bt-input w-24"
+          data-testid="settings-kids-code"
+          onChange={(e) => set("kids_ticket_code", e.target.value)}
+          value={s.kids_ticket_code ?? "c"}
+        />
       </div>
 
       <div className="bt-card p-5" data-testid="tablet-closed-orders-card">
