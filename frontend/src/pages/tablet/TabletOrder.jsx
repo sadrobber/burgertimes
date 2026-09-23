@@ -277,14 +277,16 @@ export default function TabletOrder() {
   const needsAddress = fulfillment === "delivery";
   const canSubmit =
     items.length > 0 &&
-    form.first.trim() &&
-    form.phone.trim() &&
     (!needsAddress || (form.address1.trim() && form.city.trim())) &&
     !quote?.error;
 
   const submit = async () => {
     if (!canSubmit) {
-      toast.error("Complète les informations client requises");
+      toast.error(
+        needsAddress
+          ? "Adresse de livraison requise"
+          : "Ajoutez au moins un article",
+      );
       return;
     }
     setSubmitting(true);
@@ -548,7 +550,7 @@ export default function TabletOrder() {
             <section className="border-y-2 border-[#EF2B2D] py-4" data-testid="tablet-customer-search-section">
               <div className="font-display text-xl uppercase">Retrouver un client</div>
               <p className="mt-1 text-xs text-[#A1A1A1]">Recherche par numéro de téléphone.</p>
-              <Field label="Téléphone *">
+              <Field label="Téléphone (optionnel)">
                 <div className="mt-1 grid grid-cols-[88px_minmax(0,1fr)] gap-2">
                   <select
                     className="bt-input px-2"
@@ -606,7 +608,7 @@ export default function TabletOrder() {
 
             {/* Customer name */}
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Prénom *">
+              <Field label="Prénom (optionnel)">
                 <input
                   className="bt-input"
                   data-testid="tablet-customer-first"
