@@ -56,15 +56,21 @@ def _compose_ticket_line(
     return line
 
 
-def _group_meats(meats: List[dict]) -> str:
-    """Group meats by code/name into e.g. '2 T CB' (count only when > 1)."""
+def _group_meats_structured(meats: List[dict]) -> List[dict]:
+    """Group meats by code/name into a list of {'qty', 'code'} entries,
+    preserving first-seen order and reusing the exact same abbreviation
+    that _group_meats renders on ticket_header."""
     labels = [(m.get("code") or m.get("name")) for m in (meats or [])]
     seen: List[str] = []
     for lab in labels:
         if lab not in seen:
             seen.append(lab)
-    counts = {lab: labels.count(lab) for lab in seen}
-    return " ".join(f"{counts[lab]} {lab}" for lab in seen)
+    return [{"qty": labels.count(lab), "code": lab} for lab in seen]
+
+
+def _group_meats(meats: List[dict]) -> str:
+    """Group meats by code/name into e.g. '2 T CB' (count only when > 1)."""
+    return " ".join(f"{g['qty']} {g['code']}" for g in _group_meats_structured(meats))
 
 
 async def build_snapshots(
@@ -124,7 +130,8 @@ async def build_snapshots(
             # Two-tier ticket: left header + centered modifier lines
             style_short = denorm.get("style_code") or denorm.get("style_name") or "Burger"
             name_short = f"Menu {style_short}" if formula == "menu" else style_short
-            meats_inline = _group_meats(denorm.get("meats") or [])
+            ticket_meats = _group_meats_structured(denorm.get("meats") or [])
+            meats_inline = " ".join(f"{g['qty']} {g['code']}" for g in ticket_meats)
             ticket_header = f"x{qty} {name_short}"
             if meats_inline:
                 ticket_header += f" {meats_inline}"
@@ -153,6 +160,7 @@ async def build_snapshots(
                     "ticket_line": ticket_line,
                     "ticket_header": ticket_header,
                     "ticket_mods": ticket_mods,
+                    "ticket_meats": ticket_meats,
                     "included_drink": included_drink,
                     "included_drink_variant": included_drink_variant,
                     "selected_format": None,
@@ -228,6 +236,7 @@ async def build_snapshots(
                     "ticket_line": ticket_line,
                     "ticket_header": ticket_header,
                     "ticket_mods": ticket_mods,
+                    "ticket_meats": [],
                     "included_drink": included_drink,
                     "included_drink_variant": included_drink_variant,
                     "selected_format": line.get("selected_format"),

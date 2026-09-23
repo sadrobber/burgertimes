@@ -19,6 +19,32 @@ import httpx
 logger = logging.getLogger("printer_bridge")
 
 
+def _ensure_ticket_meats(order: Dict[str, Any]) -> Dict[str, Any]:
+    """Guarantee every item in the print payload has a ``ticket_meats`` key
+    (list of ``{"qty", "code"}``). Newly created orders already store it,
+    but older orders in the DB predate the field, so we recompute it here
+    for reprints from the same structured burger_config.meats used at
+    ticket_header build time. Never mutates the input order dict."""
+    items = order.get("items") or []
+    patched_items = []
+    for it in items:
+        if isinstance(it, dict) and "ticket_meats" not in it:
+            meats = ((it.get("burger_config") or {}).get("meats")) or []
+            labels = [(m.get("code") or m.get("name")) for m in meats if isinstance(m, dict)]
+            seen: list = []
+            for lab in labels:
+                if lab and lab not in seen:
+                    seen.append(lab)
+            it = {
+                **it,
+                "ticket_meats": [
+                    {"qty": labels.count(lab), "code": lab} for lab in seen
+                ],
+            }
+        patched_items.append(it)
+    return {**order, "items": patched_items}
+
+
 async def send_print_job(order: Dict[str, Any], copies: int = 1) -> bool:
     """POST the order JSON (plus a "print_copies" count) to the Pi's /print
     endpoint. Returns True only on a 200 response — callers use that to
@@ -27,7 +53,7 @@ async def send_print_job(order: Dict[str, Any], copies: int = 1) -> bool:
     if not url:
         logger.warning("KITCHEN_PRINTER_WEBHOOK_URL not set — skipping printer push")
         return False
-    payload = {**order, "print_copies": copies}
+    payload = {**_ensure_ticket_meats(order), "print_copies": copies}
     secret = os.environ.get("KITCHEN_PRINTER_SECRET")
     headers = {"X-Print-Secret": secret} if secret else None
     try:

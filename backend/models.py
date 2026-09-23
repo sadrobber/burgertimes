@@ -433,6 +433,7 @@ class OrderItemSnapshot(BaseModel):
     ticket_line: Optional[str] = None
     ticket_header: Optional[str] = None
     ticket_mods: List[str] = Field(default_factory=list)
+    ticket_meats: List[dict] = Field(default_factory=list)
     included_drink: Optional[str] = None
     included_drink_variant: Optional[str] = None
     selected_format: Optional[str] = None
