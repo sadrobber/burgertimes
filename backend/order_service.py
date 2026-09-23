@@ -56,6 +56,17 @@ def _compose_ticket_line(
     return line
 
 
+def _group_meats(meats: List[dict]) -> str:
+    """Group meats by code/name into e.g. '2 T CB' (count only when > 1)."""
+    labels = [(m.get("code") or m.get("name")) for m in (meats or [])]
+    seen: List[str] = []
+    for lab in labels:
+        if lab not in seen:
+            seen.append(lab)
+    counts = {lab: labels.count(lab) for lab in seen}
+    return " ".join((f"{counts[lab]} {lab}" if counts[lab] > 1 else lab) for lab in seen)
+
+
 async def build_snapshots(
     lines: List[dict],
     menu_items: Dict[str, dict],
@@ -110,19 +121,22 @@ async def build_snapshots(
             burger_config = line.get("burger_config") or {}
             unit_price, denorm = compute_burger_price(burger_config, formula, burger_cfg)
             name = _burger_line_name(denorm, formula)
-            # Compact ticket line
+            # Two-tier ticket: left header + centered modifier lines
             style_short = denorm.get("style_code") or denorm.get("style_name") or "Burger"
             name_short = f"Menu {style_short}" if formula == "menu" else style_short
-            parens = [m.get("code") or m.get("name") for m in denorm.get("meats") or []]
+            meats_inline = _group_meats(denorm.get("meats") or [])
+            ticket_header = f"{qty} {name_short}"
+            if meats_inline:
+                ticket_header += f" {meats_inline}"
+            if drink_short:
+                ticket_header += f" [{drink_short}]"
+            ticket_mods = []
             if denorm.get("sauce_fromagere") is False:
-                parens.append("sans from")
-            extras = [c.get("code") or c.get("name") for c in denorm.get("cheeses") or []]
-            extras += [s.get("code") or s.get("name") for s in denorm.get("supplements") or []]
-            extras += [_short(s, sauce_codes) for s in (denorm.get("sauces") or [])]
-            ticket_line = _compose_ticket_line(
-                qty=qty, name_short=name_short, parens=parens, extras=extras,
-                drink=drink_short, kids_code=None,
-            )
+                ticket_mods.append("no from")
+            ticket_mods += [_short(s, sauce_codes) for s in (denorm.get("sauces") or [])]
+            ticket_mods += [f"+ {c.get('code') or c.get('name')}" for c in denorm.get("cheeses") or []]
+            ticket_mods += [f"+ {s.get('code') or s.get('name')}" for s in denorm.get("supplements") or []]
+            ticket_line = ticket_header + ("  " + "  ".join(ticket_mods) if ticket_mods else "")
             snapshots.append(
                 {
                     "line_id": line.get("line_id"),
@@ -137,6 +151,8 @@ async def build_snapshots(
                     "sauces": list(line.get("sauces") or []),
                     "supplements": [],
                     "ticket_line": ticket_line,
+                    "ticket_header": ticket_header,
+                    "ticket_mods": ticket_mods,
                     "included_drink": included_drink,
                     "included_drink_variant": included_drink_variant,
                     "selected_format": None,
@@ -178,20 +194,23 @@ async def build_snapshots(
                 display_name += f" ({line['selected_format']})"
             if formula == "menu":
                 display_name = f"Menu {display_name}"
-            # Compact ticket line
+            # Two-tier ticket: left header + centered modifier lines
             item_short = item.get("ticket_shortcode") or item["name"]
             if line.get("selected_format"):
                 item_short += f" {line['selected_format']}"
             name_short = item_short
             if formula == "menu" and not item_short.lower().startswith("menu"):
                 name_short = f"Menu {item_short}"
-            parens = [f"no {_short(r, removal_codes)}" for r in removals]
-            extras = [_short(s, supplement_codes) for s in supplements] + [_short(s, sauce_codes) for s in sauces]
             is_kids = (item.get("category") == "kids")
-            ticket_line = _compose_ticket_line(
-                qty=qty, name_short=name_short, parens=parens, extras=extras,
-                drink=drink_short, kids_code=(kids_code if is_kids else None),
-            )
+            ticket_header = f"{qty} {name_short}"
+            if drink_short:
+                ticket_header += f" [{drink_short}]"
+            ticket_mods = [f"no {_short(r, removal_codes)}" for r in removals]
+            ticket_mods += [_short(s, sauce_codes) for s in sauces]
+            ticket_mods += [f"+ {_short(s, supplement_codes)}" for s in supplements]
+            if is_kids:
+                ticket_mods.append(kids_code)
+            ticket_line = ticket_header + ("  " + "  ".join(ticket_mods) if ticket_mods else "")
             snapshots.append(
                 {
                     "line_id": line.get("line_id"),
@@ -206,6 +225,8 @@ async def build_snapshots(
                     "sauces": sauces,
                     "supplements": supplements,
                     "ticket_line": ticket_line,
+                    "ticket_header": ticket_header,
+                    "ticket_mods": ticket_mods,
                     "included_drink": included_drink,
                     "included_drink_variant": included_drink_variant,
                     "selected_format": line.get("selected_format"),

@@ -430,6 +430,8 @@ class OrderItemSnapshot(BaseModel):
     sauces: List[str] = Field(default_factory=list)
     supplements: List[str] = Field(default_factory=list)
     ticket_line: Optional[str] = None
+    ticket_header: Optional[str] = None
+    ticket_mods: List[str] = Field(default_factory=list)
     included_drink: Optional[str] = None
     included_drink_variant: Optional[str] = None
     selected_format: Optional[str] = None

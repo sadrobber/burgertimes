@@ -193,16 +193,23 @@ def build_escpos_ticket(order: dict) -> bytes:
     out += _line(f"{date_str} {time_str}")
     out += _line(DIVIDER)
 
-    # Item lines — BIG (double width + height) and CENTERED, one product per
-    # block, wrapping to 2-3 lines when long. Blank line after each item.
-    out += ALIGN_CENTER + BOLD_ON + SIZE_DOUBLE
+    # Two-tier item blocks: header LEFT (with [drink]), modifiers CENTERED.
+    out += BOLD_ON + SIZE_DOUBLE
     for item in order.get("items") or []:
-        line = item.get("ticket_line") or _legacy_item_line(item)
-        out += _wrapped_big(line)
+        header = item.get("ticket_header") or item.get("ticket_line") or _legacy_item_line(item)
+        mods = item.get("ticket_mods") or []
+        out += ALIGN_LEFT
+        out += _wrapped_big(header)
+        if mods:
+            out += ALIGN_CENTER
+            for m in mods:
+                out += _wrapped_big(m)
         if item.get("notes"):
+            out += ALIGN_CENTER
             out += _wrapped_big(f"Note: {item['notes']}")
         out += _line("")
     if order.get("notes"):
+        out += ALIGN_LEFT
         out += _wrapped_big(f"Note: {order['notes']}")
     out += BOLD_OFF + SIZE_NORMAL
     out += ALIGN_LEFT

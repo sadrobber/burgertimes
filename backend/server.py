@@ -388,33 +388,33 @@ async def admin_receipt_preview(_: dict = Depends(require_admin)):
     it2_short = (non_kids[1].get("ticket_shortcode") or non_kids[1].get("name")) if len(non_kids) > 1 else "Wings"
     kid_short = (kids[0].get("ticket_shortcode") or kids[0].get("name")) if kids else "Menu Enfant"
 
-    lines = [
-        _compose_ticket_line(
-            qty=1,
-            name_short=it1_short if it1_short.lower().startswith("menu") else f"Menu {it1_short}",
-            parens=[f"no {removal_code}"],
-            extras=[supp_code, sauce_code], drink=drink_code, kids_code=None,
-        ),
-        _compose_ticket_line(
-            qty=2, name_short=it2_short, parens=[], extras=[], drink=None, kids_code=None,
-        ),
+    n1 = it1_short if it1_short.lower().startswith("menu") else f"Menu {it1_short}"
+    nk = kid_short if kid_short.lower().startswith("menu") else f"Menu {kid_short}"
+
+    def _blk(qty, name, meats_inline, drink, mods):
+        hdr = f"{qty} {name}"
+        if meats_inline:
+            hdr += f" {meats_inline}"
+        if drink:
+            hdr += f" [{drink}]"
+        rows = [hdr]
+        rows += [m.center(46) for m in mods]
+        return rows
+
+    blocks = [
+        _blk(1, n1, "", drink_code, [f"no {removal_code}", sauce_code, f"+ {supp_code}"]),
+        _blk(2, it2_short, "", None, []),
     ]
     if kids:
-        lines.append(
-            _compose_ticket_line(
-                qty=1,
-                name_short=kid_short if kid_short.lower().startswith("menu") else f"Menu {kid_short}",
-                parens=[], extras=[], drink=drink_code, kids_code=kids_code,
-            )
-        )
+        blocks.append(_blk(1, nk, "", drink_code, [kids_code]))
 
     divider = "-" * 46
     text = ["[ A EMPORTER ]".center(46), "BURGER TIMES".center(46), divider, "COMMANDE #APERCU".center(46), divider]
-    for ln in lines:
-        text.append(ln.center(46))
+    for b in blocks:
+        text += b
         text.append("")
     text += [divider, "TOTAL : 00,00 EUR", divider, "Client : Apercu"]
-    return {"lines": lines, "text": "\n".join(text)}
+    return {"text": "\n".join(text)}
 
 
 @api.get("/restaurant/status")
