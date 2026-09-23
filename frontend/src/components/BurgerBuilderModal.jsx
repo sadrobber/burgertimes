@@ -93,7 +93,8 @@ export default function BurgerBuilderModal({ open, onClose }) {
     const supUp = isFlat ? 0 : size?.supplement_upcharge || 0;
     let total = (base || 0) + (style.price_modifier || 0);
     (config?.meats || []).forEach((m) => {
-      if (meats.includes(m.id)) total += m.base_price || 0;
+      const c = meats.filter((x) => x === m.id).length;
+      if (c > 0) total += (m.base_price || 0) * c;
     });
     (config?.cheeses || []).forEach((c) => {
       if (cheeses.includes(c.id)) total += c.base_price || 0;
@@ -107,12 +108,20 @@ export default function BurgerBuilderModal({ open, onClose }) {
   const toggleMulti = (arr, setArr, id) =>
     setArr(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
 
-  const toggleMeats = (id) => {
-    if (meats.includes(id)) setMeats(meats.filter((x) => x !== id));
-    else if (meats.length < requiredMeats) setMeats([...meats, id]);
-    else if (requiredMeats === 1) setMeats([id]);
-    else toast.info(`${t("burger.select_meats_hint")} ${requiredMeats}`);
+  const addMeat = (id) => {
+    if (meats.length >= requiredMeats) {
+      if (requiredMeats === 1) setMeats([id]);
+      else toast.info(`${t("burger.select_meats_hint")} ${requiredMeats}`);
+      return;
+    }
+    setMeats([...meats, id]);
   };
+  const removeMeat = (id) => {
+    const idx = meats.lastIndexOf(id);
+    if (idx === -1) return;
+    setMeats(meats.filter((_, i) => i !== idx));
+  };
+  const meatCount = (id) => meats.filter((x) => x === id).length;
 
   const canNext = () => {
     if (currentStep === "format") return true;
@@ -140,7 +149,12 @@ export default function BurgerBuilderModal({ open, onClose }) {
     if (!styleId) return;
     const nameParts = [style?.name || "Burger"];
     if (!isFlat && size) nameParts.push(size.label);
-    const meatNames = (config?.meats || []).filter((m) => meats.includes(m.id)).map((m) => m.name);
+    const meatCounts = new Map();
+    (config?.meats || []).forEach((m) => {
+      const c = meats.filter((x) => x === m.id).length;
+      if (c > 0) meatCounts.set(m.name, c);
+    });
+    const meatNames = [...meatCounts].map(([n, c]) => (c > 1 ? `${c}× ${n}` : n));
     if (meatNames.length) nameParts.push(meatNames.join(", "));
     const displayName = nameParts.join(" · ") + (formula === "menu" ? " (Menu)" : "");
     addBurgerItem({
@@ -315,25 +329,75 @@ export default function BurgerBuilderModal({ open, onClose }) {
 
           {currentStep === "meats" && (
             <>
-              <div className="text-xs text-[#A1A1A1] font-accent uppercase tracking-widest mb-2">
-                {t("burger.select_meats_hint")} {requiredMeats}
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs text-[#A1A1A1] font-accent uppercase tracking-widest">
+                  {t("burger.select_meats_hint")} {requiredMeats}
+                </div>
+                <div className="text-xs font-accent tracking-widest text-[#EF2B2D]">
+                  {meats.length} / {requiredMeats}
+                </div>
               </div>
-              <StepGrid
-                testIdPrefix="burger-meat"
-                items={config?.meats || []}
-                multi
-                selectedIds={meats}
-                onToggle={toggleMeats}
-                renderLabel={(m) => (
-                  <>
-                    <div className="font-accent uppercase text-lg tracking-widest">{m.name}</div>
-                    {m.base_price > 0 && (
-                      <div className="text-xs text-[#EF2B2D] mt-1">+{formatEur(m.base_price)}</div>
-                    )}
-                  </>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {(config?.meats || []).map((m) => {
+                  const c = meatCount(m.id);
+                  const canAdd = meats.length < requiredMeats;
+                  return (
+                    <div
+                      key={m.id}
+                      data-testid={`burger-meat-${m.id}`}
+                      className={`bt-option text-left relative ${c > 0 ? "selected" : ""} ${
+                        !canAdd && c === 0 ? "opacity-40" : ""
+                      }`}
+                      onClick={() => addMeat(m.id)}
+                      role="button"
+                    >
+                      <div className="font-accent uppercase text-lg tracking-widest pr-16">
+                        {m.name}
+                      </div>
+                      {m.base_price > 0 && (
+                        <div className="text-xs text-[#EF2B2D] mt-1">
+                          +{formatEur(m.base_price)}
+                        </div>
+                      )}
+                      {c > 0 && (
+                        <div
+                          className="absolute top-2 right-2 flex items-center gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            data-testid={`burger-meat-${m.id}-minus`}
+                            onClick={() => removeMeat(m.id)}
+                            className="w-8 h-8 border-2 border-[#EF2B2D] text-[#EF2B2D] font-accent leading-none flex items-center justify-center"
+                          >
+                            −
+                          </button>
+                          <div
+                            data-testid={`burger-meat-${m.id}-count`}
+                            className="min-w-[1.5rem] text-center font-display text-lg text-[#EF2B2D]"
+                          >
+                            {c}
+                          </div>
+                          <button
+                            type="button"
+                            data-testid={`burger-meat-${m.id}-plus`}
+                            onClick={() => addMeat(m.id)}
+                            disabled={!canAdd}
+                            className="w-8 h-8 border-2 border-[#EF2B2D] text-[#EF2B2D] font-accent leading-none flex items-center justify-center disabled:opacity-40"
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {(config?.meats || []).length === 0 && (
+                  <div className="text-sm text-[#A1A1A1] p-4 border-2 border-[#262626] col-span-full">
+                    Aucune viande configurée.
+                  </div>
                 )}
-                emptyText="Aucune viande configurée."
-              />
+              </div>
             </>
           )}
 
