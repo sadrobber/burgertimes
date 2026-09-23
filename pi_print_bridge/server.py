@@ -120,7 +120,61 @@ FULFILLMENT_LABEL = {"pickup": "A EMPORTER", "delivery": "LIVRAISON", "dine_in":
 PAYMENT_LABEL = {"cash": "Especes sur place", "card_in_person": "Carte sur place"}
 DIVIDER = "-" * 46
 NORMAL_LINE_WIDTH = 46
-BIG_LINE_WIDTH = 22
+
+# ===========================================================================
+# >>>>>  ITEM TEXT SIZE — PICK YOUR LEVEL HERE  (1 = smallest ... 10 = biggest)
+# ===========================================================================
+# This controls how BIG the item lines (item name, sauces, supplements,
+# removals, notes) are printed on the kitchen ticket.
+#
+# HOW TO FIND YOUR PERFECT SIZE:
+#   1. Change the number below to any value from 1 to 10.
+#   2. Save this file.
+#   3. On the Raspberry Pi, restart the bridge:  python server.py
+#   4. Print (or reprint) a ticket and look at it.
+#   5. Repeat with a different number until it looks right.
+#
+ITEM_SIZE_LEVEL = 3   # <---- CHANGE THIS NUMBER (1 to 10)
+#
+# What each level looks like  (width x height, ESC/POS max is 8 x 8):
+#   Level 1  = 1x1   normal size
+#   Level 2  = 1x2   a bit taller
+#   Level 3  = 2x2   double size   (this was the old default)
+#   Level 4  = 2x3
+#   Level 5  = 3x3
+#   Level 6  = 3x4
+#   Level 7  = 4x4
+#   Level 8  = 5x5
+#   Level 9  = 6x6
+#   Level 10 = 8x8   maximum / huge
+# ===========================================================================
+SIZE_LEVELS = {
+    1:  (1, 1),
+    2:  (1, 2),
+    3:  (2, 2),
+    4:  (2, 3),
+    5:  (3, 3),
+    6:  (3, 4),
+    7:  (4, 4),
+    8:  (5, 5),
+    9:  (6, 6),
+    10: (8, 8),
+}
+
+
+def _size_byte(width_mult: int, height_mult: int) -> bytes:
+    """Build the ESC/POS 'GS !' size byte from width/height multipliers (1-8)."""
+    w = max(1, min(8, width_mult)) - 1
+    h = max(1, min(8, height_mult)) - 1
+    return GS + b"\x21" + bytes([(w << 4) | h])
+
+
+# Derived from the level you picked above — do not edit these two lines.
+_ITEM_W, _ITEM_H = SIZE_LEVELS.get(ITEM_SIZE_LEVEL, SIZE_LEVELS[3])
+ITEM_SIZE_BYTE = _size_byte(_ITEM_W, _ITEM_H)
+# Wider text = fewer characters per line (an 80mm roll fits ~46 normal chars),
+# so we auto-shrink the wrap width to stop long names being cut mid-word.
+BIG_LINE_WIDTH = max(6, 46 // _ITEM_W)
 
 
 def _fmt_datetime(iso_str: str) -> tuple[str, str]:
@@ -194,7 +248,8 @@ def build_escpos_ticket(order: dict) -> bytes:
     out += _line(DIVIDER)
 
     # Two-tier item blocks: header LEFT (with [drink]), modifiers CENTERED.
-    out += BOLD_ON + SIZE_DOUBLE
+    # Item text size comes from ITEM_SIZE_LEVEL you set at the top of this file.
+    out += BOLD_ON + ITEM_SIZE_BYTE
     for item in order.get("items") or []:
         header = item.get("ticket_header") or item.get("ticket_line") or _legacy_item_line(item)
         mods = item.get("ticket_mods") or []
