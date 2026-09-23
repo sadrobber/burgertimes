@@ -193,7 +193,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
     >
       <div
         className="bg-[#141414] border-2 border-[#EF2B2D] shadow-[8px_8px_0_0_#EF2B2D] w-full md:max-w-3xl max-h-[92vh] flex flex-col"
-        style={tablet ? { zoom: 1.75 } : undefined}
+        style={tablet ? { zoom: 2.5 } : undefined}
       >
         <div className="flex items-center justify-between border-b-2 border-[#262626] p-4">
           <div>
