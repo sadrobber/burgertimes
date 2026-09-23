@@ -429,6 +429,7 @@ class OrderItemSnapshot(BaseModel):
     line_total: float
     sauces: List[str] = Field(default_factory=list)
     supplements: List[str] = Field(default_factory=list)
+    removable_ingredients: List[str] = Field(default_factory=list)
     ticket_line: Optional[str] = None
     ticket_header: Optional[str] = None
     ticket_mods: List[str] = Field(default_factory=list)

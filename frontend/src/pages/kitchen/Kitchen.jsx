@@ -386,6 +386,9 @@ function OrderCard({ order, tab, busy, onAccept, onDecline, onReprint }) {
               {(it.sauces || []).map((s) => (
                 <div key={s}>+ {s}</div>
               ))}
+              {(it.removable_ingredients || []).map((r) => (
+                <div key={r} className="text-[#EF2B2D]">Sans {r}</div>
+              ))}
             </div>
             {it.notes && (
               <div className="mt-1 inline-block bg-[#EF2B2D] text-[#F5F1E8] px-2 py-1 font-accent uppercase tracking-wide text-sm">

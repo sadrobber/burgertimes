@@ -224,6 +224,7 @@ async def build_snapshots(
                     "line_total": round(unit_price * qty, 2),
                     "sauces": sauces,
                     "supplements": supplements,
+                    "removable_ingredients": removals,
                     "ticket_line": ticket_line,
                     "ticket_header": ticket_header,
                     "ticket_mods": ticket_mods,
@@ -231,9 +232,7 @@ async def build_snapshots(
                     "included_drink_variant": included_drink_variant,
                     "selected_format": line.get("selected_format"),
                     "selected_variant": line.get("selected_variant"),
-                    "notes": " · ".join(
-                        [f"Sans {removal}" for removal in removals] + ([line["notes"]] if line.get("notes") else [])
-                    ) or None,
+                    "notes": line.get("notes"),
                 }
             )
         subtotal += snapshots[-1]["line_total"]

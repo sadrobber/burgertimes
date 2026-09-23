@@ -176,6 +176,7 @@ function TabletOrderDetail({ order, onClose }) {
               <div className="border-b border-[#262626] py-2" key={`${item.name}-${index}`}>
                 <div className="flex justify-between"><span>{item.quantity}× {item.name}</span><span>{formatEur(item.line_total)}</span></div>
                 {(item.sauces || []).length > 0 && <div className="text-xs text-[#A1A1A1]">Sauces : {item.sauces.join(", ")}</div>}
+                {(item.removable_ingredients || []).length > 0 && <div className="text-xs text-[#EF2B2D]">Sans : {item.removable_ingredients.join(", ")}</div>}
                 {item.notes && <div className="text-xs text-[#EF2B2D]">{item.notes}</div>}
               </div>
             ))}
