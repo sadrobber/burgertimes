@@ -1086,7 +1086,7 @@ async def _quote_or_create(
     }
     await db.orders.insert_one(dict(order))
     await _upsert_customer(order)
-    if not order.get("test_order"):
+    if not order.get("test_order") and order.get("order_source") != "tablet":
         asyncio.create_task(send_commission_alert(order))
 
     # Fire-and-forget notification
