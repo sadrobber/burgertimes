@@ -125,11 +125,11 @@ async def build_snapshots(
             style_short = denorm.get("style_code") or denorm.get("style_name") or "Burger"
             name_short = f"Menu {style_short}" if formula == "menu" else style_short
             meats_inline = _group_meats(denorm.get("meats") or [])
-            ticket_header = f"{qty} {name_short}"
+            ticket_header = f"x{qty} {name_short}"
             if meats_inline:
                 ticket_header += f" {meats_inline}"
             if drink_short:
-                ticket_header += f" [{drink_short}]"
+                ticket_header += f" [x{qty} {drink_short}]"
             ticket_mods = []
             if denorm.get("sauce_fromagere") is False:
                 ticket_mods.append("no from")
@@ -202,9 +202,9 @@ async def build_snapshots(
             if formula == "menu" and not item_short.lower().startswith("menu"):
                 name_short = f"Menu {item_short}"
             is_kids = (item.get("category") == "kids")
-            ticket_header = f"{qty} {name_short}"
+            ticket_header = f"x{qty} {name_short}"
             if drink_short:
-                ticket_header += f" [{drink_short}]"
+                ticket_header += f" [x{qty} {drink_short}]"
             ticket_mods = [f"no {_short(r, removal_codes)}" for r in removals]
             ticket_mods += [_short(s, sauce_codes) for s in sauces]
             ticket_mods += [f"+ {_short(s, supplement_codes)}" for s in supplements]
