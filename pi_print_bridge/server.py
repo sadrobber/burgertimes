@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import socket
 import textwrap
 import time
@@ -203,6 +204,23 @@ def _wrapped_big(text: str = "") -> bytes:
     return out
 
 
+def _header_line(header: str) -> bytes:
+    """Print the item's first line with any trailing bracketed drink (e.g.
+    "[Coca]") pushed to the far RIGHT of the line. If there's no room to fit
+    name + drink on one line, the drink drops to its own right-justified line."""
+    match = re.search(r"\s*(\[[^\]]*\])\s*$", header)
+    if not match:
+        return _wrapped_big(header)
+    drink = match.group(1)
+    name = header[: match.start()].rstrip()
+    gap = BIG_LINE_WIDTH - len(name) - len(drink)
+    if gap >= 1:
+        return _line(name + (" " * gap) + drink)
+    out = _wrapped_big(name)
+    out += _line(drink.rjust(BIG_LINE_WIDTH))
+    return out
+
+
 def _legacy_item_line(item: dict) -> str:
     """Fallback compact line for orders created before ticket_line existed."""
     cfg = item.get("burger_config") or {}
@@ -254,7 +272,7 @@ def build_escpos_ticket(order: dict) -> bytes:
         header = item.get("ticket_header") or item.get("ticket_line") or _legacy_item_line(item)
         mods = item.get("ticket_mods") or []
         out += ALIGN_LEFT
-        out += _wrapped_big(header)
+        out += _header_line(header)
         if mods:
             out += ALIGN_CENTER
             for m in mods:

@@ -64,7 +64,7 @@ def _group_meats(meats: List[dict]) -> str:
         if lab not in seen:
             seen.append(lab)
     counts = {lab: labels.count(lab) for lab in seen}
-    return " ".join((f"{counts[lab]} {lab}" if counts[lab] > 1 else lab) for lab in seen)
+    return " ".join(f"{counts[lab]} {lab}" for lab in seen)
 
 
 async def build_snapshots(
