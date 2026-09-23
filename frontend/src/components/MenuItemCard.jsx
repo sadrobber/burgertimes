@@ -6,7 +6,7 @@ import { useCart } from "@/context/CartContext.jsx";
 import { useI18n } from "@/context/I18nContext.jsx";
 import { toast } from "sonner";
 
-export default function MenuItemCard({ compact = false, dense = false, item, sauceOptions = [], sodaFlavours = [], supplementOptions = [] }) {
+export default function MenuItemCard({ compact = false, dense = false, tablet = false, item, sauceOptions = [], sodaFlavours = [], supplementOptions = [] }) {
   const { addPlainItem } = useCart();
   const { t } = useI18n();
   const [openConfig, setOpenConfig] = React.useState(false);
@@ -63,7 +63,7 @@ export default function MenuItemCard({ compact = false, dense = false, item, sau
       supplements: selectedSupplements,
       notes: null,
     });
-    toast.success("Ajouté au panier");
+    toast.success("Ajouté au panier", { duration: 500 });
     setOpenConfig(false);
     setFormula("seul");
     setDrink("");
@@ -280,6 +280,7 @@ export default function MenuItemCard({ compact = false, dense = false, item, sau
           setSelectedSupplements={setSelectedSupplements}
           supplementOptions={itemSupplements}
           sodaFlavours={sodaFlavours}
+          tablet={tablet}
           total={totalPrice}
         />
       )}

@@ -438,6 +438,7 @@ export default function TabletOrder() {
               {visibleItems.map((item) => (
                 <MenuItemCard
                   dense
+                  tablet
                   item={item}
                   key={item.id}
                   sauceOptions={sauces}
@@ -722,7 +723,7 @@ export default function TabletOrder() {
           </div>
         </aside>
       </div>
-      <BurgerBuilderModal open={builderOpen} onClose={() => setBuilderOpen(false)} />
+      <BurgerBuilderModal open={builderOpen} onClose={() => setBuilderOpen(false)} tablet />
     </div>
   );
 }

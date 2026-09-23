@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 const STEP_KEYS = ["format", "style", "size", "meats", "cheeses", "supplements", "sauces", "fromagere"];
 
-export default function BurgerBuilderModal({ open, onClose }) {
+export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
   const { t } = useI18n();
   const { addBurgerItem } = useCart();
   const [config, setConfig] = useState(null);
@@ -180,7 +180,7 @@ export default function BurgerBuilderModal({ open, onClose }) {
         sauce_fromagere: sauceFromagere,
       },
     });
-    toast.success("Ajouté au panier");
+    toast.success("Ajouté au panier", { duration: 500 });
     onClose && onClose();
   };
 
@@ -191,7 +191,10 @@ export default function BurgerBuilderModal({ open, onClose }) {
       data-testid="burger-builder-modal"
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm p-0 md:p-6"
     >
-      <div className="bg-[#141414] border-2 border-[#EF2B2D] shadow-[8px_8px_0_0_#EF2B2D] w-full md:max-w-3xl max-h-[92vh] flex flex-col">
+      <div
+        className="bg-[#141414] border-2 border-[#EF2B2D] shadow-[8px_8px_0_0_#EF2B2D] w-full md:max-w-3xl max-h-[92vh] flex flex-col"
+        style={tablet ? { zoom: 1.75 } : undefined}
+      >
         <div className="flex items-center justify-between border-b-2 border-[#262626] p-4">
           <div>
             <div className="text-xs font-accent tracking-widest text-[#EF2B2D]">

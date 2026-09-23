@@ -27,6 +27,7 @@ export default function ItemConfigurationModal({
   setSelectedSupplements = () => {},
   supplementOptions = [],
   sodaFlavours,
+  tablet = false,
   total,
 }) {
   const chooseFormula = (nextFormula) => {
@@ -65,6 +66,7 @@ export default function ItemConfigurationModal({
         className="max-h-[92vh] w-full overflow-y-auto border-2 border-[#EF2B2D] bg-[#141414] p-5 shadow-2xl sm:max-w-2xl sm:p-7"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
+        style={tablet ? { zoom: 1.75 } : undefined}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
