@@ -201,7 +201,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
       <div
         className="bg-[#141414] border-2 border-[#EF2B2D] shadow-[8px_8px_0_0_#EF2B2D] w-full md:max-w-3xl max-h-[92vh] flex flex-col"
       >
-        <div className={tablet ? "flex-1 flex flex-col min-h-0" : "contents"} style={tablet ? { zoom: 2 } : undefined}>
+        <div className={tablet ? "flex-1 flex flex-col min-h-0" : "contents"} style={tablet ? { zoom: 2.5 } : undefined}>
         <div className="flex items-center justify-between border-b-2 border-[#262626] p-4">
           <div>
             <div className="text-xs font-accent tracking-widest text-[#EF2B2D]">
