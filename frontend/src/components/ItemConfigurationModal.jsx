@@ -69,9 +69,8 @@ export default function ItemConfigurationModal({
         className="max-h-[92vh] w-full overflow-y-auto border-2 border-[#EF2B2D] bg-[#141414] p-5 shadow-2xl sm:max-w-2xl sm:p-7"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
-        style={tablet ? { zoom: 1.5 } : undefined}
       >
-        <div style={tablet ? { zoom: 1.7 } : undefined}>
+        <div style={tablet ? { zoom: 2 } : undefined}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="font-marker text-[#EF2B2D]">Personnalise ta commande</div>
