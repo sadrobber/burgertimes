@@ -28,8 +28,8 @@ export default function ItemConfigurationModal({
   supplementOptions = [],
   sodaFlavours,
   friesSauces = [],
-  friesSauce,
-  setFriesSauce = () => {},
+  selectedFriesSauces = [],
+  setSelectedFriesSauces = () => {},
   tablet = false,
   total,
 }) {
@@ -232,19 +232,32 @@ export default function ItemConfigurationModal({
           {formula === "menu"
             && item.menu_fries_included !== false
             && (friesSauces || []).length > 0 && (
-            <OptionGroup label="Sauce pour tes frites">
+            <OptionGroup label="Choisis jusqu'à 2 sauces pour tes frites">
               <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto">
-                {friesSauces.map((sauce) => (
-                  <button
-                    className={`bt-chip ${friesSauce === sauce ? "active" : ""}`}
-                    data-testid={`item-${item.id}-fries-sauce-${sauce}`}
-                    key={sauce}
-                    onClick={() => setFriesSauce(sauce)}
-                    type="button"
-                  >
-                    {sauce}
-                  </button>
-                ))}
+                {friesSauces.map((sauce) => {
+                  const selected = selectedFriesSauces.includes(sauce);
+                  const limitReached = !selected && selectedFriesSauces.length >= 2;
+                  return (
+                    <button
+                      className={`bt-chip ${selected ? "active" : ""} disabled:opacity-40`}
+                      data-testid={`item-${item.id}-fries-sauce-${sauce}`}
+                      disabled={limitReached}
+                      key={sauce}
+                      onClick={() =>
+                        setSelectedFriesSauces((current) =>
+                          current.includes(sauce)
+                            ? current.filter((v) => v !== sauce)
+                            : current.length >= 2
+                            ? current
+                            : [...current, sauce],
+                        )
+                      }
+                      type="button"
+                    >
+                      {sauce}
+                    </button>
+                  );
+                })}
               </div>
             </OptionGroup>
           )}

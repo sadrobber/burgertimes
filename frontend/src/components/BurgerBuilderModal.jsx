@@ -17,7 +17,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
 
   const [formula, setFormula] = useState("seul"); // 'seul' | 'menu'
   const [drink, setDrink] = useState("");
-  const [friesSauce, setFriesSauce] = useState("");
+  const [friesSauces_, setFriesSaucesState] = useState([]);
   const [styleId, setStyleId] = useState(null);
   const [sizeId, setSizeId] = useState(null);
   const [meats, setMeats] = useState([]);
@@ -31,7 +31,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
     setStepIdx(0);
     setFormula("seul");
     setDrink("");
-    setFriesSauce("");
+    setFriesSaucesState([]);
     setStyleId(null);
     setSizeId(null);
     setMeats([]);
@@ -138,7 +138,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
     if (currentStep === "sauces") return true;
     if (currentStep === "fromagere") return true;
     if (currentStep === "drink") return !!drink;
-    if (currentStep === "fries_sauce") return !!friesSauce;
+    if (currentStep === "fries_sauce") return friesSauces_.length > 0;
     return true;
   };
 
@@ -173,7 +173,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
       sauces: chosenSauces,
       included_drink: formula === "menu" ? drink : null,
       included_drink_variant: null,
-      fries_sauce: formula === "menu" && (settings?.fries_sauces || []).length > 0 ? (friesSauce || null) : null,
+      fries_sauces: formula === "menu" && (settings?.fries_sauces || []).length > 0 ? friesSauces_ : [],
       selected_format: null,
       selected_variant: null,
       notes: null,
@@ -286,18 +286,31 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
 
           {currentStep === "fries_sauce" && (
             <div>
-              <div className="bt-label">Sauce pour tes frites</div>
+              <div className="bt-label">Choisis jusqu&apos;à 2 sauces pour tes frites</div>
               <div className="flex flex-wrap gap-2">
-                {(settings?.fries_sauces || []).map((sauce) => (
-                  <button
-                    key={sauce}
-                    data-testid={`burger-fries-sauce-${sauce}`}
-                    onClick={() => setFriesSauce(sauce)}
-                    className={`bt-chip ${friesSauce === sauce ? "active" : ""}`}
-                  >
-                    {sauce}
-                  </button>
-                ))}
+                {(settings?.fries_sauces || []).map((sauce) => {
+                  const selected = friesSauces_.includes(sauce);
+                  const limitReached = !selected && friesSauces_.length >= 2;
+                  return (
+                    <button
+                      key={sauce}
+                      data-testid={`burger-fries-sauce-${sauce}`}
+                      onClick={() =>
+                        setFriesSaucesState(
+                          selected
+                            ? friesSauces_.filter((v) => v !== sauce)
+                            : friesSauces_.length >= 2
+                            ? friesSauces_
+                            : [...friesSauces_, sauce],
+                        )
+                      }
+                      disabled={limitReached}
+                      className={`bt-chip ${selected ? "active" : ""} disabled:opacity-40`}
+                    >
+                      {sauce}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

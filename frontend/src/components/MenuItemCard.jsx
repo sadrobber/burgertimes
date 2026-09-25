@@ -13,7 +13,7 @@ export default function MenuItemCard({ compact = false, dense = false, tablet = 
   const [formula, setFormula] = React.useState("seul");
   const [selectedFormat, setSelectedFormat] = React.useState(item.formats?.[0]?.name || null);
   const [drink, setDrink] = React.useState("");
-  const [friesSauce, setFriesSauce] = React.useState("");
+  const [selectedFriesSauces, setSelectedFriesSauces] = React.useState([]);
   const [removals, setRemovals] = React.useState([]);
   const [selectedSauces, setSelectedSauces] = React.useState([]);
   const [selectedSupplements, setSelectedSupplements] = React.useState([]);
@@ -34,7 +34,8 @@ export default function MenuItemCard({ compact = false, dense = false, tablet = 
   }, [item, formula, selectedFormat]);
 
   const canAdd =
-    formula === "seul" || (formula === "menu" && drink && (!needsFriesSauce || friesSauce));
+    formula === "seul"
+    || (formula === "menu" && drink && (!needsFriesSauce || selectedFriesSauces.length > 0));
 
   const itemSupplements = (supplementOptions || []).filter((s) =>
     (item.supplement_options || []).includes(s.name),
@@ -61,7 +62,7 @@ export default function MenuItemCard({ compact = false, dense = false, tablet = 
       unit_price: totalPrice,
       sauces: selectedSauces,
       included_drink: needsDrink ? drink : null,
-      fries_sauce: needsFriesSauce ? friesSauce : null,
+      fries_sauces: needsFriesSauce ? selectedFriesSauces : [],
       selected_format: selectedFormat,
       selected_variant: null,
       removable_ingredients: removals,
@@ -72,7 +73,7 @@ export default function MenuItemCard({ compact = false, dense = false, tablet = 
     setOpenConfig(false);
     setFormula("seul");
     setDrink("");
-    setFriesSauce("");
+    setSelectedFriesSauces([]);
     setRemovals([]);
     setSelectedSauces([]);
     setSelectedSupplements([]);
@@ -287,8 +288,8 @@ export default function MenuItemCard({ compact = false, dense = false, tablet = 
           supplementOptions={itemSupplements}
           sodaFlavours={sodaFlavours}
           friesSauces={friesSauces}
-          friesSauce={friesSauce}
-          setFriesSauce={setFriesSauce}
+          selectedFriesSauces={selectedFriesSauces}
+          setSelectedFriesSauces={setSelectedFriesSauces}
           tablet={tablet}
           total={totalPrice}
         />

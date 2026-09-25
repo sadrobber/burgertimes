@@ -414,7 +414,7 @@ class CartLine(BaseModel):
     selected_variant: Optional[str] = None
     included_drink: Optional[str] = None
     included_drink_variant: Optional[str] = None
-    fries_sauce: Optional[str] = None
+    fries_sauces: List[str] = Field(default_factory=list)
     sauces: List[str] = Field(default_factory=list)
     removable_ingredients: List[str] = Field(default_factory=list)
     supplements: List[str] = Field(default_factory=list)
@@ -442,7 +442,7 @@ class OrderItemSnapshot(BaseModel):
     ticket_meats: List[dict] = Field(default_factory=list)
     included_drink: Optional[str] = None
     included_drink_variant: Optional[str] = None
-    fries_sauce: Optional[str] = None
+    fries_sauces: List[str] = Field(default_factory=list)
     selected_format: Optional[str] = None
     selected_variant: Optional[str] = None
     notes: Optional[str] = None
