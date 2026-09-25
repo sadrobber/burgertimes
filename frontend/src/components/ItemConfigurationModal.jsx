@@ -232,7 +232,7 @@ export default function ItemConfigurationModal({
           {formula === "menu"
             && item.menu_fries_included !== false
             && (friesSauces || []).length > 0 && (
-            <OptionGroup label="Choisis jusqu'à 2 sauces pour tes frites">
+            <OptionGroup label="Sauces pour tes frites (optionnel, jusqu'à 2)">
               <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto">
                 {friesSauces.map((sauce) => {
                   const selected = selectedFriesSauces.includes(sauce);

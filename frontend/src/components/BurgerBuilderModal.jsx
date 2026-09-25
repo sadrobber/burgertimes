@@ -286,7 +286,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
 
           {currentStep === "fries_sauce" && (
             <div>
-              <div className="bt-label">Choisis jusqu&apos;à 2 sauces pour tes frites</div>
+              <div className="bt-label">Sauces pour tes frites (optionnel, jusqu&apos;à 2)</div>
               <div className="flex flex-wrap gap-2">
                 {(settings?.fries_sauces || []).map((sauce) => {
                   const selected = friesSauces_.includes(sauce);
