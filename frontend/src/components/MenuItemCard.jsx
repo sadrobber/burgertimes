@@ -6,19 +6,22 @@ import { useCart } from "@/context/CartContext.jsx";
 import { useI18n } from "@/context/I18nContext.jsx";
 import { toast } from "sonner";
 
-export default function MenuItemCard({ compact = false, dense = false, tablet = false, item, sauceOptions = [], sodaFlavours = [], supplementOptions = [] }) {
+export default function MenuItemCard({ compact = false, dense = false, tablet = false, item, sauceOptions = [], sodaFlavours = [], supplementOptions = [], friesSauces = [] }) {
   const { addPlainItem } = useCart();
   const { t } = useI18n();
   const [openConfig, setOpenConfig] = React.useState(false);
   const [formula, setFormula] = React.useState("seul");
   const [selectedFormat, setSelectedFormat] = React.useState(item.formats?.[0]?.name || null);
   const [drink, setDrink] = React.useState("");
+  const [friesSauce, setFriesSauce] = React.useState("");
   const [removals, setRemovals] = React.useState([]);
   const [selectedSauces, setSelectedSauces] = React.useState([]);
   const [selectedSupplements, setSelectedSupplements] = React.useState([]);
 
   const hasMenu = item.price_menu != null || (item.formats || []).some((f) => f.price_menu != null);
   const needsDrink = formula === "menu";
+  const needsFriesSauce =
+    formula === "menu" && item.menu_fries_included !== false && (friesSauces || []).length > 0;
 
   const displayPrice = React.useMemo(() => {
     const fmt = (item.formats || []).find((f) => f.name === selectedFormat);
@@ -30,7 +33,8 @@ export default function MenuItemCard({ compact = false, dense = false, tablet = 
     return item.price_seul;
   }, [item, formula, selectedFormat]);
 
-  const canAdd = formula === "seul" || (formula === "menu" && drink);
+  const canAdd =
+    formula === "seul" || (formula === "menu" && drink && (!needsFriesSauce || friesSauce));
 
   const itemSupplements = (supplementOptions || []).filter((s) =>
     (item.supplement_options || []).includes(s.name),
@@ -57,6 +61,7 @@ export default function MenuItemCard({ compact = false, dense = false, tablet = 
       unit_price: totalPrice,
       sauces: selectedSauces,
       included_drink: needsDrink ? drink : null,
+      fries_sauce: needsFriesSauce ? friesSauce : null,
       selected_format: selectedFormat,
       selected_variant: null,
       removable_ingredients: removals,
@@ -67,6 +72,7 @@ export default function MenuItemCard({ compact = false, dense = false, tablet = 
     setOpenConfig(false);
     setFormula("seul");
     setDrink("");
+    setFriesSauce("");
     setRemovals([]);
     setSelectedSauces([]);
     setSelectedSupplements([]);
@@ -280,6 +286,9 @@ export default function MenuItemCard({ compact = false, dense = false, tablet = 
           setSelectedSupplements={setSelectedSupplements}
           supplementOptions={itemSupplements}
           sodaFlavours={sodaFlavours}
+          friesSauces={friesSauces}
+          friesSauce={friesSauce}
+          setFriesSauce={setFriesSauce}
           tablet={tablet}
           total={totalPrice}
         />

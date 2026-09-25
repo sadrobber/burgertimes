@@ -17,6 +17,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
 
   const [formula, setFormula] = useState("seul"); // 'seul' | 'menu'
   const [drink, setDrink] = useState("");
+  const [friesSauce, setFriesSauce] = useState("");
   const [styleId, setStyleId] = useState(null);
   const [sizeId, setSizeId] = useState(null);
   const [meats, setMeats] = useState([]);
@@ -30,6 +31,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
     setStepIdx(0);
     setFormula("seul");
     setDrink("");
+    setFriesSauce("");
     setStyleId(null);
     setSizeId(null);
     setMeats([]);
@@ -76,9 +78,12 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
     if ((config?.supplements || []).length > 0) ordered.push("supplements");
     if ((config?.cheeses || []).length > 0) ordered.push("cheeses");
     ordered.push("fromagere");
-    if (formula === "menu") ordered.push("drink");
+    if (formula === "menu") {
+      ordered.push("drink");
+      if ((settings?.fries_sauces || []).length > 0) ordered.push("fries_sauce");
+    }
     return ordered;
-  }, [config, sauces, isFlat, formula]);
+  }, [config, sauces, isFlat, formula, settings]);
   const currentStep = steps[stepIdx];
 
   const price = useMemo(() => {
@@ -133,6 +138,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
     if (currentStep === "sauces") return true;
     if (currentStep === "fromagere") return true;
     if (currentStep === "drink") return !!drink;
+    if (currentStep === "fries_sauce") return !!friesSauce;
     return true;
   };
 
@@ -167,6 +173,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
       sauces: chosenSauces,
       included_drink: formula === "menu" ? drink : null,
       included_drink_variant: null,
+      fries_sauce: formula === "menu" && (settings?.fries_sauces || []).length > 0 ? (friesSauce || null) : null,
       selected_format: null,
       selected_variant: null,
       notes: null,
@@ -274,6 +281,24 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
                     Aucune boisson configurée. Ajoute-les depuis l&apos;admin.
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {currentStep === "fries_sauce" && (
+            <div>
+              <div className="bt-label">Sauce pour tes frites</div>
+              <div className="flex flex-wrap gap-2">
+                {(settings?.fries_sauces || []).map((sauce) => (
+                  <button
+                    key={sauce}
+                    data-testid={`burger-fries-sauce-${sauce}`}
+                    onClick={() => setFriesSauce(sauce)}
+                    className={`bt-chip ${friesSauce === sauce ? "active" : ""}`}
+                  >
+                    {sauce}
+                  </button>
+                ))}
               </div>
             </div>
           )}

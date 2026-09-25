@@ -444,6 +444,7 @@ export default function TabletOrder() {
                   sauceOptions={sauces}
                   sodaFlavours={settings?.soda_flavours || []}
                   supplementOptions={settings?.supplement_options || []}
+                  friesSauces={settings?.fries_sauces || []}
                 />
               ))}
             </div>

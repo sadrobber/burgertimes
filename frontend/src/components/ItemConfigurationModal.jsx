@@ -27,6 +27,9 @@ export default function ItemConfigurationModal({
   setSelectedSupplements = () => {},
   supplementOptions = [],
   sodaFlavours,
+  friesSauces = [],
+  friesSauce,
+  setFriesSauce = () => {},
   tablet = false,
   total,
 }) {
@@ -128,7 +131,9 @@ export default function ItemConfigurationModal({
                   type="button"
                 >
                   <div className="font-accent uppercase tracking-widest">Menu</div>
-                  <div className="mt-1 text-xs text-[#A1A1A1]">Frites incluses</div>
+                  {item.menu_fries_included !== false && (
+                    <div className="mt-1 text-xs text-[#A1A1A1]">Frites incluses</div>
+                  )}
                 </button>
               </div>
             </OptionGroup>
@@ -219,6 +224,26 @@ export default function ItemConfigurationModal({
                     type="button"
                   >
                     {soda}
+                  </button>
+                ))}
+              </div>
+            </OptionGroup>
+          )}
+
+          {formula === "menu"
+            && item.menu_fries_included !== false
+            && (friesSauces || []).length > 0 && (
+            <OptionGroup label="Sauce pour tes frites">
+              <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto">
+                {friesSauces.map((sauce) => (
+                  <button
+                    className={`bt-chip ${friesSauce === sauce ? "active" : ""}`}
+                    data-testid={`item-${item.id}-fries-sauce-${sauce}`}
+                    key={sauce}
+                    onClick={() => setFriesSauce(sauce)}
+                    type="button"
+                  >
+                    {sauce}
                   </button>
                 ))}
               </div>

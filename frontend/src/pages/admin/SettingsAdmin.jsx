@@ -53,6 +53,7 @@ export default function SettingsAdmin() {
         eta_default_min: parseInt(s.eta_default_min, 10) || 0,
         eta_default_max: parseInt(s.eta_default_max, 10) || 0,
         soda_flavours: (s.soda_flavours || []).map((v) => v.trim()).filter(Boolean),
+        fries_sauces: (s.fries_sauces || []).map((v) => v.trim()).filter(Boolean),
         removal_options: (s.removal_options || []).map((v) => v.trim()).filter(Boolean),
         supplement_options: (s.supplement_options || [])
           .filter((x) => (x.name || "").trim())
@@ -952,6 +953,20 @@ export default function SettingsAdmin() {
           placeholder="Une par ligne"
           value={(s.soda_flavours || []).join("\n")}
           onChange={(e) => set("soda_flavours", e.target.value.split("\n"))}
+        />
+      </div>
+
+      <div className="bt-card p-5 space-y-4">
+        <div className="font-display text-2xl uppercase">Sauces pour frites (menu)</div>
+        <div className="text-xs text-[#A1A1A1]">
+          Proposées comme dernière étape quand le client choisit la formule Menu, juste après la boisson. Une par ligne.
+        </div>
+        <textarea
+          data-testid="settings-fries-sauces"
+          className="bt-input min-h-[120px]"
+          placeholder="Une par ligne (ex : Ketchup, Mayo, Algérienne...)"
+          value={(s.fries_sauces || []).join("\n")}
+          onChange={(e) => set("fries_sauces", e.target.value.split("\n"))}
         />
       </div>
 

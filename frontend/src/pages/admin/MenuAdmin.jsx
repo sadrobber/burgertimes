@@ -16,6 +16,7 @@ const emptyItem = {
   ticket_shortcode: "",
   uses_soda_flavours: false,
   uses_sauces: true,
+  menu_fries_included: true,
   available: true,
   is_new: false,
   sort_order: 0,
@@ -456,6 +457,16 @@ function EditItem({ item, categories, removalOptions, supplementOptions = [], on
                 onChange={(e) => set("uses_soda_flavours", e.target.checked)}
               />
               Ajoute une boisson au menu
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                data-testid="menu-input-menu-fries-included"
+                type="checkbox"
+                className="w-4 h-4"
+                checked={it.menu_fries_included !== false}
+                onChange={(e) => set("menu_fries_included", e.target.checked)}
+              />
+              Frites incluses dans le menu
             </label>
             <label className="inline-flex items-center gap-2 text-sm">
               <input

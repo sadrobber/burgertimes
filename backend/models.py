@@ -101,6 +101,7 @@ class MenuItem(BaseModel):
     is_new: bool = False
     has_image: bool = False
     sort_order: int = 0
+    menu_fries_included: bool = True
     created_at: str = Field(default_factory=utc_now_iso)
     updated_at: str = Field(default_factory=utc_now_iso)
 
@@ -121,6 +122,7 @@ class MenuItemCreate(BaseModel):
     available: bool = True
     is_new: bool = False
     sort_order: int = 0
+    menu_fries_included: bool = True
     image_base64: Optional[str] = None
 
 
@@ -140,6 +142,7 @@ class MenuItemUpdate(BaseModel):
     available: Optional[bool] = None
     is_new: Optional[bool] = None
     sort_order: Optional[int] = None
+    menu_fries_included: Optional[bool] = None
     image_base64: Optional[str] = None
 
 
@@ -323,6 +326,7 @@ class Settings(BaseModel):
     eta_default_min: int = 20
     eta_default_max: int = 30
     soda_flavours: List[str] = Field(default_factory=list)
+    fries_sauces: List[str] = Field(default_factory=list)
     removal_options: List[str] = Field(default_factory=list)
     supplement_options: List[dict] = Field(default_factory=list)
     drink_shortcodes: dict = Field(default_factory=dict)
@@ -363,6 +367,7 @@ class SettingsUpdate(BaseModel):
     eta_default_min: Optional[int] = None
     eta_default_max: Optional[int] = None
     soda_flavours: Optional[List[str]] = None
+    fries_sauces: Optional[List[str]] = None
     removal_options: Optional[List[str]] = None
     supplement_options: Optional[List[dict]] = None
     drink_shortcodes: Optional[dict] = None
@@ -409,6 +414,7 @@ class CartLine(BaseModel):
     selected_variant: Optional[str] = None
     included_drink: Optional[str] = None
     included_drink_variant: Optional[str] = None
+    fries_sauce: Optional[str] = None
     sauces: List[str] = Field(default_factory=list)
     removable_ingredients: List[str] = Field(default_factory=list)
     supplements: List[str] = Field(default_factory=list)
@@ -436,6 +442,7 @@ class OrderItemSnapshot(BaseModel):
     ticket_meats: List[dict] = Field(default_factory=list)
     included_drink: Optional[str] = None
     included_drink_variant: Optional[str] = None
+    fries_sauce: Optional[str] = None
     selected_format: Optional[str] = None
     selected_variant: Optional[str] = None
     notes: Optional[str] = None

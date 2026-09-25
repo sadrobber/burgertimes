@@ -216,6 +216,7 @@ export default function Menu() {
                           sauceOptions={sauces}
                           sodaFlavours={settings?.soda_flavours || []}
                           supplementOptions={settings?.supplement_options || []}
+                          friesSauces={settings?.fries_sauces || []}
                         />
                       </motion.div>
                     ))}

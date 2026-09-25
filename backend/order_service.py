@@ -84,11 +84,13 @@ async def build_snapshots(
     supplement_codes: Dict[str, str] | None = None,
     removal_codes: Dict[str, str] | None = None,
     kids_code: str = "c",
+    fries_sauces: List[str] | None = None,
 ) -> Tuple[List[dict], float]:
     """Build validated OrderItemSnapshot list and compute subtotal."""
     snapshots: List[dict] = []
     subtotal = 0.0
     supplement_prices = supplement_prices or {}
+    fries_sauces = fries_sauces or []
 
     for line in lines:
         qty = int(line.get("quantity") or 1)
@@ -122,6 +124,18 @@ async def build_snapshots(
                 )
 
         drink_short = _short(included_drink, drink_codes) if included_drink else None
+
+        # Fries sauce (menu formula only). Silently dropped when the item
+        # opts out of the "Frites incluses" line via menu_fries_included=False,
+        # or when no fries_sauces are configured on the admin side.
+        fries_sauce = (line.get("fries_sauce") or "").strip() or None
+        if fries_sauce and formula != "menu":
+            fries_sauce = None
+        if fries_sauce and fries_sauces and fries_sauce not in fries_sauces:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Sauce frites '{fries_sauce}' non disponible.",
+            )
 
         if line.get("is_burger"):
             burger_config = line.get("burger_config") or {}
@@ -163,6 +177,7 @@ async def build_snapshots(
                     "ticket_meats": ticket_meats,
                     "included_drink": included_drink,
                     "included_drink_variant": included_drink_variant,
+                    "fries_sauce": fries_sauce,
                     "selected_format": None,
                     "selected_variant": None,
                     "notes": line.get("notes"),
@@ -195,6 +210,13 @@ async def build_snapshots(
                     status_code=400,
                     detail=f"Supplément indisponible pour : {item.get('name')}",
                 )
+            # Respect the per-item "menu_fries_included" opt-out: some items
+            # (drinks, sides, kids sets that ship their own combo) never had
+            # fries, so we must ignore any fries_sauce the client sends for them.
+            if item.get("menu_fries_included") is False:
+                item_fries_sauce = None
+            else:
+                item_fries_sauce = fries_sauce
             unit_price = compute_menu_item_price(item, formula, line.get("selected_format"))
             unit_price = round(unit_price + sum(supplement_prices.get(s, 0.0) for s in supplements), 2)
             display_name = item["name"]
@@ -239,6 +261,7 @@ async def build_snapshots(
                     "ticket_meats": [],
                     "included_drink": included_drink,
                     "included_drink_variant": included_drink_variant,
+                    "fries_sauce": item_fries_sauce,
                     "selected_format": line.get("selected_format"),
                     "selected_variant": line.get("selected_variant"),
                     "notes": line.get("notes"),

@@ -992,6 +992,7 @@ async def _quote_or_create(
         supplement_codes=supplement_codes,
         removal_codes=removal_codes,
         kids_code=kids_code,
+        fries_sauces=settings.get("fries_sauces") or [],
     )
     delivery_fee = _compute_delivery_fee(payload.fulfillment, subtotal, settings)
     coupon_discount = 0.0
