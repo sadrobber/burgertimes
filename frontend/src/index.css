@@ -226,6 +226,28 @@ button, [role="button"], a, select, input, label {
 }
 } /* end @layer components */
 
+/* Tablet — bigger TEXT only inside a modal, without touching paddings,
+   gaps or button dimensions. Applied via <div class="bt-big-text"> around
+   the modal content. Only font-size is boosted (with !important to beat
+   Tailwind's text-* utilities); everything else stays at its native size. */
+.bt-big-text { font-size: 1.5rem; }
+.bt-big-text .text-xs   { font-size: 1.05rem !important; }
+.bt-big-text .text-sm   { font-size: 1.2rem  !important; }
+.bt-big-text .text-base { font-size: 1.4rem  !important; }
+.bt-big-text .text-lg   { font-size: 1.55rem !important; }
+.bt-big-text .text-xl   { font-size: 1.75rem !important; }
+.bt-big-text .text-2xl  { font-size: 2rem    !important; }
+.bt-big-text .text-3xl  { font-size: 2.5rem  !important; }
+.bt-big-text .text-4xl  { font-size: 3rem    !important; }
+.bt-big-text .sm\:text-2xl { font-size: 2rem   !important; }
+.bt-big-text .sm\:text-3xl { font-size: 2.5rem !important; }
+.bt-big-text .sm\:text-4xl { font-size: 3rem   !important; }
+.bt-big-text button, .bt-big-text input, .bt-big-text textarea {
+  font-size: 1.35rem !important;
+}
+.bt-big-text .bt-label { font-size: 1.1rem !important; }
+.bt-big-text .bt-chip  { font-size: 1.3rem !important; }
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 10px;

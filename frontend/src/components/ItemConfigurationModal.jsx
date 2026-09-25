@@ -70,7 +70,7 @@ export default function ItemConfigurationModal({
         onClick={(event) => event.stopPropagation()}
         role="dialog"
       >
-        <div style={tablet ? { zoom: 2.5 } : undefined}>
+        <div className={tablet ? "bt-big-text" : ""}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="font-marker text-[#EF2B2D]">Personnalise ta commande</div>
