@@ -33,9 +33,7 @@ export default function MenuItemCard({ compact = false, dense = false, tablet = 
     return item.price_seul;
   }, [item, formula, selectedFormat]);
 
-  const canAdd =
-    formula === "seul"
-    || (formula === "menu" && drink && (!needsFriesSauce || selectedFriesSauces.length > 0));
+  const canAdd = formula === "seul" || (formula === "menu" && drink);
 
   const itemSupplements = (supplementOptions || []).filter((s) =>
     (item.supplement_options || []).includes(s.name),

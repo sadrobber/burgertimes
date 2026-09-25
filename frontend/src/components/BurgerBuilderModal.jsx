@@ -138,7 +138,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
     if (currentStep === "sauces") return true;
     if (currentStep === "fromagere") return true;
     if (currentStep === "drink") return !!drink;
-    if (currentStep === "fries_sauce") return friesSauces_.length > 0;
+    if (currentStep === "fries_sauce") return true;
     return true;
   };
 
