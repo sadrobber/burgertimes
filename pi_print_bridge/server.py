@@ -678,14 +678,19 @@ def build_escpos_ticket(order: dict) -> bytes:
         addr = ", ".join(filter(None, [order.get("address_line1"), order.get("address_line2")]))
         if addr:
             out += _tall(f"Adresse : {addr}")
-        city_line = f"{order.get('postal_code', '')} {order.get('city', '')}".strip()
+        # `or ""`, not a .get() default: the backend stores missing fields as
+        # null, which would otherwise print as "None" ("Ville : None Monaco").
+        city_line = f"{order.get('postal_code') or ''} {order.get('city') or ''}".strip()
         if city_line:
             out += _tall(f"Ville : {city_line}")
     if order.get("pickup_code"):
         out += _tall(f"Code retrait : {order['pickup_code']}")
-    out += _tall(
-        f"Paiement : {PAYMENT_LABEL.get(order.get('payment_method'), order.get('payment_method', ''))}"
-    )
+    # Tablet orders are taken at the counter, so the payment method is
+    # irrelevant there — only online orders print it.
+    if order.get("order_source") != "tablet":
+        out += _tall(
+            f"Paiement : {PAYMENT_LABEL.get(order.get('payment_method'), order.get('payment_method') or '')}"
+        )
     out += BOLD_OFF
 
     out += SIZE_NORMAL
