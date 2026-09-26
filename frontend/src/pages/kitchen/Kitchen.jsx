@@ -23,15 +23,10 @@ import {
   Printer,
   Clock,
   Volume2,
-  AlertTriangle,
 } from "lucide-react";
 
 const POLL_MS = 4000;
 const REMINDER_MS = 20000;
-// If an accepted order still shows "pending" print status this long after
-// acceptance, the Pi/tunnel/printer is very likely offline — a normal
-// print (even 2 copies) completes in well under this window.
-const PRINT_STUCK_MS = 45000;
 
 const TABS = [
   { key: "new", label: "Nouvelles" },
@@ -195,13 +190,6 @@ export default function Kitchen() {
     }
   };
 
-  const printerLikelyOffline = orders.accepted.some(
-    (o) =>
-      o.kitchen_print_status !== "printed" &&
-      o.kitchen_decision_at &&
-      Date.now() - new Date(o.kitchen_decision_at).getTime() > PRINT_STUCK_MS
-  );
-
   const list = orders[tab] || [];
 
   return (
@@ -255,24 +243,6 @@ export default function Kitchen() {
           className="bg-[#EF2B2D] text-[#0A0A0A] text-center py-2 font-accent uppercase tracking-widest text-sm"
         >
           Connexion perdue — nouvelle tentative automatique…
-        </div>
-      )}
-
-      {online && printerLikelyOffline && (
-        <div
-          data-testid="kitchen-printer-offline-banner"
-          className="bg-[#FFB800] text-[#0A0A0A] text-center py-2 font-accent uppercase tracking-widest text-sm flex items-center justify-center gap-2 flex-wrap px-3"
-        >
-          <AlertTriangle className="w-4 h-4" />
-          Imprimante hors ligne — les tickets ne s&apos;impriment plus. Vérifie le Raspberry Pi / ngrok.
-          <button
-            onClick={testPrinter}
-            disabled={testingPrinter}
-            data-testid="kitchen-printer-offline-test-btn"
-            className="underline underline-offset-2 disabled:opacity-50"
-          >
-            Tester maintenant
-          </button>
         </div>
       )}
 

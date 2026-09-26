@@ -1476,7 +1476,12 @@ async def kitchen_orders(_: dict = Depends(require_kitchen)):
     ).sort([("created_at", -1)]).to_list(300)
     docs = [_strip_mongo(d) for d in docs]
     new_orders = [d for d in docs if d.get("status") == "pending" and not d.get("kitchen_decision")]
-    accepted_orders = [d for d in docs if d.get("kitchen_decision") == "accepted"]
+    # Tablet orders are taken at the counter and have their own admin page,
+    # so they're kept out of the kitchen's "Acceptées" list.
+    accepted_orders = [
+        d for d in docs
+        if d.get("kitchen_decision") == "accepted" and d.get("order_source") != "tablet"
+    ]
     declined_orders = [d for d in docs if d.get("kitchen_decision") == "declined"]
     return {
         "new": new_orders,

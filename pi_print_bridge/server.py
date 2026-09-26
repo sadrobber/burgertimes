@@ -669,8 +669,13 @@ def build_escpos_ticket(order: dict) -> bytes:
     out += BOLD_ON + SIZE_TALL
     if customer_name:
         out += _tall(f"Client : {customer_name}")
-    if order.get("customer_phone"):
-        out += _tall(f"Tel : {order['customer_phone']}")
+    phone = (order.get("customer_phone") or "").strip()
+    if phone and order.get("order_source") == "tablet":
+        # The tablet stores "<dial code> <number>" (e.g. "+33 612345678");
+        # counter staff only want the number, so drop the country code.
+        phone = re.sub(r"^\+\d+\s+", "", phone)
+    if phone:
+        out += _tall(f"Tel : {phone}")
     if fulfillment == "delivery":
         _, slot_start = _fmt_datetime(order.get("scheduled_delivery_start", ""))
         if slot_start:
