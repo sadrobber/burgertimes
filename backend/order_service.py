@@ -104,8 +104,9 @@ async def build_snapshots(
         supplements = list(line.get("supplements") or [])
         if len(sauces) > 2:
             raise HTTPException(status_code=400, detail="Maximum 2 sauces par article.")
-        if len(removals) > 2:
-            raise HTTPException(status_code=400, detail="Maximum 2 ingrédients retirés par article.")
+        # 5 = the tablet's limit; the website UI still stops customers at 2.
+        if len(removals) > 5:
+            raise HTTPException(status_code=400, detail="Maximum 5 ingrédients retirés par article.")
         # Validate included drink for menu formula
         included_drink = line.get("included_drink")
         included_drink_variant = line.get("included_drink_variant")
@@ -276,6 +277,9 @@ async def build_snapshots(
                     "ticket_header": ticket_header,
                     "ticket_mods": ticket_mods,
                     "ticket_meats": [],
+                    # Tells the print bridge which ticket_mods entry is the
+                    # kids marker, so it can move it to the right next to the drink.
+                    "kids_code": kids_code if is_kids else None,
                     "included_drink": included_drink,
                     "included_drink_variant": included_drink_variant,
                     "fries_sauces": item_fries_sauces,

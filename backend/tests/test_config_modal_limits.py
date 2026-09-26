@@ -6,7 +6,7 @@ against a temporary TEST menu item with uses_sauces=True and 5 removable ingredi
 
 Verifies:
   * >2 sauces  -> 400
-  * >2 removable_ingredients -> 400
+  * >5 removable_ingredients -> 400 (tablet limit; the website UI stops at 2)
   * removals work for both menu and sans-menu formulas
   * allowed-at-limit selection returns 200 and snapshots notes as "Sans X · Sans Y"
 """
@@ -110,12 +110,22 @@ def test_more_than_2_sauces_rejected(test_item):
     assert "sauces" in r.text.lower()
 
 
-def test_more_than_2_removals_rejected(test_item):
+def test_five_removals_allowed(test_item):
+    r = _quote(
+        test_item["id"],
+        formula="seul",
+        removals=["oignons", "cornichons", "salade", "tomate", "sauce"],
+    )
+    assert r.status_code == 200, r.text
+
+
+def test_more_than_5_removals_rejected(test_item):
+    # The item only has 5 removable ingredients, so repeat one to reach 6.
     r = _quote(
         test_item["id"],
         formula="menu",
         drink="Coca-Cola",
-        removals=["oignons", "cornichons", "salade"],
+        removals=["oignons", "cornichons", "salade", "tomate", "sauce", "oignons"],
     )
     assert r.status_code == 400, r.text
     assert "ingr" in r.text.lower() or "retir" in r.text.lower()

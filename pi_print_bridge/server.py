@@ -590,16 +590,22 @@ def build_escpos_ticket(order: dict) -> bytes:
             item.get("ticket_header") or item.get("ticket_line") or _legacy_item_line(item)
         )
         mods = item.get("ticket_mods") or []
-        # Kids-meal marker: the backend appends this bare letter/word (e.g.
-        # "c") to ticket_mods for kids items (see order_service.py's
-        # kids_code). Pull it out here and render it right-aligned on the
+        # Kids-meal marker: the backend appends the admin's kids code (e.g.
+        # "c" or "+c") to ticket_mods for kids items and also sends it as
+        # "kids_code". Pull it out here and render it right-aligned on the
         # header line, next to the drink, instead of as a centered mod below.
+        # Older orders have no "kids_code" field: fall back to KIDS_MARKER.
+        kids_code = (item.get("kids_code") or "").strip()
+        candidates = {kids_code.lower()} if kids_code else {
+            KIDS_MARKER.lower(), f"+{KIDS_MARKER}".lower()
+        }
         kids_suffix = ""
         for m in mods:
-            if m.strip().lower() == KIDS_MARKER.lower():
-                kids_suffix = f"+{KIDS_MARKER}"
+            if m.strip().lower() in candidates:
+                code = m.strip()
+                kids_suffix = code if code.startswith("+") else f"+{code}"
                 break
-        mods = [m for m in mods if m.strip().lower() != KIDS_MARKER.lower()]
+        mods = [m for m in mods if m.strip().lower() not in candidates]
         # Fries sauce (e.g. "Algerienne"): rendered in its own dedicated slot
         # directly under the header/drink line, never mixed into mods below.
         # Backend now sends up to 2 sauces as a list ("fries_sauces"); old
