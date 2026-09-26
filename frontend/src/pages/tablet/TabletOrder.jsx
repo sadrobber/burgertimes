@@ -1,18 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Baby,
   Bike,
-  CakeSlice,
-  Cookie,
-  CupSoda,
-  Flame,
-  Hamburger,
   LogOut,
   Minus,
   Plus,
-  Popcorn,
-  Salad,
-  Sandwich,
   ShoppingBag,
   ShoppingCart,
   Store,
@@ -26,6 +17,7 @@ import { useCart } from "@/context/CartContext.jsx";
 import { useTabletAuth } from "@/context/TabletAuthContext.jsx";
 import { COUNTRY_CODES, DEFAULT_COUNTRY_ISO, findCountry } from "@/lib/countryCodes";
 import { apiClient, fmtError, formatEur, tabletClient } from "@/lib/api";
+import { buildTabletTabs } from "@/lib/tabletCategories";
 
 const initialForm = {
   first: "",
@@ -37,29 +29,6 @@ const initialForm = {
   notes: "",
 };
 
-const CATEGORY_LABELS = {
-  signatures: "Signatures",
-  classiques: "Les classiques",
-  "smash-burgers": "Smash burgers",
-  kids: "Enfants",
-  sides: "Accompagnements",
-  sandwiches: "Sandwichs",
-  drinks: "Boissons",
-  desserts: "Desserts",
-  wraps: "Wraps",
-};
-
-const CATEGORY_ICONS = {
-  signatures: Hamburger,
-  classiques: Hamburger,
-  "smash-burgers": Flame,
-  kids: Baby,
-  sides: Popcorn,
-  sandwiches: Sandwich,
-  drinks: CupSoda,
-  desserts: CakeSlice,
-  wraps: Salad,
-};
 
 function phoneParts(phone) {
   const digits = (phone || "").replace(/\D/g, "");
@@ -356,10 +325,20 @@ export default function TabletOrder() {
   };
 
   const categories = [...new Set(menu.map((item) => item.category))];
-  const activeCategoryLabel = activeCategory
-    ? CATEGORY_LABELS[activeCategory] || activeCategory.replaceAll("-", " ")
-    : null;
-  const visibleItems = menu.filter((item) => item.category === activeCategory);
+  // Categories merged in admin ("Catégories combinées") show as one tab.
+  const tabs = buildTabletTabs(categories, settings?.tablet_category_groups);
+  // activeCategory may still hold a plain slug that now lives inside a group.
+  const activeTab =
+    tabs.find((tab) => tab.key === activeCategory) ||
+    tabs.find((tab) => tab.categories.includes(activeCategory)) ||
+    tabs[0];
+  const activeCategoryLabel = activeTab?.label || null;
+  // Merged tabs list each member category's items together, in the group's order.
+  const visibleItems = activeTab
+    ? menu
+        .filter((item) => activeTab.categories.includes(item.category))
+        .sort((a, b) => activeTab.categories.indexOf(a.category) - activeTab.categories.indexOf(b.category))
+    : [];
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0A0A0A] text-[#F5F1E8]" data-testid="tablet-order-page">
@@ -397,9 +376,8 @@ export default function TabletOrder() {
             className="grid grid-cols-[repeat(auto-fill,minmax(156px,1fr))] gap-2 border-b border-[#262626] bg-[#0F0F0F] px-3 py-2.5"
             data-testid="tablet-category-picker"
           >
-            {categories.map((category) => {
-              const Icon = CATEGORY_ICONS[category] || Cookie;
-              const active = activeCategory === category;
+            {tabs.map(({ key, label, Icon }) => {
+              const active = activeTab?.key === key;
               return (
                 <button
                   className={`flex min-h-[126px] flex-col items-center justify-center gap-3 rounded-[15px] border-2 px-[9px] py-[15px] text-center font-accent uppercase tracking-widest transition-colors ${
@@ -407,14 +385,12 @@ export default function TabletOrder() {
                       ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
                       : "border-[#262626] bg-[#141414] text-[#F5F1E8] hover:border-[#EF2B2D]"
                   }`}
-                  data-testid={`tablet-category-select-${category}`}
-                  key={category}
-                  onClick={() => setActiveCategory(category)}
+                  data-testid={`tablet-category-select-${key}`}
+                  key={key}
+                  onClick={() => setActiveCategory(key)}
                 >
                   <Icon className="h-12 w-12 shrink-0" strokeWidth={1.5} />
-                  <span className="text-[18px] leading-tight">
-                    {CATEGORY_LABELS[category] || category.replaceAll("-", " ")}
-                  </span>
+                  <span className="text-[18px] leading-tight">{label}</span>
                 </button>
               );
             })}
@@ -435,7 +411,7 @@ export default function TabletOrder() {
                 {activeCategoryLabel || "Menu"}
               </h2>
             </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-testid={`tablet-category-${activeCategory}`}>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-testid={`tablet-category-${activeTab?.key}`}>
               {visibleItems.map((item) => (
                 <MenuItemCard
                   dense

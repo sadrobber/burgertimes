@@ -88,7 +88,8 @@ export default function MenuItemCard({ compact = false, dense = false, tablet = 
       tabIndex={0}
       className="bt-card relative flex flex-col overflow-hidden cursor-pointer"
     >
-      {!compact && <div className="aspect-[4/3] w-full overflow-hidden bg-[#1A1A1A] relative">
+      {/* Tablet: picture 30% smaller (70% width, same 4:3 shape), centred. */}
+      {!compact && <div className={`aspect-[4/3] overflow-hidden bg-[#1A1A1A] relative ${tablet ? "w-[70%] mx-auto mt-2" : "w-full"}`}>
         {item.has_image ? (
           <img
             src={menuImageUrl(item.id)}

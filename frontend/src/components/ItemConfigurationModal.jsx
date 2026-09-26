@@ -69,7 +69,9 @@ export default function ItemConfigurationModal({
       <section
         aria-modal="true"
         aria-labelledby={`item-${item.id}-config-title`}
-        className="max-h-[92vh] w-full overflow-y-auto border-2 border-[#EF2B2D] bg-[#141414] p-5 shadow-2xl sm:max-w-2xl sm:p-7"
+        className={`max-h-[92vh] w-full overflow-y-auto border-2 border-[#EF2B2D] bg-[#141414] p-5 shadow-2xl sm:p-7 ${
+          tablet ? "sm:max-w-none" : "sm:max-w-2xl"
+        }`}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
       >
