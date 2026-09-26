@@ -199,7 +199,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false, scal
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm p-0 md:p-6"
     >
       {/* Tablet: the box is `scale` × the normal 768px width (admin setting,
-          capped by the screen) and all text inside is 3× bigger (bt-text-3x).
+          capped by the screen) and all text inside is 2× bigger (bt-text-2x).
           Font sizes are set directly instead of CSS zoom, which didn't take
           effect on the tablet. */}
       <div
@@ -208,7 +208,7 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false, scal
         }`}
         style={tablet ? { maxWidth: `${768 * scale}px` } : undefined}
       >
-        <div className={tablet ? "bt-text-3x flex-1 flex flex-col min-h-0" : "contents"}>
+        <div className={tablet ? "bt-text-2x flex-1 flex flex-col min-h-0" : "contents"}>
         <div className="flex items-center justify-between border-b-2 border-[#262626] p-4">
           <div>
             <div className="text-xs font-accent tracking-widest text-[#EF2B2D]">
