@@ -411,7 +411,13 @@ export default function TabletOrder() {
                 {activeCategoryLabel || "Menu"}
               </h2>
             </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-testid={`tablet-category-${activeTab?.key}`}>
+            {/* Product cards are 30% smaller than the old 2/3-column layout: each
+                column is 70% of what a 1/2 (1/3 from sm) column used to be, so
+                4 cards now fit per row. Gap 10px = gap-2.5. */}
+            <div
+              className="grid grid-cols-[repeat(auto-fill,calc((100%_-_10px)/2*0.7))] gap-2.5 sm:grid-cols-[repeat(auto-fill,calc((100%_-_20px)/3*0.7))]"
+              data-testid={`tablet-category-${activeTab?.key}`}
+            >
               {visibleItems.map((item) => (
                 <MenuItemCard
                   dense
