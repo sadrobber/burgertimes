@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { adminClient, fmtError, formatEur, builderImageUrl } from "@/lib/api";
 import { Save, Send, Trash2, Bell, CreditCard, Wallet, RefreshCw, ImagePlus, Plus } from "lucide-react";
+import TabletCategoryGroupsCard from "@/components/admin/TabletCategoryGroupsCard.jsx";
 
 const DAYS = [
   ["mon", "Lundi"],
@@ -549,6 +550,14 @@ export default function SettingsAdmin() {
           </button>
         </div>
       </div>
+
+      {/* Only take this field from the response so unsaved edits elsewhere on the page survive. */}
+      <TabletCategoryGroupsCard
+        groups={s.tablet_category_groups || []}
+        onSaved={(data) =>
+          setS((cur) => ({ ...cur, tablet_category_groups: data.tablet_category_groups || [] }))
+        }
+      />
 
       {/* Tacos builder image */}
       <div className="bt-card p-5 space-y-4">

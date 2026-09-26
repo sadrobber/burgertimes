@@ -391,13 +391,21 @@ async def admin_receipt_preview(_: dict = Depends(require_admin)):
     n1 = it1_short if it1_short.lower().startswith("menu") else f"Menu {it1_short}"
     nk = kid_short if kid_short.lower().startswith("menu") else f"Menu {kid_short}"
 
-    def _blk(qty, name, meats_inline, drink, mods):
-        hdr = f"{qty} {name}"
+    kids_suffix = kids_code if kids_code.startswith("+") else f"+{kids_code}"
+
+    def _blk(qty, name, meats_inline, drink, mods, suffix=""):
+        # Same layout as the printed ticket: name on the left, kids code +
+        # [drink] pushed to the far right, modifiers centred below.
+        hdr = f"{qty} x {name}"
         if meats_inline:
             hdr += f" {meats_inline}"
-        if drink:
-            hdr += f" [{drink}]"
-        rows = [hdr]
+        right = " ".join(x for x in (suffix, f"[{drink}]" if drink else "") if x)
+        if not right:
+            rows = [hdr]
+        elif len(hdr) + 1 + len(right) <= 46:
+            rows = [hdr + right.rjust(46 - len(hdr))]
+        else:
+            rows = [hdr, right.rjust(46)]
         rows += [m.center(46) for m in mods]
         return rows
 
@@ -406,7 +414,7 @@ async def admin_receipt_preview(_: dict = Depends(require_admin)):
         _blk(2, it2_short, "", None, []),
     ]
     if kids:
-        blocks.append(_blk(1, nk, "", drink_code, [kids_code]))
+        blocks.append(_blk(1, nk, "", drink_code, [], suffix=kids_suffix))
 
     divider = "-" * 46
     text = ["[ A EMPORTER ]".center(46), "BURGER TIMES".center(46), divider, "COMMANDE #APERCU".center(46), divider]
@@ -1468,7 +1476,12 @@ async def kitchen_orders(_: dict = Depends(require_kitchen)):
     ).sort([("created_at", -1)]).to_list(300)
     docs = [_strip_mongo(d) for d in docs]
     new_orders = [d for d in docs if d.get("status") == "pending" and not d.get("kitchen_decision")]
-    accepted_orders = [d for d in docs if d.get("kitchen_decision") == "accepted"]
+    # Tablet orders are taken at the counter and have their own admin page,
+    # so they're kept out of the kitchen's "Acceptées" list.
+    accepted_orders = [
+        d for d in docs
+        if d.get("kitchen_decision") == "accepted" and d.get("order_source") != "tablet"
+    ]
     declined_orders = [d for d in docs if d.get("kitchen_decision") == "declined"]
     return {
         "new": new_orders,

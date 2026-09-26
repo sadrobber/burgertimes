@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import { Plus, X } from "lucide-react";
 import { formatEur } from "@/lib/api";
 
-const MAX_REMOVALS = 2;
+const MAX_REMOVALS = 3;
+const MAX_REMOVALS_TABLET = 5; // staff at the counter can take bigger "sans ..." requests
 const MAX_SAUCES = 2;
 
 export default function ItemConfigurationModal({
@@ -33,6 +34,8 @@ export default function ItemConfigurationModal({
   tablet = false,
   total,
 }) {
+  const maxRemovals = tablet ? MAX_REMOVALS_TABLET : MAX_REMOVALS;
+
   const chooseFormula = (nextFormula) => {
     setFormula(nextFormula);
     if (nextFormula === "seul") {
@@ -51,7 +54,7 @@ export default function ItemConfigurationModal({
   const toggleRemoval = (ingredient) => {
     setRemovals((current) => {
       if (current.includes(ingredient)) return current.filter((value) => value !== ingredient);
-      if (current.length >= MAX_REMOVALS) return current;
+      if (current.length >= maxRemovals) return current;
       return [...current, ingredient];
     });
   };
@@ -66,7 +69,9 @@ export default function ItemConfigurationModal({
       <section
         aria-modal="true"
         aria-labelledby={`item-${item.id}-config-title`}
-        className="max-h-[92vh] w-full overflow-y-auto border-2 border-[#EF2B2D] bg-[#141414] p-5 shadow-2xl sm:max-w-2xl sm:p-7"
+        className={`max-h-[92vh] w-full overflow-y-auto border-2 border-[#EF2B2D] bg-[#141414] p-5 shadow-2xl sm:p-7 ${
+          tablet ? "sm:max-w-none" : "sm:max-w-2xl"
+        }`}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
       >
@@ -139,11 +144,11 @@ export default function ItemConfigurationModal({
           )}
 
           {(item.removable_ingredients || []).length > 0 && (
-            <OptionGroup label={`Retirer jusqu'à ${MAX_REMOVALS} ingrédients`}>
+            <OptionGroup label={`Retirer jusqu'à ${maxRemovals} ingrédients`}>
               <div className="flex flex-wrap gap-2">
                 {item.removable_ingredients.map((ingredient) => {
                   const selected = removals.includes(ingredient);
-                  const limitReached = !selected && removals.length >= MAX_REMOVALS;
+                  const limitReached = !selected && removals.length >= maxRemovals;
                   return (
                     <button
                       className={`bt-chip ${selected ? "active" : ""} disabled:opacity-40`}
