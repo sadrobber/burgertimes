@@ -712,7 +712,12 @@ export default function TabletOrder() {
           </div>
         </aside>
       </div>
-      <BurgerBuilderModal open={builderOpen} onClose={() => setBuilderOpen(false)} tablet />
+      <BurgerBuilderModal
+        open={builderOpen}
+        onClose={() => setBuilderOpen(false)}
+        scale={settings?.tablet_builder_scale || 2}
+        tablet
+      />
     </div>
   );
 }

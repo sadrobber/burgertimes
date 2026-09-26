@@ -343,6 +343,8 @@ class Settings(BaseModel):
     tablet_category_groups: List[dict] = Field(default_factory=list)
     # Tablet-only name/icon per category slug (+ "tacos-builder"): {slug: {name, icon}}
     tablet_category_overrides: dict = Field(default_factory=dict)
+    # Scale of the whole Tacos builder popup on the tablet (2.0 = twice as big).
+    tablet_builder_scale: float = 2.0
     contact_phone: str = "04.97.07.17.93"
     contact_address: str = "6 Avenue de Villaine, 06240 Beausoleil"
     contact_instagram: str = "@burgertimes_bsl"
@@ -386,6 +388,7 @@ class SettingsUpdate(BaseModel):
     tablet_orders_when_closed: Optional[bool] = None
     tablet_category_groups: Optional[List[dict]] = None
     tablet_category_overrides: Optional[dict] = None
+    tablet_builder_scale: Optional[float] = Field(default=None, ge=1.0, le=2.5)
     contact_phone: Optional[str] = None
     contact_address: Optional[str] = None
     contact_instagram: Optional[str] = None
