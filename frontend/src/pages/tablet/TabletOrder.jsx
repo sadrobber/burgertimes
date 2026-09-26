@@ -394,7 +394,7 @@ export default function TabletOrder() {
         {/* LEFT: fixed category tabs + scrolling products */}
         <div className="flex min-h-0 flex-col">
           <nav
-            className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2 border-b border-[#262626] bg-[#0F0F0F] px-3 py-2.5"
+            className="grid grid-cols-[repeat(auto-fill,minmax(156px,1fr))] gap-2 border-b border-[#262626] bg-[#0F0F0F] px-3 py-2.5"
             data-testid="tablet-category-picker"
           >
             {categories.map((category) => {
@@ -402,7 +402,7 @@ export default function TabletOrder() {
               const active = activeCategory === category;
               return (
                 <button
-                  className={`flex min-h-[84px] flex-col items-center justify-center gap-2 rounded-[10px] border-2 px-1.5 py-2.5 text-center font-accent uppercase tracking-widest transition-colors ${
+                  className={`flex min-h-[126px] flex-col items-center justify-center gap-3 rounded-[15px] border-2 px-[9px] py-[15px] text-center font-accent uppercase tracking-widest transition-colors ${
                     active
                       ? "border-[#EF2B2D] bg-[#EF2B2D] text-[#0A0A0A]"
                       : "border-[#262626] bg-[#141414] text-[#F5F1E8] hover:border-[#EF2B2D]"
@@ -411,20 +411,20 @@ export default function TabletOrder() {
                   key={category}
                   onClick={() => setActiveCategory(category)}
                 >
-                  <Icon className="h-8 w-8 shrink-0" strokeWidth={1.5} />
-                  <span className="text-xs leading-tight">
+                  <Icon className="h-12 w-12 shrink-0" strokeWidth={1.5} />
+                  <span className="text-[18px] leading-tight">
                     {CATEGORY_LABELS[category] || category.replaceAll("-", " ")}
                   </span>
                 </button>
               );
             })}
             <button
-              className="flex min-h-[84px] flex-col items-center justify-center gap-2 rounded-[10px] border-2 border-[#262626] bg-[#141414] px-1.5 py-2.5 text-center font-accent uppercase tracking-widest text-[#F5F1E8] transition-colors hover:border-[#EF2B2D]"
+              className="flex min-h-[126px] flex-col items-center justify-center gap-3 rounded-[15px] border-2 border-[#262626] bg-[#141414] px-[9px] py-[15px] text-center font-accent uppercase tracking-widest text-[#F5F1E8] transition-colors hover:border-[#EF2B2D]"
               data-testid="tablet-open-tacos-builder"
               onClick={() => setBuilderOpen(true)}
             >
-              <UtensilsCrossed className="h-8 w-8 shrink-0" strokeWidth={1.5} />
-              <span className="text-xs leading-tight">Composer un Tacos</span>
+              <UtensilsCrossed className="h-12 w-12 shrink-0" strokeWidth={1.5} />
+              <span className="text-[18px] leading-tight">Composer un Tacos</span>
             </button>
           </nav>
 
