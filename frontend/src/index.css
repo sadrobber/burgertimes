@@ -248,6 +248,11 @@ button, [role="button"], a, select, input, label {
 .bt-big-text .bt-label { font-size: 1.1rem !important; }
 .bt-big-text .bt-chip  { font-size: 1.3rem !important; }
 
+/* Tablet Tacos builder: zoom EVERYTHING inside (buttons, icons, spacing, the
+   small +/- meat buttons), not just the text. Applied to the modal's inner
+   wrapper, so the modal box itself still fits the screen (max-h 92vh). */
+.bt-tablet-zoom { zoom: 1.2; }
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 10px;

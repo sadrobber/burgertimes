@@ -551,11 +551,16 @@ export default function SettingsAdmin() {
         </div>
       </div>
 
-      {/* Only take this field from the response so unsaved edits elsewhere on the page survive. */}
+      {/* Only take these fields from the response so unsaved edits elsewhere on the page survive. */}
       <TabletCategoryGroupsCard
         groups={s.tablet_category_groups || []}
+        overrides={s.tablet_category_overrides || {}}
         onSaved={(data) =>
-          setS((cur) => ({ ...cur, tablet_category_groups: data.tablet_category_groups || [] }))
+          setS((cur) => ({
+            ...cur,
+            tablet_category_groups: data.tablet_category_groups || [],
+            tablet_category_overrides: data.tablet_category_overrides || {},
+          }))
         }
       />
 

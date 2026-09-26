@@ -199,9 +199,12 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm p-0 md:p-6"
     >
       <div
-        className="bg-[#141414] border-2 border-[#EF2B2D] shadow-[8px_8px_0_0_#EF2B2D] w-full md:max-w-3xl max-h-[92vh] flex flex-col"
+        className={`bg-[#141414] border-2 border-[#EF2B2D] shadow-[8px_8px_0_0_#EF2B2D] w-full max-h-[92vh] flex flex-col ${
+          tablet ? "md:max-w-none" : "md:max-w-3xl"
+        }`}
       >
-        <div className={tablet ? "bt-big-text flex-1 flex flex-col min-h-0" : "contents"}>
+        {/* Tablet: full-width modal, bigger text and everything zoomed 1.2x. */}
+        <div className={tablet ? "bt-big-text bt-tablet-zoom flex-1 flex flex-col min-h-0" : "contents"}>
         <div className="flex items-center justify-between border-b-2 border-[#262626] p-4">
           <div>
             <div className="text-xs font-accent tracking-widest text-[#EF2B2D]">

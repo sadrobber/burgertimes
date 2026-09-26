@@ -341,6 +341,8 @@ class Settings(BaseModel):
     tablet_orders_when_closed: bool = False
     # Tablet-only merged category tabs: [{id, name, icon, categories: [slug, ...]}]
     tablet_category_groups: List[dict] = Field(default_factory=list)
+    # Tablet-only name/icon per category slug (+ "tacos-builder"): {slug: {name, icon}}
+    tablet_category_overrides: dict = Field(default_factory=dict)
     contact_phone: str = "04.97.07.17.93"
     contact_address: str = "6 Avenue de Villaine, 06240 Beausoleil"
     contact_instagram: str = "@burgertimes_bsl"
@@ -383,6 +385,7 @@ class SettingsUpdate(BaseModel):
     delivery_window_minutes: Optional[int] = None
     tablet_orders_when_closed: Optional[bool] = None
     tablet_category_groups: Optional[List[dict]] = None
+    tablet_category_overrides: Optional[dict] = None
     contact_phone: Optional[str] = None
     contact_address: Optional[str] = None
     contact_instagram: Optional[str] = None
