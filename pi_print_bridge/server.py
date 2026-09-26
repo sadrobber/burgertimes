@@ -610,7 +610,8 @@ def build_escpos_ticket(order: dict) -> bytes:
             raw_fries = [legacy] if legacy else []
         if isinstance(raw_fries, str):
             raw_fries = [raw_fries]
-        fries_sauces = [str(s).strip() for s in raw_fries if s and str(s).strip()]
+        # Bracketed like the drink ("[Ketchup]") so it reads as part of that column.
+        fries_sauces = [f"[{str(s).strip()}]" for s in raw_fries if s and str(s).strip()]
         name, drink, meats = _resolve_item_meats(item, header)
         out += ALIGN_LEFT
         if meats:
