@@ -38,7 +38,7 @@ export function CartProvider({ children }) {
       // Merge only truly identical selections. A "Sans oignons" item must
       // stay separate from the regular version of the same menu item.
       const key = (l) =>
-        `${l.item_id}|${l.formula}|${l.selected_format || ""}|${l.selected_variant || ""}|${l.notes || ""}|${(l.sauces || []).join(",")}|${(l.removable_ingredients || []).join(",")}|${(l.supplements || []).join(",")}`;
+        `${l.item_id}|${l.formula}|${l.selected_format || ""}|${l.selected_variant || ""}|${l.notes || ""}|${l.included_drink || ""}|${(l.fries_sauces || []).join(",")}|${(l.sauces || []).join(",")}|${(l.removable_ingredients || []).join(",")}|${(l.supplements || []).join(",")}`;
       const idx = prev.findIndex((l) => !l.is_burger && key(l) === key(line));
       if (idx >= 0) {
         const next = [...prev];

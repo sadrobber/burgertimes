@@ -225,6 +225,7 @@ export default function TabletOrder() {
         selected_variant: item.selected_variant || null,
         included_drink: item.included_drink || null,
         included_drink_variant: item.included_drink_variant || null,
+        fries_sauces: item.fries_sauces || [],
         sauces: item.sauces || [],
         removable_ingredients: item.removable_ingredients || [],
         supplements: item.supplements || [],

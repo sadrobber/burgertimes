@@ -111,6 +111,7 @@ export default function Checkout() {
       selected_variant: it.selected_variant || null,
       included_drink: it.included_drink || null,
       included_drink_variant: it.included_drink_variant || null,
+      fries_sauces: it.fries_sauces || [],
       sauces: it.sauces || [],
       removable_ingredients: it.removable_ingredients || [],
       supplements: it.supplements || [],
