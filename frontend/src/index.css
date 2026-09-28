@@ -248,6 +248,20 @@ button, [role="button"], a, select, input, label {
 .bt-big-text .bt-label { font-size: 1.1rem !important; }
 .bt-big-text .bt-chip  { font-size: 1.3rem !important; }
 
+/* Tablet Tacos builder: every text 2x its normal size (Tailwind size x 2).
+   Line-heights are reset too — Tailwind's text-* set them in rem, which
+   would make the bigger lines overlap. */
+.bt-text-2x { font-size: 2rem; line-height: 1.2; }
+.bt-text-2x .text-xs   { font-size: 1.5rem  !important; line-height: 1.2 !important; }
+.bt-text-2x .text-sm   { font-size: 1.75rem !important; line-height: 1.2 !important; }
+.bt-text-2x .text-base { font-size: 2rem    !important; line-height: 1.2 !important; }
+.bt-text-2x .text-lg   { font-size: 2.25rem !important; line-height: 1.2 !important; }
+.bt-text-2x .text-xl   { font-size: 2.5rem  !important; line-height: 1.2 !important; }
+.bt-text-2x .text-2xl  { font-size: 3rem    !important; line-height: 1.1 !important; }
+.bt-text-2x .bt-label  { font-size: 1.7rem  !important; }
+.bt-text-2x .bt-chip   { font-size: 1.7rem  !important; }
+.bt-text-2x button:not([class*="text-"]):not(.bt-chip) { font-size: 2rem; }
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 10px;

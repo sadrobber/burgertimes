@@ -74,6 +74,7 @@ export default function SettingsAdmin() {
         delivery_lead_minutes: parseInt(s.delivery_lead_minutes, 10) || 40,
         delivery_window_minutes: parseInt(s.delivery_window_minutes, 10) || 20,
         tablet_orders_when_closed: !!s.tablet_orders_when_closed,
+        tablet_builder_scale: parseFloat(s.tablet_builder_scale) || 2,
         contact_phone: s.contact_phone,
         contact_address: s.contact_address,
         contact_instagram: s.contact_instagram,
@@ -551,13 +552,41 @@ export default function SettingsAdmin() {
         </div>
       </div>
 
-      {/* Only take this field from the response so unsaved edits elsewhere on the page survive. */}
+      {/* Only take these fields from the response so unsaved edits elsewhere on the page survive. */}
       <TabletCategoryGroupsCard
         groups={s.tablet_category_groups || []}
+        overrides={s.tablet_category_overrides || {}}
         onSaved={(data) =>
-          setS((cur) => ({ ...cur, tablet_category_groups: data.tablet_category_groups || [] }))
+          setS((cur) => ({
+            ...cur,
+            tablet_category_groups: data.tablet_category_groups || [],
+            tablet_category_overrides: data.tablet_category_overrides || {},
+          }))
         }
       />
+
+      <div className="bt-card p-5 space-y-3" data-testid="settings-tablet-builder-scale-card">
+        <div className="font-display text-2xl uppercase">Taille du Tacos Builder (tablette)</div>
+        <p className="text-sm text-[#A1A1A1]">
+          Agrandit toute la fenêtre « Composer un Tacos » sur la tablette (×2 = deux fois plus
+          grande). Le site web ne change pas. Clique « Enregistrer ».
+        </p>
+        <div className="flex items-center gap-4">
+          <input
+            className="w-full max-w-sm accent-[#EF2B2D]"
+            data-testid="settings-tablet-builder-scale"
+            max="2.5"
+            min="1"
+            onChange={(e) => set("tablet_builder_scale", parseFloat(e.target.value))}
+            step="0.1"
+            type="range"
+            value={s.tablet_builder_scale ?? 2}
+          />
+          <span className="font-display text-2xl text-[#EF2B2D]">
+            ×{Number(s.tablet_builder_scale ?? 2).toFixed(1)}
+          </span>
+        </div>
+      </div>
 
       {/* Tacos builder image */}
       <div className="bt-card p-5 space-y-4">

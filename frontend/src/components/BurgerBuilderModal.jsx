@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 const STEP_KEYS = ["format", "style", "size", "meats", "cheeses", "supplements", "sauces", "fromagere"];
 
-export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
+export default function BurgerBuilderModal({ open, onClose, tablet = false, scale = 2 }) {
   const { t } = useI18n();
   const { addBurgerItem } = useCart();
   const [config, setConfig] = useState(null);
@@ -198,10 +198,17 @@ export default function BurgerBuilderModal({ open, onClose, tablet = false }) {
       data-testid="burger-builder-modal"
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/80 backdrop-blur-sm p-0 md:p-6"
     >
+      {/* Tablet: the box is `scale` × the normal 768px width (admin setting,
+          capped by the screen) and all text inside is 2× bigger (bt-text-2x).
+          Font sizes are set directly instead of CSS zoom, which didn't take
+          effect on the tablet. */}
       <div
-        className="bg-[#141414] border-2 border-[#EF2B2D] shadow-[8px_8px_0_0_#EF2B2D] w-full md:max-w-3xl max-h-[92vh] flex flex-col"
+        className={`bg-[#141414] border-2 border-[#EF2B2D] shadow-[8px_8px_0_0_#EF2B2D] w-full max-h-[92vh] flex flex-col ${
+          tablet ? "" : "md:max-w-3xl"
+        }`}
+        style={tablet ? { maxWidth: `${768 * scale}px` } : undefined}
       >
-        <div className={tablet ? "bt-big-text flex-1 flex flex-col min-h-0" : "contents"}>
+        <div className={tablet ? "bt-text-2x flex-1 flex flex-col min-h-0" : "contents"}>
         <div className="flex items-center justify-between border-b-2 border-[#262626] p-4">
           <div>
             <div className="text-xs font-accent tracking-widest text-[#EF2B2D]">

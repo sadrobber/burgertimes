@@ -8,7 +8,6 @@ import {
   ShoppingCart,
   Store,
   Trash2,
-  UtensilsCrossed,
 } from "lucide-react";
 import { toast } from "sonner";
 import BurgerBuilderModal from "@/components/BurgerBuilderModal.jsx";
@@ -17,7 +16,7 @@ import { useCart } from "@/context/CartContext.jsx";
 import { useTabletAuth } from "@/context/TabletAuthContext.jsx";
 import { COUNTRY_CODES, DEFAULT_COUNTRY_ISO, findCountry } from "@/lib/countryCodes";
 import { apiClient, fmtError, formatEur, tabletClient } from "@/lib/api";
-import { buildTabletTabs } from "@/lib/tabletCategories";
+import { TACOS_BUILDER_KEY, buildTabletTabs, tabletCategoryDisplay } from "@/lib/tabletCategories";
 
 const initialForm = {
   first: "",
@@ -325,8 +324,14 @@ export default function TabletOrder() {
   };
 
   const categories = [...new Set(menu.map((item) => item.category))];
-  // Categories merged in admin ("Catégories combinées") show as one tab.
-  const tabs = buildTabletTabs(categories, settings?.tablet_category_groups);
+  // Categories merged in admin ("Catégories combinées") show as one tab;
+  // names/icons can be overridden per category in admin too.
+  const tabs = buildTabletTabs(
+    categories,
+    settings?.tablet_category_groups,
+    settings?.tablet_category_overrides,
+  );
+  const tacosButton = tabletCategoryDisplay(TACOS_BUILDER_KEY, settings?.tablet_category_overrides);
   // activeCategory may still hold a plain slug that now lives inside a group.
   const activeTab =
     tabs.find((tab) => tab.key === activeCategory) ||
@@ -399,8 +404,8 @@ export default function TabletOrder() {
               data-testid="tablet-open-tacos-builder"
               onClick={() => setBuilderOpen(true)}
             >
-              <UtensilsCrossed className="h-12 w-12 shrink-0" strokeWidth={1.5} />
-              <span className="text-[18px] leading-tight">Composer un Tacos</span>
+              <tacosButton.Icon className="h-12 w-12 shrink-0" strokeWidth={1.5} />
+              <span className="text-[18px] leading-tight">{tacosButton.label}</span>
             </button>
           </nav>
 
@@ -411,7 +416,13 @@ export default function TabletOrder() {
                 {activeCategoryLabel || "Menu"}
               </h2>
             </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-testid={`tablet-category-${activeTab?.key}`}>
+            {/* Product cards are 30% smaller than the old 2/3-column layout: each
+                column is 70% of what a 1/2 (1/3 from sm) column used to be, so
+                4 cards now fit per row. Gap 10px = gap-2.5. */}
+            <div
+              className="grid grid-cols-[repeat(auto-fill,calc((100%_-_10px)/2*0.7))] gap-2.5 sm:grid-cols-[repeat(auto-fill,calc((100%_-_20px)/3*0.7))]"
+              data-testid={`tablet-category-${activeTab?.key}`}
+            >
               {visibleItems.map((item) => (
                 <MenuItemCard
                   dense
@@ -701,7 +712,12 @@ export default function TabletOrder() {
           </div>
         </aside>
       </div>
-      <BurgerBuilderModal open={builderOpen} onClose={() => setBuilderOpen(false)} tablet />
+      <BurgerBuilderModal
+        open={builderOpen}
+        onClose={() => setBuilderOpen(false)}
+        scale={settings?.tablet_builder_scale || 2}
+        tablet
+      />
     </div>
   );
 }
