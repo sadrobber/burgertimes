@@ -216,11 +216,41 @@ _FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
 ]
 
+# Label boxes — the drink, kids marker, fries sauces, meat letters and
+# modifiers each print as white text in their own black rounded box, drawn
+# with Pillow and sent as raster images (GS v 0) like the banner. If Pillow
+# isn't installed, or BOX_LABELS is False, the old plain-text labels print.
+BOX_LABELS = True      # set to False to go back to plain-text labels
+BOX_FONT_PX = 30
+BOX_PAD_X = 10         # space between the text and the box edge, left/right
+BOX_PAD_Y = 6          # same, top/bottom
+BOX_GAP_PX = 6         # vertical gap between rows of boxes
+BOX_H_GAP_PX = 8       # horizontal gap between boxes on one row
+BOX_RADIUS = 4         # rounded corners
+BOX_MARGIN_PX = 8      # boxes never come closer than this to the paper edge
+# The printer can't put its own text and an image on the same line, so to
+# get the first meat letter and the drink box up on the item name's line,
+# every item name and note is drawn into the images too — one 12x24-dot
+# bitmap glyph per character, doubled one dot to the right like the
+# printer's own bold text — so the whole item section shares one look.
+# False = item names and notes stay printer text and the boxes start on
+# the line below the name.
+ITEM_TEXT_AS_IMAGE = True
+_MONO_FONT_CANDIDATES = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",  # Raspberry Pi OS default
+    "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+]
+
 try:
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import Image, ImageChops, ImageDraw, ImageFont
 except ImportError:  # pragma: no cover
     Image = None
     logger.warning("Pillow not installed: banner icons disabled (pip install pillow)")
+
+
+def _boxes_on() -> bool:
+    """Label boxes need Pillow and BOX_LABELS; otherwise plain text prints."""
+    return BOX_LABELS and Image is not None
 
 
 def _banner_font(px: int):
@@ -343,6 +373,162 @@ def _banner_bytes(fulfillment: str, label: str) -> bytes | None:
             logger.exception("Banner icon rendering failed, falling back to text")
             return None
     return _BANNER_CACHE[fulfillment]
+
+
+def _box_words(text: str) -> list[str]:
+    """Words of a label, a lone "+" kept with the word after it
+    ("BBQ + Cheddar" -> "BBQ", "+ Cheddar"), so a wrap never strands it."""
+    words: list[str] = []
+    for word in text.split():
+        if words and words[-1] == "+":
+            words[-1] += f" {word}"
+        else:
+            words.append(word)
+    return words
+
+
+def _box_lines(text: str, font, max_w: int) -> list[str]:
+    """Split `text` at word boundaries (_box_words) into lines at most max_w
+    px wide. A single word wider than max_w is cut, so a box never outgrows
+    the paper."""
+    def width(s: str) -> int:
+        left, _, right, _ = font.getbbox(s)
+        return right - left
+
+    lines: list[str] = []
+    for word in _box_words(text):
+        if lines and width(f"{lines[-1]} {word}") <= max_w:
+            lines[-1] += f" {word}"
+            continue
+        while len(word) > 1 and width(word) > max_w:
+            cut = len(word) - 1
+            while cut > 1 and width(word[:cut]) > max_w:
+                cut -= 1
+            lines.append(word[:cut])
+            word = word[cut:]
+        lines.append(word)
+    return lines
+
+
+def _box_image(text: str, max_w: int | None = None):
+    """One label as an 'L' image: white text centred in a black rounded box,
+    sized to the text plus padding and never wider than max_w (default: the
+    paper minus BOX_MARGIN_PX each side; longer labels wrap). Surrounding
+    [ ] are dropped. None if it can't be drawn — print plain text instead."""
+    if not _boxes_on():
+        return None
+    try:
+        font = _banner_font(BOX_FONT_PX)
+        if max_w is None:
+            max_w = BANNER_WIDTH_PX - 2 * BOX_MARGIN_PX
+        lines = _box_lines(text.strip().strip("[]").strip(), font, max_w - 2 * BOX_PAD_X)
+        if not lines:
+            return None
+        ascent, descent = font.getmetrics()
+        line_h = ascent + descent  # same height for every label, descenders or not
+        bboxes = [font.getbbox(ln) for ln in lines]
+        w = max(r - l for l, _, r, _ in bboxes) + 2 * BOX_PAD_X
+        h = line_h * len(lines) + 2 * BOX_PAD_Y
+        img = Image.new("L", (w, h), 255)
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle([0, 0, w - 1, h - 1], radius=BOX_RADIUS, fill=0)
+        for i, (ln, (l, _, r, _)) in enumerate(zip(lines, bboxes)):
+            d.text(((w - (r - l)) // 2 - l, BOX_PAD_Y + i * line_h), ln, font=font, fill=255)
+        return img
+    except Exception:  # noqa: BLE001 — never block a print because of a box
+        logger.exception("Label box rendering failed, falling back to text")
+        return None
+
+
+def _box_row(row: list) -> bytes | None:
+    """One row of the item layout — (image, x) pairs, vertically centred —
+    as a single raster image BANNER_WIDTH_PX wide (the width of the text
+    lines), printed left-aligned so the printer's own alignment never
+    matters. None if it can't be drawn — print plain text instead."""
+    try:
+        height = max(img.height for img, _ in row)
+        # BOX_GAP_PX split above and below, so stacked rows are BOX_GAP_PX apart.
+        canvas = Image.new("L", (BANNER_WIDTH_PX, height + BOX_GAP_PX), 255)
+        for img, x in row:
+            canvas.paste(img, (max(0, min(x, BANNER_WIDTH_PX - img.width)),
+                               BOX_GAP_PX // 2 + (height - img.height) // 2))
+        return ALIGN_LEFT + _raster(canvas)
+    except Exception:  # noqa: BLE001 — never block a print because of a box
+        logger.exception("Label box row rendering failed, falling back to text")
+        return None
+
+
+_GLYPH_CACHE: dict = {}
+
+
+def _glyph(ch: str):
+    """One character as a 12x24-dot bitmap — the printer's own cell size.
+    Drawn 4x oversize in a regular-weight monospace font, shrunk to the cell,
+    then doubled one dot to the right, which is how the printer makes its
+    bold text. None if no monospace font is installed."""
+    if ch not in _GLYPH_CACHE:
+        path = next((p for p in _MONO_FONT_CANDIDATES if os.path.exists(p)), None)
+        if path is None:
+            return None
+        ss = 4
+        font = ImageFont.truetype(path, 80)  # a 0.6 em advance = 48 px = 12 dots x 4
+        ascent, descent = font.getmetrics()
+        big = Image.new("L", (12 * ss, 24 * ss), 255)
+        ImageDraw.Draw(big).text((0, (24 * ss - ascent - descent) // 2), ch, font=font, fill=0)
+        cell = big.resize((12, 24), Image.LANCZOS).point(lambda p: 0 if p < 150 else 255)
+        shifted = Image.new("L", (12, 24), 255)
+        shifted.paste(cell, (1, 0))
+        _GLYPH_CACHE[ch] = ImageChops.darker(cell, shifted)
+    return _GLYPH_CACHE[ch]
+
+
+def _text_image(text: str):
+    """`text` as one row of printer-like bitmap glyphs at the item text size
+    (12x24 dots per character, scaled by ITEM_SIZE_LEVEL like the printer
+    does), so it can share a raster row with the boxes. None when
+    ITEM_TEXT_AS_IMAGE is off, no monospace font is installed, or drawing
+    fails: the caller prints the printer's own text instead."""
+    if not ITEM_TEXT_AS_IMAGE or not _boxes_on() or not text:
+        return None
+    try:
+        glyphs = [_glyph(ch) for ch in text]
+        if any(g is None for g in glyphs):
+            return None
+        strip = Image.new("L", (12 * len(text), 24), 255)
+        for i, g in enumerate(glyphs):
+            strip.paste(g, (12 * i, 0))
+        return strip.resize((12 * _ITEM_W * len(text), 24 * _ITEM_H), Image.NEAREST)
+    except Exception:  # noqa: BLE001 — never block a print because of the text
+        logger.exception("Item text rendering failed, printing it as text")
+        return None
+
+
+def _text_rows(text: str, align: str = "left") -> list | None:
+    """`text` wrapped at BIG_LINE_WIDTH like the printer text would be, as
+    one image row (for _box_row) per line, left-aligned or centred.
+    None = print plain text instead."""
+    rows = []
+    for line in textwrap.wrap(text, width=BIG_LINE_WIDTH) or [""]:
+        img = _text_image(line)
+        if img is None:
+            return None
+        rows.append([(img, 0 if align == "left" else (BANNER_WIDTH_PX - img.width) // 2)])
+    return rows
+
+
+def _text_block(text: str, align: str = "left") -> bytes | None:
+    """_text_rows rendered to printer bytes — used for the notes, so they
+    match the drawn item names. None = print plain text instead."""
+    rows = _text_rows(text, align)
+    if rows is None:
+        return None
+    out = b""
+    for row in rows:
+        line = _box_row(row)
+        if line is None:
+            return None
+        out += line
+    return out
 
 
 def _fmt_datetime(iso_str: str) -> tuple[str, str]:
@@ -532,6 +718,103 @@ def _meat_column_block(name: str, meats: list[tuple[int, str]], mods: list[str])
     return out
 
 
+def _item_boxes(head: str, suffix: str, fries: list[str], meats: list[tuple[int, str]],
+                mods: list[str], right_item: bool = False) -> bytes | None:
+    """One item in the box layout:
+
+        1 x Menu Tacos v3  [T]         [+c] [Cherry]
+                           [B]            [Ketchup]
+                           [K]           [Moutarde]
+                        [BBQ]
+                     [Marrocaine]
+                       [+ Oeuf]
+
+    The name on the left; the meat letters in a column two characters
+    after it (where the text layout puts them), one box per portion, from
+    the name's line down; the kids marker + drink flush right on the
+    name's line, then one fries sauce per row under them; then the
+    modifiers centred, one per row. Everything but the name is a box.
+    The name is drawn into the first row's image (ITEM_TEXT_AS_IMAGE) so
+    the boxes can start on its line; when it doesn't fit beside them it
+    goes on its own line(s) above. A "right" item (admin: encadré à
+    droite) has its name in a box on the right instead — first on the top
+    row, before the marker and drink — with any meat letters at the left
+    margin. None = print the plain-text layout instead."""
+    if not _boxes_on():
+        return None
+    match = re.search(r"\s*(\[[^\]]*\])\s*$", head)
+    drink = match.group(1) if match else ""
+    name = head[: match.start()].rstrip() if match else head.rstrip()
+    top = [x for x in (suffix, drink) if x]
+    if right_item:  # "1 x Frites" boxes as "Frites", like the drink; "2 x Frites" stays
+        top = [re.sub(r"^1 x ", "", name)] + top
+    lo, hi = BOX_MARGIN_PX, BANNER_WIDTH_PX - BOX_MARGIN_PX
+    cw = 12 * _ITEM_W  # one printer character, in dots
+
+    # Right column, flush right: [+c] [Cherry], then one fries sauce per row.
+    # A top row too wide for the paper is split into one box per row.
+    right = []
+    for labels in ([top] if top else []) + [[s] for s in fries]:
+        boxes = [_box_image(t) for t in labels]
+        if any(b is None for b in boxes):
+            return None
+        total = sum(b.width for b in boxes) + BOX_H_GAP_PX * (len(boxes) - 1)
+        if total > hi - lo:
+            right += [[(b, hi - b.width)] for b in boxes]
+            continue
+        x = hi - total
+        row = []
+        for b in boxes:
+            row.append((b, x))
+            x += b.width + BOX_H_GAP_PX
+        right.append(row)
+    right_edge = min((row[0][1] for row in right), default=hi)  # nothing crosses this
+
+    # Letter column: two characters after the name — or at the left margin
+    # when there's no name on the left, or a long one leaves no room.
+    letters = [_box_image(code) for q, code in meats for _ in range(q)]
+    if any(b is None for b in letters):
+        return None
+    name_w = 0 if right_item else len(name) * cw
+    col = lo if right_item else name_w + 2 * cw
+    under = bool(letters) and col + max(b.width for b in letters) + BOX_H_GAP_PX > right_edge
+    if under:
+        col = lo
+
+    # The name: drawn into the first row when it fits beside the boxes, else
+    # drawn on its own row(s) above them, else the printer's own text.
+    out, rows, base = b"", [], 0
+    if not right_item:
+        name_img = _text_image(name)
+        first_right = right[0][0][1] if right else hi
+        if name_img is not None and not under and name_w + BOX_H_GAP_PX <= first_right:
+            rows.append([(name_img, 0)])
+        elif name_img is not None:
+            rows = _text_rows(name) or []
+            base = len(rows)
+        if not rows:
+            out += _wrapped_big(name)
+    for i in range(max(len(letters), len(right))):
+        r = base + i
+        if r == len(rows):
+            rows.append([])
+        if i < len(letters):
+            rows[r].append((letters[i], col))
+        if i < len(right):
+            rows[r] += right[i]
+    for m in mods:
+        box = _box_image(m)
+        if box is None:
+            return None
+        rows.append([(box, (BANNER_WIDTH_PX - box.width) // 2)])
+    for row in rows:
+        line = _box_row(row)
+        if line is None:
+            return None
+        out += line
+    return out
+
+
 def _legacy_item_line(item: dict) -> str:
     """Fallback compact line for orders created before ticket_line existed."""
     cfg = item.get("burger_config") or {}
@@ -616,39 +899,53 @@ def build_escpos_ticket(order: dict) -> bytes:
             raw_fries = [legacy] if legacy else []
         if isinstance(raw_fries, str):
             raw_fries = [raw_fries]
-        # Bracketed like the drink ("[Ketchup]") so it reads as part of that column.
-        fries_sauces = [f"[{str(s).strip()}]" for s in raw_fries if s and str(s).strip()]
+        fries_sauces = [str(s).strip() for s in raw_fries if s and str(s).strip()]
         name, drink, meats = _resolve_item_meats(item, header)
         out += ALIGN_LEFT
-        if meats:
-            meat_count = sum(q for q, _ in meats)
-            out += _header_line(f"{name} v{meat_count} {drink}".strip(), suffix=kids_suffix)
+        head = f"{name} v{sum(q for q, _ in meats)} {drink}".strip() if meats else header
+        # Items flagged "encadré à droite" in the admin print as a box on the
+        # right of the ticket; consecutive ones share one block (no divider).
+        right_item = _boxes_on() and item.get("ticket_position") == "right"
+        boxed = _item_boxes(head, kids_suffix, fries_sauces, meats, mods, right_item)
+        if boxed is not None:
+            out += boxed
+        elif meats:
+            out += _header_line(head, suffix=kids_suffix)
             # Right-justified (not centered) so each sauce sits directly
             # under the drink, one per line, in the order the backend sent.
             for fs in fries_sauces:
-                out += _wrapped_big_right(fs)
+                out += _wrapped_big_right(f"[{fs}]")
             out += _meat_column_block(name, meats, mods)
         else:
             out += _header_line(header, suffix=kids_suffix)
             for fs in fries_sauces:
-                out += _wrapped_big_right(fs)
+                out += _wrapped_big_right(f"[{fs}]")
             if mods:
                 out += ALIGN_CENTER
                 for m in mods:
                     out += _wrapped_big(m)
         if item.get("notes"):
-            out += ALIGN_CENTER
-            out += _wrapped_big(f"Note: {item['notes']}")
+            note = _text_block(f"Note: {item['notes']}", "center")
+            if note is None:
+                out += ALIGN_CENTER
+                out += _wrapped_big(f"Note: {item['notes']}")
+            else:
+                out += note
         # Divider between items, in the same normal-size, non-bold style as
         # the other dashed lines. Skipped after the last item when there's no
-        # order note, because the section's closing divider follows directly.
-        if idx < len(items) - 1 or order.get("notes"):
+        # order note, because the section's closing divider follows directly,
+        # and between two "right" items, which share one block.
+        nxt = items[idx + 1] if idx + 1 < len(items) else None
+        shared = (boxed is not None and right_item
+                  and nxt is not None and nxt.get("ticket_position") == "right")
+        if (idx < len(items) - 1 or order.get("notes")) and not shared:
             out += BOLD_OFF + SIZE_NORMAL + ALIGN_LEFT
             out += _line(DIVIDER)
             out += BOLD_ON + ITEM_SIZE_BYTE
     if order.get("notes"):
         out += ALIGN_LEFT
-        out += _wrapped_big(f"Note: {order['notes']}")
+        note = _text_block(f"Note: {order['notes']}", "left")
+        out += note if note is not None else _wrapped_big(f"Note: {order['notes']}")
     out += BOLD_OFF + SIZE_NORMAL
     out += ALIGN_LEFT
     out += _line(DIVIDER)

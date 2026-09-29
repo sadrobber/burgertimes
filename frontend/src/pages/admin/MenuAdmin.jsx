@@ -17,6 +17,7 @@ const emptyItem = {
   uses_soda_flavours: false,
   uses_sauces: true,
   menu_fries_included: true,
+  ticket_position: "left",
   available: true,
   is_new: false,
   sort_order: 0,
@@ -467,6 +468,16 @@ function EditItem({ item, categories, removalOptions, supplementOptions = [], on
                 onChange={(e) => set("menu_fries_included", e.target.checked)}
               />
               Frites incluses dans le menu
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input
+                data-testid="menu-input-ticket-right"
+                type="checkbox"
+                className="w-4 h-4"
+                checked={it.ticket_position === "right"}
+                onChange={(e) => set("ticket_position", e.target.checked ? "right" : "left")}
+              />
+              Encadré noir à droite sur le ticket
             </label>
             <label className="inline-flex items-center gap-2 text-sm">
               <input

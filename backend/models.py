@@ -102,6 +102,9 @@ class MenuItem(BaseModel):
     has_image: bool = False
     sort_order: int = 0
     menu_fries_included: bool = True
+    # Kitchen ticket: "left" = normal item line; "right" = printed as a black
+    # box on the right of the ticket (like the drink), e.g. sides and desserts.
+    ticket_position: str = "left"
     created_at: str = Field(default_factory=utc_now_iso)
     updated_at: str = Field(default_factory=utc_now_iso)
 
@@ -123,6 +126,7 @@ class MenuItemCreate(BaseModel):
     is_new: bool = False
     sort_order: int = 0
     menu_fries_included: bool = True
+    ticket_position: str = "left"
     image_base64: Optional[str] = None
 
 
@@ -143,6 +147,7 @@ class MenuItemUpdate(BaseModel):
     is_new: Optional[bool] = None
     sort_order: Optional[int] = None
     menu_fries_included: Optional[bool] = None
+    ticket_position: Optional[str] = None
     image_base64: Optional[str] = None
 
 

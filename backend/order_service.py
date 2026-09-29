@@ -280,6 +280,9 @@ async def build_snapshots(
                     # Tells the print bridge which ticket_mods entry is the
                     # kids marker, so it can move it to the right next to the drink.
                     "kids_code": kids_code if is_kids else None,
+                    # "right" = the admin flagged this item "encadré à droite":
+                    # the print bridge boxes it on the right of the ticket.
+                    "ticket_position": item.get("ticket_position") or "left",
                     "included_drink": included_drink,
                     "included_drink_variant": included_drink_variant,
                     "fries_sauces": item_fries_sauces,
