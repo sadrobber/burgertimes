@@ -444,6 +444,23 @@ async def checkout_delivery_slots():
     }
 
 
+# Tablet orders print as soon as they're taken, so their time slots start at
+# the next quarter hour instead of delivery_lead_minutes from now (website).
+TABLET_SLOT_LEAD_MINUTES = 0
+
+
+@api.get("/tablet/slots")
+async def tablet_slots(_: dict = Depends(require_tablet)):
+    settings = await db.settings.find_one({"id": "singleton"}, NO_IMAGE_FIELDS) or Settings().model_dump()
+    _strip_mongo(settings)
+    return {
+        "enabled": bool(settings.get("scheduled_delivery_enabled", True)),
+        "lead_minutes": TABLET_SLOT_LEAD_MINUTES,
+        "window_minutes": int(settings.get("delivery_window_minutes", 20) or 20),
+        "slots": delivery_slots(settings, lead_minutes=TABLET_SLOT_LEAD_MINUTES),
+    }
+
+
 @api.get("/categories")
 async def list_categories():
     cats = await db.categories.find({"active": True}).sort("sort_order", 1).to_list(200)
@@ -928,7 +945,11 @@ async def _quote_or_create(
         # any order type (à emporter / sur place too).
         if payload.fulfillment != "delivery" and order_source != "tablet":
             raise HTTPException(status_code=400, detail="Un créneau est réservé aux livraisons.")
-        scheduled_slot = validate_delivery_slot(settings, payload.scheduled_delivery_start)
+        scheduled_slot = validate_delivery_slot(
+            settings,
+            payload.scheduled_delivery_start,
+            lead_minutes=TABLET_SLOT_LEAD_MINUTES if order_source == "tablet" else None,
+        )
 
     if create:
         if not scheduled_slot:

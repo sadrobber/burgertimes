@@ -256,6 +256,18 @@ class TestDeliverySlotsRules:
         now = datetime(2026, 1, 5, 12, 0, tzinfo=ZoneInfo("Europe/Paris"))  # Monday
         assert delivery_slots(settings, now=now) == []
 
+    def test_tablet_lead_zero_starts_at_next_quarter_hour(self):
+        """The tablet (lead 0) offers the next quarter hour; the website
+        keeps the admin lead time (40 min) on the same settings."""
+        from zoneinfo import ZoneInfo
+        settings = self._open_all_day_settings()
+        settings["delivery_window_minutes"] = 15
+        now = datetime(2026, 1, 5, 11, 27, tzinfo=ZoneInfo("Europe/Paris"))
+        tablet = [s["time"] for s in delivery_slots(settings, now=now, lead_minutes=0)]
+        web = [s["time"] for s in delivery_slots(settings, now=now)]
+        assert tablet[:3] == ["11:30", "11:45", "12:00"], tablet[:3]
+        assert web[0] == "12:15", web[:3]
+
     def test_slots_are_today_only_local(self):
         from zoneinfo import ZoneInfo
         settings = self._open_all_day_settings()

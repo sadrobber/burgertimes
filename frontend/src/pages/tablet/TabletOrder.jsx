@@ -139,13 +139,14 @@ export default function TabletOrder() {
   }, []);
 
   useEffect(() => {
-    // Today's time slots, for every order type. Refreshed every minute so
-    // past times drop off and, late in the day, the picker switches to
+    // Today's time slots, for every order type, from the next quarter hour
+    // (tablet orders print at once). Refreshed every minute so past times
+    // drop off and, late in the day, the picker switches to
     // "Plus de créneau aujourd'hui" instead of offering stale times.
     let cancelled = false;
     const load = () =>
-      apiClient
-        .get("/checkout/delivery-slots")
+      tabletClient
+        .get("/tablet/slots")
         .then((response) => {
           if (cancelled) return;
           const next = response.data?.enabled ? response.data.slots || [] : [];

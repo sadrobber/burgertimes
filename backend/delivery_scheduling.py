@@ -29,15 +29,21 @@ def _ceil_to_window(value: datetime, minutes: int) -> datetime:
     return value.replace(hour=0, minute=0) + timedelta(minutes=rounded)
 
 
-def delivery_slots(settings: dict, now: Optional[datetime] = None) -> list[dict[str, str]]:
-    """Return valid same-day delivery arrival windows in restaurant local time."""
+def delivery_slots(
+    settings: dict, now: Optional[datetime] = None, lead_minutes: Optional[int] = None
+) -> list[dict[str, str]]:
+    """Return valid same-day delivery arrival windows in restaurant local time.
+    `lead_minutes` overrides the admin's delivery_lead_minutes (the tablet
+    uses 0: its orders print at once, so the next quarter hour is fine)."""
     if not settings.get("scheduled_delivery_enabled", True):
         return []
 
     tz = _timezone(settings)
     now_local = now.astimezone(tz) if now else datetime.now(tz)
     window_minutes = max(5, int(settings.get("delivery_window_minutes", 20) or 20))
-    lead_minutes = max(0, int(settings.get("delivery_lead_minutes", 40) or 40))
+    if lead_minutes is None:
+        lead_minutes = int(settings.get("delivery_lead_minutes", 40) or 40)
+    lead_minutes = max(0, lead_minutes)
     cutoff_minutes = max(0, int(settings.get("last_order_buffer_minutes", 0) or 0))
     day = settings.get("hours_per_day", {}).get(WEEKDAYS[now_local.weekday()], {})
     if not day.get("is_open"):
@@ -70,8 +76,11 @@ def delivery_slots(settings: dict, now: Optional[datetime] = None) -> list[dict[
     return slots
 
 
-def validate_delivery_slot(settings: dict, scheduled_start: Optional[str]) -> Optional[dict[str, str]]:
-    """Match an incoming ISO start time to a currently valid server-side slot."""
+def validate_delivery_slot(
+    settings: dict, scheduled_start: Optional[str], lead_minutes: Optional[int] = None
+) -> Optional[dict[str, str]]:
+    """Match an incoming ISO start time to a currently valid server-side slot
+    (`lead_minutes` as in delivery_slots)."""
     if not scheduled_start:
         return None
     try:
@@ -79,7 +88,7 @@ def validate_delivery_slot(settings: dict, scheduled_start: Optional[str]) -> Op
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Créneau de livraison invalide.") from exc
 
-    for slot in delivery_slots(settings):
+    for slot in delivery_slots(settings, lead_minutes=lead_minutes):
         start = datetime.fromisoformat(slot["start"])
         if requested == start:
             return slot
