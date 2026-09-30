@@ -223,17 +223,14 @@ class TestPrintCopiesStaticContract:
         # server.py may not be importable easily; grep the source instead.
         with open("/app/backend/server.py") as f:
             src = f.read()
-        # scheduled branch returns print_queued False BEFORE any print push
-        assert 'print_queued": False' in src or "print_queued': False" in src or 'print_queued":False' in src
-        # immediate branch pushes 3 copies via background task
+        # every tablet order pushes 2 copies via background task
         assert "_push_print_job_background(order_id, accepted, copies=2)" in src, \
             "tablet_create_order must push 2 copies on immediate accept"
 
-    def test_scheduled_tablet_order_does_not_print(self):
+    def test_scheduled_tablet_order_prints_right_away(self):
         with open("/app/backend/server.py") as f:
             src = f.read()
-        # ensure the scheduled short-circuit precedes the print push
-        idx_return = src.find('"print_queued": False')
-        idx_push = src.find("_push_print_job_background(order_id, accepted, copies=2)")
-        assert idx_return != -1 and idx_push != -1
-        assert idx_return < idx_push, "scheduled return must come before print push"
+        # no scheduled short-circuit any more: scheduled tablet orders print
+        # at once, their time shown big on the ticket
+        assert '"print_queued": False' not in src
+        assert "_push_print_job_background(order_id, accepted, copies=2)" in src

@@ -18,9 +18,9 @@ Scope:
 4. Menu removable_ingredients default backfill on burger categories via
    /api/menu (public).
 5. /tablet/orders code static check:
-   * scheduled branch returns {"print_queued": False} without calling
-     _push_print_job_background
-   * non-scheduled branch calls _push_print_job_background(..., copies=1)
+   * every tablet order, scheduled ones included, calls
+     _push_print_job_background(..., copies=2) right away
+6. /api/tablet/quote accepts a time slot on pickup and dine-in (quote only).
 
 STRICT SAFETY: never POSTs /api/tablet/orders or /kitchen/accept/reprint/
 test-print. Never queues a real print. Uses direct Mongo insert only for a
@@ -450,15 +450,14 @@ class TestMenuDefaults:
 
 class TestTabletOrdersPrintCodePath:
     """Static source-level assertions about tablet_create_order:
-      * scheduled branch returns print_queued:false and does NOT call
-        _push_print_job_background
-      * non-scheduled branch calls _push_print_job_background(..., copies=2)
+      * every tablet order — scheduled ones too — is accepted and calls
+        _push_print_job_background(..., copies=2) right away; the ticket
+        shows a scheduled order's time in a big box
     STRICT SAFETY: no real HTTP call to /api/tablet/orders is made."""
 
-    def test_scheduled_branch_returns_print_queued_false(self):
+    def test_scheduled_orders_print_right_away_too(self):
         src = inspect.getsource(server_module.tablet_create_order)
-        assert 'print_queued": False' in src or "'print_queued': False" in src, src
-        assert "scheduled_delivery_start" in src
+        assert 'print_queued": False' not in src and "'print_queued': False" not in src, src
 
     def test_non_scheduled_queues_two_print_copies(self):
         src = inspect.getsource(server_module.tablet_create_order)
@@ -466,16 +465,40 @@ class TestTabletOrdersPrintCodePath:
         assert re.search(r"_push_print_job_background\([^)]*copies=2", src), src
         assert 'print_queued": True' in src or "'print_queued': True" in src
 
-    def test_scheduled_branch_precedes_print_queue(self):
-        src = inspect.getsource(server_module.tablet_create_order)
-        scheduled_idx = src.find("scheduled_delivery_start")
-        print_idx = src.find("_push_print_job_background")
-        assert scheduled_idx != -1 and print_idx != -1
-        assert scheduled_idx < print_idx
-
     def test_push_print_job_background_default_is_three(self):
         sig = inspect.signature(server_module._push_print_job_background)
         assert sig.parameters["copies"].default == 3
+
+
+class TestTabletSchedulesAnyOrderType:
+    """/api/tablet/quote accepts a time slot on pickup and dine-in too (the
+    public /checkout/quote still rejects that: test_schedule_and_lookup).
+    Quote only — no order is created, nothing prints."""
+
+    @pytest.mark.parametrize("fulfillment", ["pickup", "dine_in"])
+    def test_tablet_quote_accepts_slot(self, tablet_headers, fulfillment):
+        slots = requests.get(f"{API}/checkout/delivery-slots", timeout=15).json()
+        if not slots.get("enabled") or not slots.get("slots"):
+            pytest.skip("No slot left today (closed / late) — nothing to schedule")
+        start = slots["slots"][-1]["start"]  # the latest one, so it can't expire mid-test
+        menu = requests.get(f"{API}/menu", timeout=15).json()
+        item = next((m for m in menu if m.get("available")), menu[0])
+        r = requests.post(
+            f"{API}/tablet/quote",
+            headers=tablet_headers,
+            json={
+                "items": [{"line_id": "L1", "item_id": item["id"], "quantity": 1, "formula": "seul"}],
+                "fulfillment": fulfillment,
+                "customer_first_name": "",
+                "customer_last_name": "",
+                "customer_phone": "0000000000",
+                "payment_method": "cash",
+                "scheduled_delivery_start": start,
+            },
+            timeout=15,
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["scheduled_delivery_start"] == start
 
 
 class TestKitchenAcceptPrintCodePath:

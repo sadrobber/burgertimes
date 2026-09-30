@@ -88,7 +88,7 @@ function buildReceiptText(order) {
     line,
     customerName ? `Client : ${customerName}` : null,
     order.customer_phone ? `Tel : ${order.customer_phone}` : null,
-    slotLabel ? `Créneau livraison : ${slotLabel}` : null,
+    slotLabel ? `${order.fulfillment === "delivery" ? "Créneau livraison" : "Créneau"} : ${slotLabel}` : null,
     order.fulfillment === "delivery"
       ? [order.address_line1, order.address_line2].filter(Boolean).join(", ") || null
       : null,

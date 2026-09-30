@@ -924,7 +924,9 @@ async def _quote_or_create(
 
     scheduled_slot = None
     if payload.scheduled_delivery_start:
-        if payload.fulfillment != "delivery":
+        # The website only schedules deliveries; the staff tablet can schedule
+        # any order type (à emporter / sur place too).
+        if payload.fulfillment != "delivery" and order_source != "tablet":
             raise HTTPException(status_code=400, detail="Un créneau est réservé aux livraisons.")
         scheduled_slot = validate_delivery_slot(settings, payload.scheduled_delivery_start)
 
@@ -1136,9 +1138,9 @@ async def tablet_create_order(payload: CheckoutPayload, staff: dict = Depends(re
         order_source="tablet",
         tablet_taken_by=staff.get("email"),
     )
-    if payload.scheduled_delivery_start:
-        return {**result, "print_queued": False}
-
+    # Scheduled tablet orders print right away too — the ticket shows their
+    # time in a big box. (Website ones only reach the kitchen at
+    # kitchen_release_at, i.e. delivery_lead_minutes before their time.)
     order_id = result["order_id"]
     now = utc_now_iso()
     claimed = await db.orders.find_one_and_update(

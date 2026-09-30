@@ -77,9 +77,13 @@ DOTS_PER_MM = 8
 
 def _feed_gap(mm: int) -> bytes:
     """Blank vertical space of `mm` millimetres (ESC J — print & feed n
-    dots; no text lines involved, just paper). ESC J's dot count is a
-    single byte (0-255), so a big gap is split across several commands."""
-    dots = round(mm * DOTS_PER_MM)
+    dots; no text lines involved, just paper)."""
+    return _feed_dots(round(mm * DOTS_PER_MM))
+
+
+def _feed_dots(dots: int) -> bytes:
+    """Blank vertical space of `dots` dots. ESC J's dot count is a single
+    byte (0-255), so a big gap is split across several commands."""
     out = b""
     while dots > 0:
         step = min(dots, 255)
@@ -141,6 +145,10 @@ DIVIDER = "-" * 46
 NORMAL_LINE_WIDTH = 46
 KIDS_MARKER = "c"  # matches the backend's default kids_code (order_service.py)
 CLIENT_GAP_MM = 50  # blank gap between the order/total and the client info block
+# Scheduled orders: "PRÉVUE POUR" over the time, in one big black box centred
+# (both ways) in that gap. Drawn with Pillow like the other boxes (BOX_LABELS).
+SCHEDULE_TIME_PX = 120   # font size of the time — 8 dots = 1 mm
+SCHEDULE_LABEL_PX = 34   # font size of "PRÉVUE POUR"
 
 # ===========================================================================
 # >>>>>  ITEM TEXT SIZE — PICK YOUR LEVEL HERE  (1 = smallest ... 10 = biggest)
@@ -437,6 +445,42 @@ def _box_image(text: str, max_w: int | None = None):
         return img
     except Exception:  # noqa: BLE001 — never block a print because of a box
         logger.exception("Label box rendering failed, falling back to text")
+        return None
+
+
+def _schedule_gap(hhmm: str) -> bytes | None:
+    """The blank gap between the TOTAL and the client block with a scheduled
+    order's time in its middle, both ways: "PRÉVUE POUR" over the time in
+    large white digits, in one black rounded box. None if there's no time
+    or it can't be drawn: print the plain gap, and the time goes in the
+    client block as a text line instead."""
+    if not _boxes_on() or not hhmm:
+        return None
+    try:
+        label = "PRÉVUE POUR"
+        label_font = _banner_font(SCHEDULE_LABEL_PX)
+        time_font = _banner_font(SCHEDULE_TIME_PX)
+        l0, t0, r0, b0 = label_font.getbbox(label)
+        l1, t1, r1, b1 = time_font.getbbox(hhmm)
+        pad_x, pad_y, between = 36, 20, 14
+        w = max(r0 - l0, r1 - l1) + 2 * pad_x
+        h = (b0 - t0) + between + (b1 - t1) + 2 * pad_y
+        img = Image.new("L", (w, h), 255)
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle([0, 0, w - 1, h - 1], radius=BOX_RADIUS, fill=0)
+        d.text(((w - (r0 - l0)) // 2 - l0, pad_y - t0), label, font=label_font, fill=255)
+        d.text(((w - (r1 - l1)) // 2 - l1, pad_y + (b0 - t0) + between - t1), hhmm,
+               font=time_font, fill=255)
+        # Full-width canvas printed left-aligned, like the other boxes, so
+        # it's centred on the text column whatever the printer's alignment.
+        canvas = Image.new("L", (BANNER_WIDTH_PX, h), 255)
+        canvas.paste(img, ((BANNER_WIDTH_PX - w) // 2, 0))
+        gap = CLIENT_GAP_MM * DOTS_PER_MM
+        above = max(0, (gap - h) // 2)
+        return (_feed_dots(above) + ALIGN_LEFT + _raster(canvas)
+                + _feed_dots(max(0, gap - h - above)))
+    except Exception:  # noqa: BLE001 — never block a print because of the box
+        logger.exception("Schedule box rendering failed, printing the time as text")
         return None
 
 
@@ -957,8 +1001,10 @@ def build_escpos_ticket(order: dict) -> bytes:
 
     # Blank gap — separates the order/total from the client details below by
     # plain paper space (no dashed divider) so the two sections read as
-    # clearly distinct blocks.
-    out += _feed_gap(CLIENT_GAP_MM)
+    # clearly distinct blocks. A scheduled order's time sits big in its middle.
+    _, scheduled_time = _fmt_datetime(order.get("scheduled_delivery_start", ""))
+    schedule_gap = _schedule_gap(scheduled_time)
+    out += schedule_gap or _feed_gap(CLIENT_GAP_MM)
 
     # Client info block (name, phone, delivery slot, address, city, pickup
     # code, payment) — printed bigger (tall), same treatment as the TOTAL
@@ -973,10 +1019,10 @@ def build_escpos_ticket(order: dict) -> bytes:
         phone = re.sub(r"^\+\d+\s+", "", phone)
     if phone:
         out += _tall(f"Tel : {phone}")
+    if scheduled_time and schedule_gap is None:  # else it's big in the gap above
+        label = "Creneau livraison" if fulfillment == "delivery" else "Prevue pour"
+        out += _tall(f"{label} : {scheduled_time}")
     if fulfillment == "delivery":
-        _, slot_start = _fmt_datetime(order.get("scheduled_delivery_start", ""))
-        if slot_start:
-            out += _tall(f"Creneau livraison : {slot_start}")
         addr = ", ".join(filter(None, [order.get("address_line1"), order.get("address_line2")]))
         if addr:
             out += _tall(f"Adresse : {addr}")

@@ -139,22 +139,27 @@ export default function TabletOrder() {
   }, []);
 
   useEffect(() => {
-    if (fulfillment !== "delivery") {
-      setSlots([]);
-      setScheduledStart("");
-      return undefined;
-    }
+    // Today's time slots, for every order type. Refreshed every minute so
+    // past times drop off and, late in the day, the picker switches to
+    // "Plus de créneau aujourd'hui" instead of offering stale times.
     let cancelled = false;
-    apiClient
-      .get("/checkout/delivery-slots")
-      .then((response) => {
-        if (!cancelled) setSlots(response.data?.enabled ? response.data.slots || [] : []);
-      })
-      .catch(() => !cancelled && setSlots([]));
+    const load = () =>
+      apiClient
+        .get("/checkout/delivery-slots")
+        .then((response) => {
+          if (cancelled) return;
+          const next = response.data?.enabled ? response.data.slots || [] : [];
+          setSlots(next);
+          setScheduledStart((current) => (next.some((slot) => slot.start === current) ? current : ""));
+        })
+        .catch(() => {}); // keep the last list if a refresh fails
+    load();
+    const timer = setInterval(load, 60000);
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
-  }, [fulfillment]);
+  }, []);
 
   useEffect(() => {
     const phone = form.phone.trim();
@@ -275,10 +280,11 @@ export default function TabletOrder() {
         payment_method: payment,
         scheduled_delivery_start: scheduledStart || null,
       });
+      const slot = slots.find((s) => s.start === scheduledStart);
       toast.success(
-        data.print_queued
-          ? `Commande #${data.order_number} enregistrée et envoyée à l'impression`
-          : `Commande #${data.order_number} programmée`,
+        slot
+          ? `Commande #${data.order_number} pour ${slot.time || slot.label} envoyée à l'impression`
+          : `Commande #${data.order_number} enregistrée et envoyée à l'impression`,
       );
       clear();
       setForm(initialForm);
@@ -642,25 +648,29 @@ export default function TabletOrder() {
                     value={form.city}
                   />
                 </Field>
-                {slots.length > 0 && (
-                  <Field label="Créneau aujourd'hui">
-                    <select
-                      className="bt-input"
-                      data-testid="tablet-delivery-slot"
-                      onChange={(event) => setScheduledStart(event.target.value)}
-                      value={scheduledStart}
-                    >
-                      <option value="">Dès que possible</option>
-                      {slots.map((slot) => (
-                        <option key={slot.start} value={slot.start}>
-                          {slot.time || slot.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                )}
               </div>
             )}
+
+            {/* Always shown, for every order type: a scheduled order prints
+                right away with its time in a big box on the ticket. */}
+            <Field label="Créneau aujourd'hui">
+              <select
+                className="bt-input disabled:opacity-60"
+                data-testid="tablet-delivery-slot"
+                disabled={slots.length === 0}
+                onChange={(event) => setScheduledStart(event.target.value)}
+                value={scheduledStart}
+              >
+                <option value="">
+                  {slots.length ? "Dès que possible" : "Plus de créneau aujourd'hui"}
+                </option>
+                {slots.map((slot) => (
+                  <option key={slot.start} value={slot.start}>
+                    {slot.time || slot.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
             <Field label="Note cuisine">
               <textarea
