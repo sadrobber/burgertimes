@@ -93,6 +93,14 @@ export default function TabletOrder() {
     body.overscrollBehavior = "none";
     body.minHeight = "0";
 
+    // iPad Safari zooms in when a field is tapped, and since page drags are
+    // blocked below, staff can't pinch back out — every popup then opens
+    // off-screen. Disable zoom on the kiosk only (fields are also 16px,
+    // see .bt-kiosk in index.css).
+    const viewport = document.querySelector('meta[name="viewport"]');
+    const prevViewport = viewport?.getAttribute("content");
+    viewport?.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no");
+
     // iOS Safari still drags the page from non-scrollable areas; only let a
     // touch move when it starts inside something that can actually scroll.
     const canScroll = (node) => {
@@ -122,6 +130,7 @@ export default function TabletOrder() {
       document.removeEventListener("focusout", resetPageScroll);
       window.clearTimeout(resetTimer);
       [html.overflow, html.overscrollBehavior, body.overscrollBehavior, body.minHeight] = prev;
+      if (viewport && prevViewport) viewport.setAttribute("content", prevViewport);
     };
   }, []);
 
@@ -353,7 +362,7 @@ export default function TabletOrder() {
     : [];
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-[#0A0A0A] text-[#F5F1E8]" data-testid="tablet-order-page">
+    <div className="bt-kiosk fixed inset-0 flex flex-col overflow-hidden bg-[#0A0A0A] text-[#F5F1E8]" data-testid="tablet-order-page">
       {/* Top bar */}
       <header className="flex items-center justify-between gap-4 border-b-2 border-[#EF2B2D] bg-[#141414] px-5 py-3">
         <div className="leading-none">

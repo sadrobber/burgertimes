@@ -150,6 +150,10 @@ button, [role="button"], a, select, input, label {
   font-size: 0.95rem;
   transition: border-color 150ms ease;
 }
+/* Staff tablet: iPad Safari auto-zooms on any field under 16px. */
+.bt-kiosk .bt-input {
+  font-size: 16px;
+}
 .bt-input:focus {
   outline: none;
   border-color: #EF2B2D;
