@@ -198,12 +198,27 @@ def _size_byte(width_mult: int, height_mult: int) -> bytes:
     return GS + b"\x21" + bytes([(w << 4) | h])
 
 
+# Size of the client block at the end of the ticket (name, phone, address,
+# payment...), same 1-10 scale as ITEM_SIZE_LEVEL. 3 = double size.
+CLIENT_SIZE_LEVEL = 3  # <---- CHANGE THIS NUMBER (1 to 10)
+
 # Derived from the level you picked above — do not edit these two lines.
 _ITEM_W, _ITEM_H = SIZE_LEVELS.get(ITEM_SIZE_LEVEL, SIZE_LEVELS[3])
 ITEM_SIZE_BYTE = _size_byte(_ITEM_W, _ITEM_H)
 # Wider text = fewer characters per line (an 80mm roll fits ~46 normal chars),
 # so we auto-shrink the wrap width to stop long names being cut mid-word.
 BIG_LINE_WIDTH = max(6, 46 // _ITEM_W)
+_CLIENT_W, _CLIENT_H = SIZE_LEVELS.get(CLIENT_SIZE_LEVEL, SIZE_LEVELS[3])
+CLIENT_SIZE_BYTE = _size_byte(_CLIENT_W, _CLIENT_H)
+CLIENT_LINE_WIDTH = max(6, 46 // _CLIENT_W)
+
+
+def _client(text: str = "") -> bytes:
+    """One client-block line at CLIENT_SIZE_LEVEL, wrapped at word boundaries."""
+    out = b""
+    for w in (textwrap.wrap(text, width=CLIENT_LINE_WIDTH) or [""]):
+        out += _line(w)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1007,36 +1022,36 @@ def build_escpos_ticket(order: dict) -> bytes:
     out += schedule_gap or _feed_gap(CLIENT_GAP_MM)
 
     # Client info block (name, phone, delivery slot, address, city, pickup
-    # code, payment) — printed bigger (tall), same treatment as the TOTAL
-    # line above, so it's easy to read at a glance instead of small text.
-    out += BOLD_ON + SIZE_TALL
+    # code, payment) — printed big (CLIENT_SIZE_LEVEL) so it's easy to read
+    # at a glance.
+    out += BOLD_ON + CLIENT_SIZE_BYTE
     if customer_name:
-        out += _tall(f"Client : {customer_name}")
+        out += _client(f"Client : {customer_name}")
     phone = (order.get("customer_phone") or "").strip()
     if phone and order.get("order_source") == "tablet":
         # The tablet stores "<dial code> <number>" (e.g. "+33 612345678");
         # counter staff only want the number, so drop the country code.
         phone = re.sub(r"^\+\d+\s+", "", phone)
     if phone:
-        out += _tall(f"Tel : {phone}")
+        out += _client(f"Tel : {phone}")
     if scheduled_time and schedule_gap is None:  # else it's big in the gap above
         label = "Creneau livraison" if fulfillment == "delivery" else "Prevue pour"
-        out += _tall(f"{label} : {scheduled_time}")
+        out += _client(f"{label} : {scheduled_time}")
     if fulfillment == "delivery":
         addr = ", ".join(filter(None, [order.get("address_line1"), order.get("address_line2")]))
         if addr:
-            out += _tall(f"Adresse : {addr}")
+            out += _client(f"Adresse : {addr}")
         # `or ""`, not a .get() default: the backend stores missing fields as
         # null, which would otherwise print as "None" ("Ville : None Monaco").
         city_line = f"{order.get('postal_code') or ''} {order.get('city') or ''}".strip()
         if city_line:
-            out += _tall(f"Ville : {city_line}")
+            out += _client(f"Ville : {city_line}")
     if order.get("pickup_code"):
-        out += _tall(f"Code retrait : {order['pickup_code']}")
+        out += _client(f"Code retrait : {order['pickup_code']}")
     # Tablet orders are taken at the counter, so the payment method is
     # irrelevant there — only online orders print it.
     if order.get("order_source") != "tablet":
-        out += _tall(
+        out += _client(
             f"Paiement : {PAYMENT_LABEL.get(order.get('payment_method'), order.get('payment_method') or '')}"
         )
     out += BOLD_OFF
