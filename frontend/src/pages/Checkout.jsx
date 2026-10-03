@@ -303,18 +303,28 @@ export default function Checkout() {
                   <button
                     data-testid="fulfillment-pickup"
                     onClick={() => setFulfillment("pickup")}
-                    className={`bt-option ${fulfillment === "pickup" ? "selected" : ""} text-left`}
+                    className={`bt-option ${fulfillment === "pickup" ? "selected" : ""} flex flex-col items-center gap-2 py-5 text-center sm:flex-row sm:gap-4 sm:text-left`}
                   >
-                    <div className="font-accent uppercase tracking-widest text-lg">{t("checkout.pickup")}</div>
-                    <div className="text-xs text-[#A1A1A1] mt-1">Retrait sur place</div>
+                    <WalkingIcon
+                      className={`h-12 w-12 shrink-0 ${fulfillment === "pickup" ? "text-[#EF2B2D]" : "text-[#A1A1A1]"}`}
+                    />
+                    <div>
+                      <div className="font-accent uppercase tracking-widest text-lg">{t("checkout.pickup")}</div>
+                      <div className="text-xs text-[#A1A1A1] mt-1">Tu viens la chercher</div>
+                    </div>
                   </button>
                   <button
                     data-testid="fulfillment-delivery"
                     onClick={() => setFulfillment("delivery")}
-                    className={`bt-option ${fulfillment === "delivery" ? "selected" : ""} text-left`}
+                    className={`bt-option ${fulfillment === "delivery" ? "selected" : ""} flex flex-col items-center gap-2 py-5 text-center sm:flex-row sm:gap-4 sm:text-left`}
                   >
-                    <div className="font-accent uppercase tracking-widest text-lg">{t("checkout.delivery")}</div>
-                    <div className="text-xs text-[#A1A1A1] mt-1">Livraison à ton adresse</div>
+                    <ScooterIcon
+                      className={`h-12 w-16 shrink-0 ${fulfillment === "delivery" ? "text-[#EF2B2D]" : "text-[#A1A1A1]"}`}
+                    />
+                    <div>
+                      <div className="font-accent uppercase tracking-widest text-lg">{t("checkout.delivery")}</div>
+                      <div className="text-xs text-[#A1A1A1] mt-1">Livraison à ton adresse</div>
+                    </div>
                   </button>
                 </div>
               </div>
@@ -611,5 +621,66 @@ function Field({ label, required, children }) {
       </div>
       {children}
     </label>
+  );
+}
+
+// Delivery: the same scooter silhouette as on the printed kitchen ticket
+// (pi_print_bridge/server.py, _SCOOTER_BODY), so both read alike.
+const SCOOTER_BODY = smoothPolygon(
+  "2,383 90,253 68,200 80,170 130,167 150,145 360,167 455,170 480,195 485,245 " +
+    "445,303 490,375 580,387 620,345 640,265 620,185 540,70 550,35 595,3 665,55 " +
+    "650,90 700,115 780,175 815,225 810,250 780,270 860,283 908,327 840,337 740,355 " +
+    "725,350 660,435 520,457 120,445 80,405 90,365 175,353 198,295 135,260",
+);
+
+// Chaikin corner-cutting (2 rounds), same as the ticket's _smooth(): rounds
+// the traced outline so it looks drawn rather than faceted.
+function smoothPolygon(points, rounds = 2) {
+  let pts = points.split(" ").map((p) => p.split(",").map(Number));
+  for (let r = 0; r < rounds; r += 1) {
+    pts = pts.flatMap(([x0, y0], i) => {
+      const [x1, y1] = pts[(i + 1) % pts.length];
+      return [
+        [0.75 * x0 + 0.25 * x1, 0.75 * y0 + 0.25 * y1],
+        [0.25 * x0 + 0.75 * x1, 0.25 * y0 + 0.75 * y1],
+      ];
+    });
+  }
+  return pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+}
+
+function ScooterIcon({ className }) {
+  const wheel = (cx, cy) =>
+    `M${cx - 108},${cy}a108,108 0 1,0 216,0a108,108 0 1,0 -216,0z` +
+    `M${cx - 58},${cy}a58,58 0 1,1 116,0a58,58 0 1,1 -116,0z`;
+  return (
+    <svg aria-hidden="true" className={className} fill="currentColor" viewBox="-10 -10 930 570">
+      <path d={wheel(155, 440) + wheel(820, 443)} fillRule="evenodd" />
+      <polygon points={SCOOTER_BODY} />
+      <path d="M775,385L812,450" stroke="currentColor" strokeLinecap="round" strokeWidth="34" />
+    </svg>
+  );
+}
+
+// Pickup: a person walking in to collect the order.
+function WalkingIcon({ className }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2.4"
+      viewBox="0 0 24 24"
+    >
+      <circle cx="13.5" cy="3.6" fill="currentColor" r="2.1" stroke="none" />
+      <path d="M12.6 7.4 11 13.6" />
+      <path d="M11 13.6 8.6 17.4 6.6 21.2" />
+      <path d="M11 13.6 13.6 16.8 14.4 21.2" />
+      <path d="M12.4 8.4 9.2 10.6 7.6 13.4" />
+      <path d="M12.4 8.6 14.8 11.2 17.4 12.2" />
+    </svg>
   );
 }
