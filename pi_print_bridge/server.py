@@ -201,6 +201,8 @@ def _size_byte(width_mult: int, height_mult: int) -> bytes:
 # Size of the client block at the end of the ticket (name, phone, address,
 # payment...), same 1-10 scale as ITEM_SIZE_LEVEL. 3 = double size.
 CLIENT_SIZE_LEVEL = 3  # <---- CHANGE THIS NUMBER (1 to 10)
+# Font size of the customer lines when printed in black boxes (the default).
+CLIENT_BOX_FONT_PX = 40
 
 # Derived from the level you picked above — do not edit these two lines.
 _ITEM_W, _ITEM_H = SIZE_LEVELS.get(ITEM_SIZE_LEVEL, SIZE_LEVELS[3])
@@ -433,15 +435,16 @@ def _box_lines(text: str, font, max_w: int) -> list[str]:
     return lines
 
 
-def _box_image(text: str, max_w: int | None = None):
+def _box_image(text: str, max_w: int | None = None, font_px: int = BOX_FONT_PX,
+               align: str = "center"):
     """One label as an 'L' image: white text centred in a black rounded box,
     sized to the text plus padding and never wider than max_w (default: the
-    paper minus BOX_MARGIN_PX each side; longer labels wrap). Surrounding
-    [ ] are dropped. None if it can't be drawn — print plain text instead."""
+    paper minus BOX_MARGIN_PX each side; longer labels wrap, their lines
+    centred or left-aligned per `align`). Surrounding [ ] are dropped. None if it can't be drawn — print plain text instead."""
     if not _boxes_on():
         return None
     try:
-        font = _banner_font(BOX_FONT_PX)
+        font = _banner_font(font_px)
         if max_w is None:
             max_w = BANNER_WIDTH_PX - 2 * BOX_MARGIN_PX
         lines = _box_lines(text.strip().strip("[]").strip(), font, max_w - 2 * BOX_PAD_X)
@@ -456,7 +459,8 @@ def _box_image(text: str, max_w: int | None = None):
         d = ImageDraw.Draw(img)
         d.rounded_rectangle([0, 0, w - 1, h - 1], radius=BOX_RADIUS, fill=0)
         for i, (ln, (l, _, r, _)) in enumerate(zip(lines, bboxes)):
-            d.text(((w - (r - l)) // 2 - l, BOX_PAD_Y + i * line_h), ln, font=font, fill=255)
+            x = BOX_PAD_X - l if align == "left" else (w - (r - l)) // 2 - l
+            d.text((x, BOX_PAD_Y + i * line_h), ln, font=font, fill=255)
         return img
     except Exception:  # noqa: BLE001 — never block a print because of a box
         logger.exception("Label box rendering failed, falling back to text")
@@ -497,6 +501,22 @@ def _schedule_gap(hhmm: str) -> bytes | None:
     except Exception:  # noqa: BLE001 — never block a print because of the box
         logger.exception("Schedule box rendering failed, printing the time as text")
         return None
+
+
+def _client_boxes(lines: list[str]) -> bytes | None:
+    """The customer block, one black box (white text) per line, stacked on
+    the left like the item boxes; long lines wrap inside their box. None if
+    there's nothing to print or a box can't be drawn: print text instead."""
+    if not lines:
+        return None
+    out = b""
+    for text in lines:
+        box = _box_image(text, font_px=CLIENT_BOX_FONT_PX, align="left")
+        row = _box_row([(box, BOX_MARGIN_PX)]) if box is not None else None
+        if row is None:
+            return None
+        out += row
+    return out
 
 
 def _box_row(row: list) -> bytes | None:
@@ -1022,39 +1042,46 @@ def build_escpos_ticket(order: dict) -> bytes:
     out += schedule_gap or _feed_gap(CLIENT_GAP_MM)
 
     # Client info block (name, phone, delivery slot, address, city, pickup
-    # code, payment) — printed big (CLIENT_SIZE_LEVEL) so it's easy to read
-    # at a glance.
-    out += BOLD_ON + CLIENT_SIZE_BYTE
+    # code, payment): each line in its own black box (CLIENT_BOX_FONT_PX),
+    # or big printer text (CLIENT_SIZE_LEVEL) if the boxes can't be drawn.
+    client_lines = []
     if customer_name:
-        out += _client(f"Client : {customer_name}")
+        client_lines.append(f"Client : {customer_name}")
     phone = (order.get("customer_phone") or "").strip()
     if phone and order.get("order_source") == "tablet":
         # The tablet stores "<dial code> <number>" (e.g. "+33 612345678");
         # counter staff only want the number, so drop the country code.
         phone = re.sub(r"^\+\d+\s+", "", phone)
     if phone:
-        out += _client(f"Tel : {phone}")
+        client_lines.append(f"Tel : {phone}")
     if scheduled_time and schedule_gap is None:  # else it's big in the gap above
         label = "Creneau livraison" if fulfillment == "delivery" else "Prevue pour"
-        out += _client(f"{label} : {scheduled_time}")
+        client_lines.append(f"{label} : {scheduled_time}")
     if fulfillment == "delivery":
         addr = ", ".join(filter(None, [order.get("address_line1"), order.get("address_line2")]))
         if addr:
-            out += _client(f"Adresse : {addr}")
+            client_lines.append(f"Adresse : {addr}")
         # `or ""`, not a .get() default: the backend stores missing fields as
         # null, which would otherwise print as "None" ("Ville : None Monaco").
         city_line = f"{order.get('postal_code') or ''} {order.get('city') or ''}".strip()
         if city_line:
-            out += _client(f"Ville : {city_line}")
+            client_lines.append(f"Ville : {city_line}")
     if order.get("pickup_code"):
-        out += _client(f"Code retrait : {order['pickup_code']}")
+        client_lines.append(f"Code retrait : {order['pickup_code']}")
     # Tablet orders are taken at the counter, so the payment method is
     # irrelevant there — only online orders print it.
     if order.get("order_source") != "tablet":
-        out += _client(
+        client_lines.append(
             f"Paiement : {PAYMENT_LABEL.get(order.get('payment_method'), order.get('payment_method') or '')}"
         )
-    out += BOLD_OFF
+    boxed_client = _client_boxes(client_lines)
+    if boxed_client is not None:
+        out += boxed_client
+    else:
+        out += BOLD_ON + CLIENT_SIZE_BYTE
+        for client_line in client_lines:
+            out += _client(client_line)
+        out += BOLD_OFF
 
     out += SIZE_NORMAL
     out += FEED_LINES
