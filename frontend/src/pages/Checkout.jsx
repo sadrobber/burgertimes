@@ -471,7 +471,8 @@ export default function Checkout() {
                 </>
               )}
 
-              {/* Payment */}
+              {/* Payment — nothing is paid online: say so first, so customers
+                  don't go looking for a card form, then pick how to pay. */}
               <div>
                 <div className="bt-label">{t("checkout.payment")}</div>
                 {!cashEnabled && !cardEnabled ? (
@@ -479,28 +480,48 @@ export default function Checkout() {
                     Aucun mode de paiement activé pour l&apos;instant. Contacte le resto.
                   </div>
                 ) : (
-                  <div className={`grid gap-3 ${cashEnabled && cardEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
-                    {cashEnabled && (
-                      <button
-                        data-testid="payment-cash"
-                        onClick={() => setPayment("cash")}
-                        className={`bt-option ${payment === "cash" ? "selected" : ""} text-left`}
-                      >
-                        <div className="font-accent uppercase tracking-widest text-lg">{t("checkout.cash")}</div>
-                        <div className="text-xs text-[#A1A1A1] mt-1">Réglé à la remise de la commande</div>
-                      </button>
-                    )}
-                    {cardEnabled && (
-                      <button
-                        data-testid="payment-card"
-                        onClick={() => setPayment("card_in_person")}
-                        className={`bt-option ${payment === "card_in_person" ? "selected" : ""} text-left`}
-                      >
-                        <div className="font-accent uppercase tracking-widest text-lg">{t("checkout.card_in_person")}</div>
-                        <div className="text-xs text-[#A1A1A1] mt-1">Payé sur place au comptoir</div>
-                      </button>
-                    )}
-                  </div>
+                  <>
+                    <div
+                      className="mb-3 flex items-center gap-4 rounded-md bg-[rgba(239,43,45,0.2)] px-4 py-3"
+                      data-testid="no-online-payment"
+                    >
+                      <WarningIcon className="h-10 w-10 shrink-0" />
+                      <div>
+                        <div className="text-lg font-bold leading-tight text-[#EF2B2D]">
+                          {t("checkout.no_online_payment")}
+                        </div>
+                        <div className="text-sm">
+                          {t(
+                            fulfillment === "delivery"
+                              ? "checkout.no_online_payment_hint_delivery"
+                              : "checkout.no_online_payment_hint",
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={`grid gap-3 ${cashEnabled && cardEnabled ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
+                      {cashEnabled && (
+                        <PaymentOption
+                          active={payment === "cash"}
+                          hint={t(fulfillment === "delivery" ? "checkout.pay_at_delivery" : "checkout.pay_at_pickup")}
+                          icon={CashIcon}
+                          label={t("checkout.cash")}
+                          onClick={() => setPayment("cash")}
+                          testId="payment-cash"
+                        />
+                      )}
+                      {cardEnabled && (
+                        <PaymentOption
+                          active={payment === "card_in_person"}
+                          hint={t(fulfillment === "delivery" ? "checkout.pay_at_delivery" : "checkout.pay_at_pickup")}
+                          icon={CardIcon}
+                          label={t("checkout.card_in_person")}
+                          onClick={() => setPayment("card_in_person")}
+                          testId="payment-card"
+                        />
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -681,6 +702,91 @@ function WalkingIcon({ className }) {
       <path d="M11 13.6 13.6 16.8 14.4 21.2" />
       <path d="M12.4 8.4 9.2 10.6 7.6 13.4" />
       <path d="M12.4 8.6 14.8 11.2 17.4 12.2" />
+    </svg>
+  );
+}
+
+function PaymentOption({ active, hint, icon: Icon, label, onClick, testId }) {
+  return (
+    <button
+      className={`bt-option ${active ? "selected" : ""} flex items-center gap-4 rounded-md py-5 text-left`}
+      data-testid={testId}
+      onClick={onClick}
+      type="button"
+    >
+      <Icon className="h-14 w-16 shrink-0" />
+      <div>
+        <div className="font-accent text-2xl uppercase tracking-widest">{label}</div>
+        <div className="mt-1 text-sm text-[#A1A1A1] sm:text-base">{hint}</div>
+      </div>
+    </button>
+  );
+}
+
+// Cash: a small stack of banknotes, the front one marked €.
+function CashIcon({ className }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeLinejoin="round"
+      strokeWidth="2.6"
+      viewBox="0 0 48 40"
+    >
+      <path d="M11 9V5h34v22h-4" />
+      <path d="M7 13V9h34v22h-4" />
+      <rect height="22" rx="2.5" width="34" x="3" y="13" />
+      <circle cx="20" cy="24" r="6.5" />
+      <text
+        dominantBaseline="central"
+        fill="currentColor"
+        fontSize="10"
+        fontWeight="700"
+        stroke="none"
+        textAnchor="middle"
+        x="20"
+        y="24.5"
+      >
+        €
+      </text>
+    </svg>
+  );
+}
+
+// Bank card: card outline with its magnetic stripe.
+function CardIcon({ className }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="2.6"
+      viewBox="0 0 48 40"
+    >
+      <rect height="28" rx="4" width="40" x="4" y="6" />
+      <rect fill="currentColor" height="6" stroke="none" width="40" x="4" y="12" />
+      <path d="M10 27h10" />
+    </svg>
+  );
+}
+
+// Red warning triangle with a dark "!".
+function WarningIcon({ className }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24">
+      <path
+        d="M12 2.5 23 21.5H1z"
+        fill="#EF2B2D"
+        stroke="#EF2B2D"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+      <rect fill="#1A0A0B" height="7" rx="1" width="2.2" x="10.9" y="8.5" />
+      <circle cx="12" cy="18.3" fill="#1A0A0B" r="1.25" />
     </svg>
   );
 }
