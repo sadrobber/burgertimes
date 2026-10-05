@@ -59,6 +59,27 @@ async def require_admin(request: Request) -> Dict[str, Any]:
     return payload
 
 
+async def require_manager(request: Request) -> Dict[str, Any]:
+    """FastAPI dependency: the owner (admin) or a manager account.
+
+    Managers (role="manager") log into /admin but only reach the routes that
+    use this dependency: the menu, the dashboard and the tablet sales.
+    Everything else keeps require_admin, which rejects manager tokens.
+    """
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = decode_admin_token(header[7:].strip())
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("role") not in ("admin", "manager"):
+        raise HTTPException(status_code=403, detail="Admin or manager role required")
+    return payload
+
+
 async def require_kitchen(request: Request) -> Dict[str, Any]:
     """FastAPI dependency: verifies Bearer token, allows kitchen or admin role.
 

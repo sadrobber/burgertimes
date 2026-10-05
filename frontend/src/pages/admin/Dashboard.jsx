@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { adminClient, formatEur } from "@/lib/api";
+import { useAdminAuth } from "@/context/AdminAuthContext.jsx";
 import { ClipboardList, Euro, ShoppingBag, Timer } from "lucide-react";
 
 export default function Dashboard() {
+  const { role } = useAdminAuth();
   const [stats, setStats] = useState(null);
   const [recent, setRecent] = useState([]);
 
@@ -42,7 +44,9 @@ export default function Dashboard() {
       <div className="bt-card p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="font-display text-2xl uppercase">Commandes récentes</div>
-          <Link to="/admin/orders" className="bt-btn-ghost px-2 text-sm">Tout voir</Link>
+          {role !== "manager" && (
+            <Link to="/admin/orders" className="bt-btn-ghost px-2 text-sm">Tout voir</Link>
+          )}
         </div>
         {recent.length === 0 ? (
           <div className="text-sm text-[#A1A1A1] py-8 text-center">Aucune commande pour l&apos;instant.</div>

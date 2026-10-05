@@ -5,7 +5,8 @@ import { adminClient, fmtError } from "@/lib/api";
 
 export default function TabletStaffAdmin() {
   const [staff, setStaff] = useState([]);
-  const [form, setForm] = useState({ email: "", password: "" });
+  const emptyForm = { email: "", password: "", role: "tablet" };
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
   const load = () => {
@@ -24,8 +25,8 @@ export default function TabletStaffAdmin() {
     setSaving(true);
     try {
       await adminClient.post("/admin/tablet-staff", form);
-      toast.success("Compte tablette créé");
-      setForm({ email: "", password: "" });
+      toast.success(form.role === "manager" ? "Compte gérant créé" : "Compte tablette créé");
+      setForm(emptyForm);
       load();
     } catch (error) {
       toast.error(fmtError(error));
@@ -61,7 +62,10 @@ export default function TabletStaffAdmin() {
         <div className="font-marker text-[#EF2B2D] -rotate-1">Accès séparé</div>
         <h1 className="font-display text-5xl uppercase leading-none">Tablette</h1>
         <p className="mt-3 text-sm text-[#A1A1A1]">
-          Ces comptes peuvent prendre une commande sur <strong>/tablet</strong> sans ouvrir l&apos;admin.
+          <strong>Tablette</strong> : prend les commandes sur <strong>/tablet</strong>, sans accès à l&apos;admin.
+          <br />
+          <strong>Gérant</strong> : se connecte à l&apos;admin, mais ne voit que le Menu, le Dashboard et les
+          Ventes tablette.
         </p>
       </div>
 
@@ -91,6 +95,18 @@ export default function TabletStaffAdmin() {
               value={form.password}
             />
           </label>
+          <label className="block sm:col-span-2">
+            <span className="bt-label">Type de compte</span>
+            <select
+              className="bt-input"
+              data-testid="tablet-staff-role"
+              onChange={(event) => setForm({ ...form, role: event.target.value })}
+              value={form.role}
+            >
+              <option value="tablet">Tablette — prise de commande sur /tablet</option>
+              <option value="manager">Gérant — admin : Menu, Dashboard, Ventes tablette</option>
+            </select>
+          </label>
         </div>
         <button className="bt-btn-primary" data-testid="tablet-staff-create" disabled={saving} type="submit">
           <Plus className="h-4 w-4" /> {saving ? "Création…" : "Créer le compte"}
@@ -99,7 +115,7 @@ export default function TabletStaffAdmin() {
 
       <div className="space-y-3" data-testid="tablet-staff-list">
         {staff.length === 0 ? (
-          <div className="bt-card p-5 text-sm text-[#A1A1A1]">Aucun compte tablette créé.</div>
+          <div className="bt-card p-5 text-sm text-[#A1A1A1]">Aucun compte créé.</div>
         ) : (
           staff.map((member) => (
             <StaffRow key={member.id} member={member} onRemove={remove} onUpdate={update} />
@@ -127,7 +143,7 @@ function StaffRow({ member, onRemove, onUpdate }) {
       <div>
         <div className="font-bold">{member.email}</div>
         <div className={`mt-1 text-xs font-accent uppercase tracking-widest ${member.active === false ? "text-[#EF2B2D]" : "text-[#3DDC97]"}`}>
-          {member.active === false ? "Désactivé" : "Actif"}
+          {member.role === "manager" ? "Gérant" : "Tablette"} · {member.active === false ? "Désactivé" : "Actif"}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">

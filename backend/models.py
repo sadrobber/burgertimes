@@ -5,7 +5,7 @@ All primary keys are UUID strings, stored as field ``id``. Timestamps are UTC IS
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, List, Optional, Union
+from typing import Any, List, Literal, Optional, Union
 import uuid
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -533,6 +533,9 @@ class CheckoutPayload(BaseModel):
 class TabletStaffCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
+    # "tablet" = order-taking tablet only; "manager" = admin limited to the
+    # menu, the dashboard and the tablet sales (auth.require_manager).
+    role: Literal["tablet", "manager"] = "tablet"
 
 
 class TabletStaffUpdate(BaseModel):

@@ -30,6 +30,7 @@ from auth import (
     hash_password,
     require_admin,
     require_kitchen,
+    require_manager,
     require_tablet,
     verify_password,
 )
@@ -219,18 +220,31 @@ async def admin_login(payload: AdminLoginPayload):
     user = await db.admin_users.find_one({"email": email})
     if not user or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Identifiants invalides")
-    token = create_admin_token(user["id"], user["email"])
-    return {"token": token, "admin": {"email": user["email"]}}
+    # The token carries the account's own role, so tablet and kitchen logins
+    # can't open the admin, and a manager only reaches require_manager routes.
+    # Accounts from before roles existed are the owner's: keep them admin.
+    role = user.get("role") or "admin"
+    if role not in ("admin", "manager") or user.get("active", True) is False:
+        raise HTTPException(status_code=403, detail="Accès admin refusé")
+    token = create_admin_token(user["id"], user["email"], role=role)
+    return {"token": token, "admin": {"email": user["email"], "role": role}}
 
 
 @api.get("/admin/me")
-async def admin_me(payload: dict = Depends(require_admin)):
+async def admin_me(payload: dict = Depends(require_manager)):
     return {"email": payload.get("email"), "role": payload.get("role")}
+
+
+# Staff accounts created from the admin: "tablet" (order-taking tablet only)
+# and "manager" (menu, dashboard and tablet sales in the admin).
+STAFF_ROLES = ["tablet", "manager"]
 
 
 @api.get("/admin/tablet-staff")
 async def admin_list_tablet_staff(_: dict = Depends(require_admin)):
-    docs = await db.admin_users.find({"role": "tablet"}, {"_id": 0, "password_hash": 0}).to_list(200)
+    docs = await db.admin_users.find(
+        {"role": {"$in": STAFF_ROLES}}, {"_id": 0, "password_hash": 0}
+    ).to_list(200)
     return docs
 
 
@@ -243,7 +257,7 @@ async def admin_create_tablet_staff(payload: TabletStaffCreate, _: dict = Depend
         "id": gen_id(),
         "email": email,
         "password_hash": hash_password(payload.password),
-        "role": "tablet",
+        "role": payload.role,
         "active": True,
         "created_at": utc_now_iso(),
     }
@@ -264,17 +278,18 @@ async def admin_update_tablet_staff(
     changes = payload.model_dump(exclude_unset=True)
     if "password" in changes:
         changes["password_hash"] = hash_password(changes.pop("password"))
+    staff_query = {"id": staff_id, "role": {"$in": STAFF_ROLES}}
     if changes:
-        await db.admin_users.update_one({"id": staff_id, "role": "tablet"}, {"$set": changes})
-    doc = await db.admin_users.find_one({"id": staff_id, "role": "tablet"}, {"_id": 0, "password_hash": 0})
+        await db.admin_users.update_one(staff_query, {"$set": changes})
+    doc = await db.admin_users.find_one(staff_query, {"_id": 0, "password_hash": 0})
     if not doc:
-        raise HTTPException(status_code=404, detail="Compte tablette introuvable.")
+        raise HTTPException(status_code=404, detail="Compte introuvable.")
     return doc
 
 
 @api.delete("/admin/tablet-staff/{staff_id}")
 async def admin_delete_tablet_staff(staff_id: str, _: dict = Depends(require_admin)):
-    result = await db.admin_users.delete_one({"id": staff_id, "role": "tablet"})
+    result = await db.admin_users.delete_one({"id": staff_id, "role": {"$in": STAFF_ROLES}})
     return {"deleted": result.deleted_count}
 
 
@@ -468,7 +483,7 @@ async def list_categories():
 
 
 @api.get("/admin/categories")
-async def admin_list_categories(_: dict = Depends(require_admin)):
+async def admin_list_categories(_: dict = Depends(require_manager)):
     cats = await db.categories.find().sort("sort_order", 1).to_list(500)
     return [_strip_mongo(c) for c in cats]
 
@@ -512,7 +527,7 @@ async def list_menu():
 
 
 @api.get("/admin/menu")
-async def admin_list_menu(_: dict = Depends(require_admin)):
+async def admin_list_menu(_: dict = Depends(require_manager)):
     docs = await db.menu_items.find({}, NO_IMAGE_FIELDS).sort([("sort_order", 1), ("name", 1)]).to_list(2000)
     return [_strip_image(_strip_mongo(d)) for d in docs]
 
@@ -533,7 +548,7 @@ async def menu_item_image(item_id: str):
 
 
 @api.post("/admin/menu")
-async def admin_create_menu_item(payload: MenuItemCreate, _: dict = Depends(require_admin)):
+async def admin_create_menu_item(payload: MenuItemCreate, _: dict = Depends(require_manager)):
     doc = MenuItem(
         **{k: v for k, v in payload.model_dump().items() if k != "image_base64"}
     ).model_dump()
@@ -545,7 +560,7 @@ async def admin_create_menu_item(payload: MenuItemCreate, _: dict = Depends(requ
 
 
 @api.put("/admin/menu/{item_id}")
-async def admin_update_menu_item(item_id: str, payload: MenuItemUpdate, _: dict = Depends(require_admin)):
+async def admin_update_menu_item(item_id: str, payload: MenuItemUpdate, _: dict = Depends(require_manager)):
     existing = await db.menu_items.find_one({"id": item_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Not found")
@@ -563,7 +578,7 @@ async def admin_update_menu_item(item_id: str, payload: MenuItemUpdate, _: dict 
 
 
 @api.delete("/admin/menu/{item_id}")
-async def admin_delete_menu_item(item_id: str, _: dict = Depends(require_admin)):
+async def admin_delete_menu_item(item_id: str, _: dict = Depends(require_manager)):
     res = await db.menu_items.delete_one({"id": item_id})
     return {"deleted": res.deleted_count}
 
@@ -1336,7 +1351,7 @@ async def order_lookup(order_id: str):
 
 @api.get("/admin/orders")
 async def admin_orders(
-    _: dict = Depends(require_admin),
+    _: dict = Depends(require_manager),
     status: Optional[str] = Query(default=None),
     limit: int = Query(default=100, le=500),
 ):
@@ -1349,7 +1364,7 @@ async def admin_orders(
 
 @api.get("/admin/tablet/orders")
 async def admin_tablet_orders(
-    _: dict = Depends(require_admin),
+    _: dict = Depends(require_manager),
     status: Optional[str] = Query(default=None),
     limit: int = Query(default=100, le=500),
 ):
@@ -1659,7 +1674,7 @@ async def kitchen_test_print(_: dict = Depends(require_kitchen)):
 
 
 @api.get("/admin/stats")
-async def admin_stats(_: dict = Depends(require_admin)):
+async def admin_stats(_: dict = Depends(require_manager)):
     docs = await db.orders.find(
         {"order_source": {"$ne": "tablet"}, "test_order": {"$ne": True}}
     ).to_list(5000)
@@ -1680,7 +1695,7 @@ async def admin_stats(_: dict = Depends(require_admin)):
 
 
 @api.get("/admin/stats/tablet")
-async def admin_tablet_stats(_: dict = Depends(require_admin)):
+async def admin_tablet_stats(_: dict = Depends(require_manager)):
     docs = await db.orders.find({"order_source": "tablet", "test_order": {"$ne": True}}).to_list(5000)
     void = {"cancelled", "expired"}
     paid = [doc for doc in docs if doc.get("status") not in void]

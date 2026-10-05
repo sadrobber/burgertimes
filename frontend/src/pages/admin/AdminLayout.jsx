@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -19,28 +19,35 @@ import {
 import { useAdminAuth } from "@/context/AdminAuthContext.jsx";
 
 const links = [
-  { to: "/admin", end: true, label: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
+  { to: "/admin", end: true, label: "Dashboard", icon: LayoutDashboard, id: "dashboard", manager: true },
   { to: "/admin/orders", label: "Commandes", icon: ClipboardList, id: "orders" },
   { to: "/admin/stats/delivery", label: "Livraisons", icon: Truck, id: "delivery-stats" },
-  { to: "/admin/menu", label: "Menu", icon: UtensilsCrossed, id: "menu" },
+  { to: "/admin/menu", label: "Menu", icon: UtensilsCrossed, id: "menu", manager: true },
   { to: "/admin/categories", label: "Catégories", icon: Tags, id: "categories" },
   { to: "/admin/burger", label: "Burger Builder", icon: Beef, id: "burger" },
   { to: "/admin/sauces", label: "Sauces", icon: Droplet, id: "sauces" },
   { to: "/admin/coupons", label: "Codes promo", icon: Ticket, id: "coupons" },
   { to: "/admin/tablet-staff", label: "Tablette", icon: TabletSmartphone, id: "tablet-staff" },
-  { to: "/admin/tablet-orders", label: "Ventes tablette", icon: MonitorSmartphone, id: "tablet-orders" },
+  { to: "/admin/tablet-orders", label: "Ventes tablette", icon: MonitorSmartphone, id: "tablet-orders", manager: true },
   { to: "/admin/reviews", label: "Avis", icon: Star, id: "reviews" },
   { to: "/admin/settings", label: "Réglages", icon: SettingsIcon, id: "settings" },
 ];
 
 export default function AdminLayout() {
-  const { email, logout } = useAdminAuth();
+  const { email, role, logout } = useAdminAuth();
   const nav = useNavigate();
+  const { pathname } = useLocation();
+  // A manager only gets the pages marked `manager`; links appear once the
+  // role is known, and any other admin page sends them back to the dashboard.
+  const visible = role === "manager" ? links.filter((l) => l.manager) : role ? links : [];
+  const onAllowedPage = visible.some((l) => pathname.replace(/\/$/, "") === l.to);
 
   const doLogout = () => {
     logout();
     nav("/admin/login", { replace: true });
   };
+
+  if (role === "manager" && !onAllowedPage) return <Navigate to="/admin" replace />;
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#F5F1E8] flex">
@@ -55,7 +62,7 @@ export default function AdminLayout() {
           </div>
         </div>
         <nav className="flex-1 py-4">
-          {links.map((l) => (
+          {visible.map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
@@ -100,7 +107,7 @@ export default function AdminLayout() {
       <main className="flex-1 min-w-0 md:ml-0 pt-16 md:pt-0">
         <div className="md:hidden border-b-2 border-[#262626] bg-[#141414]">
           <div className="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-1 px-2 py-2">
-            {links.map((l) => (
+            {visible.map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
